@@ -52,6 +52,11 @@ done
 /usr/libexec/PlistBuddy -c "Add :LSUIElement bool true" "$contents_dir/Info.plist"
 /usr/libexec/PlistBuddy -c "Add :NSHighResolutionCapable bool true" "$contents_dir/Info.plist"
 /usr/libexec/PlistBuddy -c "Add :NSMicrophoneUsageDescription string Dictation uses the microphone only while you are speaking." "$contents_dir/Info.plist"
+/usr/libexec/PlistBuddy -c "Add :CFBundleURLTypes array" "$contents_dir/Info.plist"
+/usr/libexec/PlistBuddy -c "Add :CFBundleURLTypes:0 dict" "$contents_dir/Info.plist"
+/usr/libexec/PlistBuddy -c "Add :CFBundleURLTypes:0:CFBundleURLName string is.ian.dictation" "$contents_dir/Info.plist"
+/usr/libexec/PlistBuddy -c "Add :CFBundleURLTypes:0:CFBundleURLSchemes array" "$contents_dir/Info.plist"
+/usr/libexec/PlistBuddy -c "Add :CFBundleURLTypes:0:CFBundleURLSchemes:0 string ian-dictation" "$contents_dir/Info.plist"
 
 if [[ -z "$sign_identity" ]]; then
     sign_identity="$(

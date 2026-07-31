@@ -1,277 +1,372 @@
-const storageKey = "dictation-product-corpus-v1";
-const scenarios = await fetch("scenarios.json").then((response) => response.json());
-const categories = [...new Set(scenarios.map((scenario) => scenario.category))];
-
+const storageKey = "dictation-product-corpus-v2";
+const scenarios = await fetch("scenarios.json", { cache: "no-store" }).then((response) => response.json());
 const elements = Object.fromEntries(
   [...document.querySelectorAll("[id]")].map((element) => [element.id, element]),
 );
-let currentIndex = Math.min(Number(localStorage.getItem(`${storageKey}-current`) || 0), scenarios.length - 1);
-let results = JSON.parse(localStorage.getItem(storageKey) || "{}");
-let armedAt = null;
-let eventLog = [];
 
-function currentScenario() {
+let currentIndex = 0;
+let results = {};
+let runId = null;
+let runStartedAt = null;
+let phase = "idle";
+let armedAt = null;
+let lastInputAt = null;
+let eventLog = [];
+let hotkeyCandidate = null;
+let hotkeyFirstTapAt = 0;
+let settlingTask = null;
+let attempt = 1;
+let attemptOutputs = [];
+
+function scenario() {
   return scenarios[currentIndex];
 }
 
-function saveResults() {
-  localStorage.setItem(storageKey, JSON.stringify(results));
-  localStorage.setItem(`${storageKey}-current`, String(currentIndex));
+function makeRunId() {
+  return `run-${new Date().toISOString().replace(/[-:.TZ]/g, "").slice(0, 17)}`;
+}
+
+function runnerInstruction(item) {
+  if (item.spokenUntil) return "Read only the displayed sentence, then tap once to stop.";
+  if (item.expectRecovery) return "Keep reading normally; the runner will change focus automatically.";
+  if (item.expectEmpty) return "Read the command exactly; no text should appear in the destination.";
+  return "Read the script exactly, then tap once to stop.";
 }
 
 function logEvent(type, detail = {}) {
   if (armedAt === null) return;
   eventLog.push({
     elapsedMs: Math.round(performance.now() - armedAt),
+    attempt,
     type,
     ...detail,
   });
-  elements.runState.textContent = `${eventLog.filter((event) => event.type === "input").length} input events captured`;
+  const count = eventLog.filter((event) => event.type === "input").length;
+  elements.eventCount.textContent = `${count} input event${count === 1 ? "" : "s"}`;
 }
 
-function render() {
-  const scenario = currentScenario();
-  const saved = results[scenario.id];
+function renderScenario() {
+  const item = scenario();
   elements.position.textContent = `${String(currentIndex + 1).padStart(2, "0")} / ${scenarios.length}`;
-  elements.category.textContent = scenario.category;
-  elements.mode.textContent = scenario.mode;
-  elements.title.textContent = scenario.title;
-  elements.instruction.textContent = scenario.instruction;
-  elements.script.textContent = scenario.script;
-  elements.spokenUntil.hidden = !scenario.spokenUntil;
-  elements.spokenUntil.textContent = scenario.spokenUntil
-    ? `Stop marker: ${scenario.spokenUntil}`
-    : "";
-  elements.savedState.textContent = saved ? (saved.passed ? "Passed" : "Needs review") : "";
-  elements.savedState.className = `saved-state ${saved ? (saved.passed ? "pass" : "fail") : ""}`;
-  elements.primaryTarget.value = saved?.output || "";
-  elements.secondaryTarget.value = saved?.secondaryOutput || "";
-  elements.recoveryTarget.value = saved?.recoveryOutput || "";
-  elements.notes.value = saved?.notes || "";
-  elements.recoveryPanel.hidden = !scenario.expectRecovery;
-  elements.secondaryPanel.open = Boolean(scenario.expectRecovery);
-  elements.runState.textContent = saved ? `${saved.events.length} events in saved run` : "Not armed";
-  armedAt = null;
-  eventLog = [];
-  renderCategories();
-  renderChecks(saved?.checks || []);
-  renderManualChecks(saved?.manual || {});
-  renderProgress();
-  elements.previousButton.disabled = currentIndex === 0;
-  elements.nextButton.disabled = currentIndex === scenarios.length - 1;
+  elements.category.textContent = item.category;
+  elements.mode.textContent = item.mode;
+  elements.title.textContent = item.title;
+  elements.instruction.textContent = runnerInstruction(item);
+  elements.script.textContent = item.spokenUntil || item.script;
+  elements.spokenUntil.hidden = !item.spokenUntil;
+  elements.spokenUntil.textContent = item.spokenUntil ? "Stop at the end of the displayed sentence." : "";
+  elements.primaryTarget.value = "";
+  elements.secondaryTarget.value = "";
+  delete elements.secondaryTarget.dataset.recovery;
+  elements.secondaryTarget.hidden = true;
+  elements.resultPanel.hidden = true;
+  elements.retryButton.hidden = true;
+  elements.eventCount.textContent = "0 events";
+  elements.saveState.textContent = runId ? "Syncing mode…" : "Not started";
+  updateProgress();
 }
 
-function renderCategories() {
-  elements.categories.replaceChildren();
-  for (const category of categories) {
-    const categoryScenarios = scenarios.filter((scenario) => scenario.category === category);
-    const done = categoryScenarios.filter((scenario) => results[scenario.id]).length;
-    const button = document.createElement("button");
-    button.className = currentScenario().category === category ? "category active" : "category";
-    const label = document.createElement("span");
-    label.textContent = category;
-    const count = document.createElement("small");
-    count.textContent = `${done}/${categoryScenarios.length}`;
-    button.append(label, count);
-    button.addEventListener("click", () => {
-      currentIndex = scenarios.findIndex((scenario) => scenario.category === category);
-      saveResults();
-      render();
-    });
-    elements.categories.append(button);
-  }
-}
-
-function renderProgress() {
+function updateProgress() {
   const completed = Object.keys(results).length;
   const passing = Object.values(results).filter((result) => result.passed).length;
-  elements.completedCount.textContent = `${completed} complete`;
-  elements.passCount.textContent = `${passing} passing`;
+  elements.completedCount.textContent = `${completed} / ${scenarios.length}`;
+  elements.passCount.textContent = completed ? `${passing} passing · ${completed - passing} need review` : "Waiting to start";
   elements.progressBar.style.width = `${(completed / scenarios.length) * 100}%`;
 }
 
-function renderChecks(checks) {
-  elements.automaticChecks.replaceChildren();
-  const scenario = currentScenario();
-  const definitions = checks.length ? checks : automaticCheckDefinitions(scenario).map((label) => ({ label }));
-  for (const check of definitions) {
-    const row = document.createElement("div");
-    row.className = `check-row ${check.passed === true ? "pass" : check.passed === false ? "fail" : ""}`;
-    row.textContent = check.passed === true ? `✓ ${check.label}` : check.passed === false ? `× ${check.label}` : `· ${check.label}`;
-    elements.automaticChecks.append(row);
+async function startRun() {
+  if (phase !== "idle" && phase !== "paused" && phase !== "complete") return;
+  if (phase === "paused") {
+    phase = "switching";
+    elements.startButton.hidden = true;
+    elements.pauseButton.hidden = false;
+    return prepareCurrentScenario();
   }
+  if (phase === "complete") {
+    currentIndex = 0;
+    results = {};
+  }
+  runId = makeRunId();
+  runStartedAt = new Date().toISOString();
+  phase = "switching";
+  elements.startButton.hidden = true;
+  elements.pauseButton.hidden = false;
+  await prepareCurrentScenario();
 }
 
-function renderManualChecks(savedManual) {
-  elements.manualChecks.replaceChildren();
-  const checks = currentScenario().manualChecks || [];
-  if (!checks.length) {
-    const row = document.createElement("div");
-    row.className = "check-row quiet";
-    row.textContent = "No manual check for this scenario";
-    elements.manualChecks.append(row);
+async function prepareCurrentScenario() {
+  clearTimeout(settlingTask);
+  phase = "switching";
+  attempt = 1;
+  attemptOutputs = [];
+  renderScenario();
+
+  try {
+    const response = await fetch("/api/mode", {
+      method: "POST",
+      headers: { "Content-Type": "application/json" },
+      body: JSON.stringify({ mode: scenario().mode }),
+    });
+    if (!response.ok) throw new Error(`mode switch returned ${response.status}`);
+    elements.saveState.textContent = `${scenario().mode} selected`;
+  } catch (error) {
+    elements.saveState.textContent = "Mode sync failed";
+    elements.runState.textContent = `Could not select ${scenario().mode}: ${error.message}`;
+    phase = "paused";
+    elements.startButton.hidden = false;
+    elements.startButton.textContent = "Resume";
     return;
   }
-  checks.forEach((label, index) => {
-    const wrapper = document.createElement("label");
-    wrapper.className = "manual-row";
-    const input = document.createElement("input");
-    input.type = "checkbox";
-    input.checked = Boolean(savedManual[index]);
-    input.dataset.index = String(index);
-    const text = document.createElement("span");
-    text.textContent = label;
-    wrapper.append(input, text);
-    elements.manualChecks.append(wrapper);
-  });
+
+  await new Promise((resolve) => window.setTimeout(resolve, 350));
+  armScenario();
 }
 
-function automaticCheckDefinitions(scenario) {
-  const labels = [];
-  if (scenario.expectEmpty) labels.push("Destination stayed empty");
-  for (const value of scenario.required || []) labels.push(`Contains “${value}”`);
-  for (const value of scenario.forbidden || []) labels.push(`Does not contain “${value}”`);
-  if (scenario.terminalPunctuation) labels.push("Ends with sentence punctuation");
-  if (scenario.minInputEvents > 0) labels.push(`At least ${scenario.minInputEvents} separate input events`);
-  if (scenario.expectRecovery) labels.push("Recovery clipboard contains the complete transcript");
-  return labels;
-}
-
-function evaluate() {
-  const scenario = currentScenario();
-  const output = elements.primaryTarget.value.trim();
-  const recoveryOutput = elements.recoveryTarget.value.trim();
-  const evaluatedText = scenario.expectRecovery ? recoveryOutput : output;
-  const lowered = evaluatedText.toLocaleLowerCase();
-  const checks = [];
-
-  if (scenario.expectEmpty) {
-    checks.push({ label: "Destination stayed empty", passed: output.length === 0 });
-  }
-  for (const value of scenario.required || []) {
-    checks.push({
-      label: `Contains “${value}”`,
-      passed: lowered.includes(value.toLocaleLowerCase()),
-    });
-  }
-  for (const value of scenario.forbidden || []) {
-    checks.push({
-      label: `Does not contain “${value}”`,
-      passed: !lowered.includes(value.toLocaleLowerCase()),
-    });
-  }
-  if (scenario.terminalPunctuation) {
-    checks.push({
-      label: "Ends with sentence punctuation",
-      passed: /[.!?][\"')\]]?$/.test(evaluatedText),
-    });
-  }
-  if (scenario.minInputEvents > 0) {
-    const inputEvents = eventLog.filter((event) => event.type === "input" && event.target === "primary").length;
-    checks.push({
-      label: `At least ${scenario.minInputEvents} separate input events`,
-      passed: inputEvents >= scenario.minInputEvents,
-    });
-  }
-  if (scenario.expectRecovery) {
-    checks.push({
-      label: "Recovery clipboard contains the complete transcript",
-      passed: recoveryOutput.length > 0 && (scenario.required || []).every(
-        (value) => recoveryOutput.toLocaleLowerCase().includes(value.toLocaleLowerCase()),
-      ),
-    });
-  }
-
-  const manual = Object.fromEntries(
-    [...elements.manualChecks.querySelectorAll("input")].map((input) => [input.dataset.index, input.checked]),
-  );
-  const manualPassed = [...elements.manualChecks.querySelectorAll("input")].every((input) => input.checked);
-  const passed = checks.every((check) => check.passed) && manualPassed;
-  results[scenario.id] = {
-    scenarioId: scenario.id,
-    mode: scenario.mode,
-    completedAt: new Date().toISOString(),
-    passed,
-    output,
-    secondaryOutput: elements.secondaryTarget.value,
-    recoveryOutput,
-    notes: elements.notes.value,
-    checks,
-    manual,
-    events: eventLog,
-  };
-  saveResults();
-  render();
-}
-
-function arm() {
+function armScenario() {
+  phase = "armed";
+  armedAt = performance.now();
+  lastInputAt = null;
+  eventLog = attempt === 1 ? [] : eventLog;
+  hotkeyCandidate = null;
+  hotkeyFirstTapAt = 0;
   elements.primaryTarget.value = "";
   elements.secondaryTarget.value = "";
-  elements.recoveryTarget.value = "";
-  armedAt = performance.now();
-  eventLog = [{ elapsedMs: 0, type: "armed", mode: currentScenario().mode }];
-  elements.runState.textContent = "Armed · use the native hotkey now";
+  delete elements.secondaryTarget.dataset.recovery;
+  elements.secondaryTarget.hidden = true;
+  logEvent("armed", { mode: scenario().mode });
+  elements.runState.textContent = attempt > 1
+    ? `Ready for repeat ${attempt} · double tap Right Option`
+    : "Ready · double tap Right Option and read the script";
   elements.primaryTarget.focus();
 }
 
-function move(direction) {
-  currentIndex = Math.max(0, Math.min(scenarios.length - 1, currentIndex + direction));
-  saveResults();
-  render();
+function handleModifierPress(event) {
+  if (!runId || event.repeat || !["AltRight", "ControlRight"].includes(event.code)) return;
+  const now = performance.now();
+  logEvent("hotkey", { code: event.code, phase });
+
+  if (phase === "armed") {
+    if (hotkeyCandidate === event.code && now - hotkeyFirstTapAt <= 650) {
+      phase = "recording";
+      hotkeyCandidate = null;
+      elements.runState.textContent = "Recording · read the full script, then tap once to stop";
+      elements.saveState.textContent = "Recording";
+    } else {
+      hotkeyCandidate = event.code;
+      hotkeyFirstTapAt = now;
+      elements.runState.textContent = "First tap detected…";
+    }
+    return;
+  }
+
+  if (phase === "recording") {
+    phase = "settling";
+    elements.runState.textContent = "Stopped · waiting for the final local result…";
+    elements.saveState.textContent = "Evaluating…";
+    waitForSettledResult();
+  }
 }
 
-elements.primaryTarget.addEventListener("input", (event) => logEvent("input", {
-  target: "primary",
-  inputType: event.inputType,
-  data: event.data,
-  valueLength: elements.primaryTarget.value.length,
-}));
-elements.secondaryTarget.addEventListener("input", (event) => logEvent("input", {
-  target: "secondary",
-  inputType: event.inputType,
-  data: event.data,
-  valueLength: elements.secondaryTarget.value.length,
-}));
-for (const [name, element] of [["primary", elements.primaryTarget], ["secondary", elements.secondaryTarget]]) {
-  element.addEventListener("focus", () => logEvent("focus", { target: name }));
-  element.addEventListener("blur", () => logEvent("blur", { target: name }));
-}
-document.addEventListener("visibilitychange", () => logEvent("visibility", { state: document.visibilityState }));
-elements.armButton.addEventListener("click", arm);
-elements.evaluateButton.addEventListener("click", evaluate);
-elements.previousButton.addEventListener("click", () => move(-1));
-elements.nextButton.addEventListener("click", () => move(1));
-elements.skipButton.addEventListener("click", () => move(1));
-elements.readClipboardButton.addEventListener("click", async () => {
-  try {
-    elements.recoveryTarget.value = await navigator.clipboard.readText();
-    logEvent("clipboard-read", { valueLength: elements.recoveryTarget.value.length });
-  } catch (error) {
-    elements.runState.textContent = `Clipboard read failed: ${error.message}`;
+async function waitForSettledResult() {
+  const started = performance.now();
+  const maximumWait = ["Email", "Article"].includes(scenario().mode) ? 90_000 : 20_000;
+
+  while (phase === "settling" && performance.now() - started < maximumWait) {
+    if (scenario().expectRecovery && performance.now() - started > 700) {
+      await readRecoveryClipboard();
+    }
+
+    const output = scenario().expectRecovery
+      ? elements.secondaryTarget.dataset.recovery || ""
+      : elements.primaryTarget.value;
+    const quietFor = lastInputAt === null ? Infinity : performance.now() - lastInputAt;
+    const minimumWait = scenario().expectEmpty ? 1_800 : 650;
+    const hasSettledOutput = output.trim().length > 0 && quietFor > 900;
+    const emptyCommandSettled = scenario().expectEmpty && performance.now() - started > 2_200;
+
+    if (performance.now() - started > minimumWait && (hasSettledOutput || emptyCommandSettled)) {
+      return completeAttempt();
+    }
+    await new Promise((resolve) => window.setTimeout(resolve, 180));
   }
-});
-elements.exportButton.addEventListener("click", () => {
+  completeAttempt({ timedOut: true });
+}
+
+async function readRecoveryClipboard() {
+  try {
+    const response = await fetch("/api/clipboard", { cache: "no-store" });
+    const payload = await response.json();
+    elements.secondaryTarget.dataset.recovery = payload.text || "";
+  } catch {
+    elements.secondaryTarget.dataset.recovery = "";
+  }
+}
+
+function completeAttempt({ timedOut = false } = {}) {
+  const item = scenario();
+  const output = item.expectRecovery
+    ? elements.secondaryTarget.dataset.recovery || ""
+    : elements.primaryTarget.value.trim();
+  attemptOutputs.push(output);
+
+  const repetitions = item.repeatCount || 1;
+  if (attempt < repetitions) {
+    logEvent("attempt-complete", { outputLength: output.length });
+    attempt += 1;
+    elements.runState.textContent = `First run captured · preparing repeat ${attempt}`;
+    settlingTask = window.setTimeout(armScenario, 700);
+    return;
+  }
+
+  const checks = evaluateChecks(item, output, timedOut);
+  const passed = checks.every((check) => check.passed);
+  const result = {
+    scenarioId: item.id,
+    mode: item.mode,
+    completedAt: new Date().toISOString(),
+    passed,
+    timedOut,
+    output,
+    attempts: attemptOutputs,
+    checks,
+    events: eventLog,
+  };
+  results[item.id] = result;
+  localStorage.setItem(storageKey, JSON.stringify({ runId, currentIndex, results }));
+  phase = "saving";
+  showResult(result);
+  saveResults().finally(() => {
+    if (currentIndex === scenarios.length - 1) {
+      phase = "complete";
+      elements.runState.textContent = "Run complete · every result is saved locally";
+      elements.saveState.textContent = "Complete";
+      elements.startButton.hidden = false;
+      elements.startButton.textContent = "Start another run";
+      elements.pauseButton.hidden = true;
+      return;
+    }
+    settlingTask = window.setTimeout(() => {
+      currentIndex += 1;
+      prepareCurrentScenario();
+    }, 1_600);
+  });
+}
+
+function evaluateChecks(item, output, timedOut) {
+  const lowered = output.toLocaleLowerCase();
+  const checks = [];
+  if (timedOut) checks.push({ label: "Final result arrived before timeout", passed: false });
+  if (item.expectEmpty) checks.push({ label: "Destination stayed empty", passed: output.length === 0 });
+  for (const value of item.required || []) {
+    checks.push({ label: `Contains “${value}”`, passed: lowered.includes(value.toLocaleLowerCase()) });
+  }
+  for (const value of item.forbidden || []) {
+    checks.push({ label: `Omits “${value}”`, passed: !lowered.includes(value.toLocaleLowerCase()) });
+  }
+  if (item.terminalPunctuation) {
+    checks.push({ label: "Ends with sentence punctuation", passed: /[.!?]["')\]]?$/.test(output) });
+  }
+  if (item.minInputEvents > 0) {
+    const inputEvents = eventLog.filter((event) => event.type === "input" && event.target === "primary").length;
+    checks.push({ label: `${item.minInputEvents}+ input events`, passed: inputEvents >= item.minInputEvents });
+  }
+  if (item.expectRecovery) {
+    checks.push({ label: "Complete transcript recovered from clipboard", passed: output.length > 0 });
+  }
+  if ((item.repeatCount || 1) > 1) {
+    checks.push({ label: "Both consecutive sessions produced output", passed: attemptOutputs.every(Boolean) });
+  }
+  return checks;
+}
+
+function showResult(result) {
+  elements.resultPanel.hidden = false;
+  elements.resultPanel.className = `result-panel ${result.passed ? "pass" : "fail"}`;
+  elements.resultTitle.textContent = result.passed ? "Passed" : "Needs review";
+  elements.resultSummary.textContent = result.passed ? "Advancing automatically…" : "Saved with the failed checks; continuing…";
+  elements.automaticChecks.replaceChildren();
+  for (const check of result.checks) {
+    const chip = document.createElement("span");
+    chip.className = `check ${check.passed ? "pass" : "fail"}`;
+    chip.textContent = `${check.passed ? "✓" : "×"} ${check.label}`;
+    elements.automaticChecks.append(chip);
+  }
+  elements.retryButton.hidden = false;
+  updateProgress();
+}
+
+async function saveResults() {
   const payload = {
-    version: 1,
-    createdAt: new Date().toISOString(),
+    version: 2,
+    runId,
+    startedAt: runStartedAt,
+    updatedAt: new Date().toISOString(),
     app: "Dictation",
-    scenarios,
+    completed: Object.keys(results).length,
+    total: scenarios.length,
     results,
   };
-  const blob = new Blob([JSON.stringify(payload, null, 2)], { type: "application/json" });
-  const url = URL.createObjectURL(blob);
-  const anchor = document.createElement("a");
-  anchor.href = url;
-  anchor.download = `dictation-product-corpus-${new Date().toISOString().slice(0, 10)}.json`;
-  anchor.click();
-  window.setTimeout(() => URL.revokeObjectURL(url), 1_000);
-});
-elements.clearButton.addEventListener("click", () => {
-  if (!window.confirm("Delete all locally saved product test results?")) return;
-  results = {};
-  currentIndex = 0;
-  saveResults();
-  render();
-});
+  try {
+    const response = await fetch("/api/results", {
+      method: "POST",
+      headers: { "Content-Type": "application/json" },
+      body: JSON.stringify(payload),
+    });
+    const saved = await response.json();
+    if (!response.ok) throw new Error(saved.error || `save returned ${response.status}`);
+    elements.resultsPath.textContent = `Saved to ${saved.path}`;
+    elements.saveState.textContent = "Saved locally";
+  } catch (error) {
+    elements.resultsPath.textContent = `Save failed: ${error.message}`;
+    elements.saveState.textContent = "Save failed";
+  }
+}
 
-render();
+function handleInput(target, event) {
+  lastInputAt = performance.now();
+  logEvent("input", {
+    target,
+    inputType: event.inputType,
+    data: event.data,
+    valueLength: event.currentTarget.value.length,
+  });
+
+  const item = scenario();
+  if (target === "primary" && item.expectRecovery && !elements.secondaryTarget.hidden) return;
+  if (target === "primary" && item.expectRecovery) {
+    const count = eventLog.filter((logged) => logged.type === "input" && logged.target === "primary").length;
+    if (count >= (item.focusAfterInputEvents || 2)) {
+      elements.secondaryTarget.hidden = false;
+      elements.secondaryTarget.focus();
+      logEvent("automatic-focus-change", { target: "secondary" });
+    }
+  }
+}
+
+function pauseRun() {
+  clearTimeout(settlingTask);
+  phase = "paused";
+  elements.runState.textContent = "Paused";
+  elements.startButton.hidden = false;
+  elements.startButton.textContent = "Resume";
+  elements.pauseButton.hidden = true;
+}
+
+function retryScenario() {
+  clearTimeout(settlingTask);
+  delete results[scenario().id];
+  prepareCurrentScenario();
+}
+
+document.addEventListener("keydown", handleModifierPress, { capture: true });
+elements.primaryTarget.addEventListener("input", (event) => handleInput("primary", event));
+elements.secondaryTarget.addEventListener("input", (event) => handleInput("secondary", event));
+for (const [name, field] of [["primary", elements.primaryTarget], ["secondary", elements.secondaryTarget]]) {
+  field.addEventListener("focus", () => logEvent("focus", { target: name }));
+  field.addEventListener("blur", () => logEvent("blur", { target: name }));
+}
+elements.startButton.addEventListener("click", startRun);
+elements.pauseButton.addEventListener("click", pauseRun);
+elements.retryButton.addEventListener("click", retryScenario);
+
+renderScenario();

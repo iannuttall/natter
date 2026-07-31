@@ -28,6 +28,16 @@ import Testing
     #expect(DestinationApplicationKind.classify(bundleIdentifier: nil) == .standard)
 }
 
+@Test func corpusURLCanSelectModeWithoutAcceptingOtherCommands() throws {
+    let cleanURL = try #require(URL(string: "ian-dictation://mode/clean"))
+    let unknownURL = try #require(URL(string: "ian-dictation://delete/everything"))
+    let webURL = try #require(URL(string: "https://example.com/mode/clean"))
+
+    #expect(AppCommand(url: cleanURL) == .setMode(.clean))
+    #expect(AppCommand(url: unknownURL) == nil)
+    #expect(AppCommand(url: webURL) == nil)
+}
+
 @Test func appPathsStayUnderConfiguredRoot() {
     let root = URL(fileURLWithPath: "/tmp/dictation-tests", isDirectory: true)
     let paths = AppPaths(root: root)

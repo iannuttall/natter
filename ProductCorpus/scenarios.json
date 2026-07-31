@@ -55,12 +55,12 @@
     "category": "Agent work",
     "mode": "Agent",
     "title": "Terminal-safe agent request",
-    "instruction": "Use a browser field first. Repeat later in a real terminal agent and record that observation in Notes.",
+    "instruction": "Read the request exactly. Terminal visibility is validated separately against the real coding-agent TUI.",
     "script": "Run swift test, inspect the first failure, and fix the implementation without weakening the assertion. Do not commit, push, or touch the unrelated settings files.",
     "required": ["swift test", "first failure", "Do not commit", "unrelated settings"],
     "forbidden": [],
     "minInputEvents": 2,
-    "manualChecks": ["No bracketed paste block appeared in the real terminal", "The terminal text was visible before stop"]
+    "manualChecks": []
   },
   {
     "id": "agent-code-shapes",
@@ -79,7 +79,7 @@
     "category": "Recovery",
     "mode": "Raw",
     "title": "Focused control changes mid-sentence",
-    "instruction": "Start in the primary field. After ‘first control’, click the secondary field and finish speaking. Then use Read recovery clipboard.",
+    "instruction": "Keep reading normally. The runner will change focus automatically while you speak and read the recovery clipboard after stop.",
     "script": "This sentence began in the first control, but I moved focus before saying that the complete transcript must be recovered safely.",
     "required": ["first control", "complete transcript", "recovered safely"],
     "forbidden": [],
@@ -92,7 +92,7 @@
     "category": "Recovery",
     "mode": "Raw",
     "title": "Window or tab changes mid-sentence",
-    "instruction": "Start here, switch to another browser tab after ‘original tab’, finish speaking, return here, then read the recovery clipboard.",
+    "instruction": "Keep reading normally. The runner will move focus automatically to simulate the destination changing.",
     "script": "I started this dictation in the original tab, then changed tabs, and the full transcript should be on the clipboard instead of being sprayed into the new destination.",
     "required": ["original tab", "changed tabs", "full transcript", "clipboard"],
     "forbidden": [],
@@ -153,7 +153,7 @@
     "id": "clean-fillers",
     "category": "Clean mode",
     "mode": "Clean",
-    "title": "Filler and false-start cleanup",
+    "title": "Filler and repeated-phrase cleanup",
     "instruction": "Include every filler and repeated phrase; Clean runs locally as soon as you stop.",
     "script": "Um, I need to, I need to send the report today, erm, but first check whether the figures from Tuesday are actually final.",
     "required": ["send the report today", "figures from Tuesday", "actually final"],
@@ -254,6 +254,7 @@
     "script": "The second session should start cleanly without repeating any words from the first session or waiting for the speech model to load again.",
     "required": ["second session", "start cleanly", "speech model"],
     "forbidden": [],
+    "repeatCount": 2,
     "minInputEvents": 2,
     "manualChecks": ["The second overlay opened immediately", "No transcript from the first session leaked into the second"]
   }

@@ -7,3 +7,4 @@ Results/*.json
 Models/
 dist/
 ProductCorpus/*.json.tmp
+ProductCorpus/Results/*.json

@@ -39,6 +39,7 @@ Only append-only stable phrases are sent to the focused app. Mutable guesses
 remain in the non-activating overlay. Text is inserted as small Unicode keyboard
 events rather than through the clipboard. Known terminal apps receive paced
 chunks so coding-agent TUIs do not merge a long transcript into one paste burst.
+Terminal pacing is enabled by default and can be disabled in Settings.
 
 The app captures the frontmost process and focused Accessibility element when a
 session starts. If focus changes, insertion fails or a writing result drops a
@@ -70,15 +71,16 @@ to the same reversible Markdown file.
 ## Product corpus
 
 The local browser harness covers 21 delivery, recovery, correction, writing and
-stress scenarios. It deliberately does not repeat accent/model selection; the
-recorded model benchmark already tested Ian's British accent.
+stress scenarios. It switches modes, captures and grades output, saves results
+to disk and advances automatically. It deliberately does not repeat accent/model
+selection; the recorded benchmark already tested Ian's British accent.
 
 ```sh
 ./scripts/serve-product-corpus.sh
 ```
 
-Open `http://127.0.0.1:4173`, follow the setup strip, and export the JSON after a
-test session. Results stay in browser local storage until export.
+Open `http://127.0.0.1:4173` and press **Start run**. Results are written after
+every scenario to `ProductCorpus/Results/latest.json`.
 
 ## Build and verification
 

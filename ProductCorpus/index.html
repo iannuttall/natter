@@ -3,103 +3,71 @@
 <head>
   <meta charset="UTF-8">
   <meta name="viewport" content="width=device-width, initial-scale=1.0">
-  <title>Dictation Product Corpus</title>
+  <title>Dictation Test Run</title>
   <link rel="stylesheet" href="styles.css">
 </head>
 <body>
   <main class="shell">
     <header class="topbar">
       <div>
-        <p class="eyebrow">Local product corpus</p>
-        <h1>Test the app, not the demo</h1>
-        <p class="lede">Exact scenarios for delivery, recovery, corrections and writing modes. Nothing leaves this Mac.</p>
+        <p class="eyebrow">Local automatic corpus</p>
+        <h1>Read it. Stop. Next.</h1>
+        <p class="lede">The runner switches modes, captures the result, grades it and saves everything locally.</p>
       </div>
-      <div class="top-actions">
-        <div class="score"><strong id="completedCount">0 complete</strong><span id="passCount">0 passing</span></div>
-        <button id="exportButton" class="dark-button">Export results</button>
+      <div class="run-summary">
+        <strong id="completedCount">0 / 21</strong>
+        <span id="passCount">Waiting to start</span>
       </div>
     </header>
 
     <div class="progress"><span id="progressBar"></span></div>
 
-    <section class="setup-strip" aria-label="Before you start">
-      <strong>Before you start</strong>
-      <ol>
-        <li>Quit Monologue</li>
-        <li>Launch Dictation</li>
-        <li>Select the mode shown on the card</li>
-        <li>Click <b>Arm and focus field</b>, then use the hotkey</li>
-      </ol>
+    <section class="runner-card">
+      <div class="meta-row">
+        <span id="position">01 / 21</span>
+        <span id="category"></span>
+        <span id="mode" class="mode-pill"></span>
+        <span id="saveState" class="save-state">Not started</span>
+      </div>
+
+      <section class="scenario">
+        <p id="title" class="scenario-title"></p>
+        <p id="instruction" class="instruction"></p>
+        <blockquote id="script" class="script"></blockquote>
+        <p id="spokenUntil" class="stop-marker" hidden></p>
+      </section>
+
+      <section class="destination">
+        <div class="destination-heading">
+          <div>
+            <strong>Destination</strong>
+            <span id="runState">Press Start run</span>
+          </div>
+          <span id="eventCount">0 events</span>
+        </div>
+        <textarea id="primaryTarget" aria-label="Dictation destination" spellcheck="false"></textarea>
+        <textarea id="secondaryTarget" aria-label="Automatic focus-change destination" spellcheck="false" hidden></textarea>
+      </section>
+
+      <section id="resultPanel" class="result-panel" hidden>
+        <div>
+          <strong id="resultTitle">Passed</strong>
+          <span id="resultSummary"></span>
+        </div>
+        <div id="automaticChecks" class="checks"></div>
+      </section>
+
+      <footer class="controls">
+        <div>
+          <button id="startButton" class="primary-button">Start run</button>
+          <button id="retryButton" class="quiet-button" hidden>Retry this test</button>
+        </div>
+        <span id="resultsPath">Results will save to ProductCorpus/Results/latest.json</span>
+        <button id="pauseButton" class="quiet-button" hidden>Pause</button>
+      </footer>
     </section>
 
-    <div class="workspace">
-      <aside>
-        <div id="categories" class="categories"></div>
-        <div class="local-note"><i></i><span>Runs on localhost. Results stay in this browser until export.</span></div>
-      </aside>
-
-      <section class="card">
-        <div class="meta-row">
-          <span id="position">01 / 01</span>
-          <span id="category"></span>
-          <span id="mode" class="mode-pill"></span>
-          <span id="savedState" class="saved-state"></span>
-        </div>
-
-        <div class="scenario">
-          <p id="title" class="scenario-title"></p>
-          <p id="instruction" class="instruction"></p>
-          <blockquote id="script" class="script"></blockquote>
-          <p id="spokenUntil" class="spoken-until" hidden></p>
-        </div>
-
-        <div class="test-area">
-          <div class="test-toolbar">
-            <div>
-              <strong>Destination</strong>
-              <span id="runState">Not armed</span>
-            </div>
-            <button id="armButton" class="arm-button">Arm and focus field</button>
-          </div>
-          <textarea id="primaryTarget" aria-label="Primary dictation target" placeholder="The native app should type here…" spellcheck="false"></textarea>
-          <details id="secondaryPanel">
-            <summary>Secondary control for focus-change tests</summary>
-            <textarea id="secondaryTarget" aria-label="Secondary dictation target" placeholder="This should remain empty during recovery tests…" spellcheck="false"></textarea>
-          </details>
-
-          <div id="recoveryPanel" class="recovery-panel" hidden>
-            <button id="readClipboardButton">Read recovery clipboard</button>
-            <textarea id="recoveryTarget" aria-label="Recovered clipboard transcript" placeholder="Recovered transcript…" spellcheck="false"></textarea>
-          </div>
-        </div>
-
-        <div class="review">
-          <div>
-            <h2>Automatic checks</h2>
-            <div id="automaticChecks" class="checks"></div>
-          </div>
-          <div>
-            <h2>What you need to judge</h2>
-            <div id="manualChecks" class="checks"></div>
-          </div>
-          <label class="notes-label">Notes<textarea id="notes" placeholder="Anything odd, slow or hard to inspect…"></textarea></label>
-        </div>
-
-        <footer class="card-footer">
-          <button id="previousButton">Previous</button>
-          <div class="footer-actions">
-            <button id="skipButton">Skip</button>
-            <button id="evaluateButton" class="dark-button">Evaluate and save</button>
-          </div>
-          <button id="nextButton">Next</button>
-        </footer>
-      </section>
-    </div>
-
-    <footer class="page-footer">
-      <span>Run <code>./scripts/serve-product-corpus.sh</code>, launch Dictation, and select the mode shown on each card.</span>
-      <button id="clearButton">Clear local results</button>
-    </footer>
+    <p class="hint">Quit Monologue first. Then only use the Dictation hotkey and read the large script exactly. No checkboxes or export step.</p>
   </main>
   <script type="module" src="app.js"></script>
 </body>

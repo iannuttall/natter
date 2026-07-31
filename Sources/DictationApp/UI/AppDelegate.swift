@@ -1,4 +1,5 @@
 import AppKit
+import DictationCore
 
 @MainActor
 final class AppDelegate: NSObject, NSApplicationDelegate {
@@ -78,5 +79,15 @@ final class AppDelegate: NSObject, NSApplicationDelegate {
 
     func applicationWillTerminate(_ notification: Notification) {
         hotKeyMonitor?.stop()
+    }
+
+    func application(_ application: NSApplication, open urls: [URL]) {
+        for url in urls {
+            guard let command = AppCommand(url: url) else { continue }
+            switch command {
+            case let .setMode(mode):
+                store.select(mode)
+            }
+        }
     }
 }

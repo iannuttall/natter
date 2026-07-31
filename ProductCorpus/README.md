@@ -8,8 +8,8 @@ Run it from the repository root:
 ./scripts/serve-product-corpus.sh
 ```
 
-Open `http://127.0.0.1:4173`, launch the native Dictation app, and work through the cards. The browser records inserted text, focus events, input timing, recovery clipboard content, automatic assertions and manual observations in local storage. Export the JSON when a session is complete.
+Open `http://127.0.0.1:4173`, launch the native Dictation app, and press **Start run** once. The runner selects each mode through a local app URL, focuses the field, recognises the Right Option or Right Control start/stop sequence, captures input timing, grades the settled result and advances automatically.
 
-Quit Monologue before a run because it uses the same double Right Option shortcut. For each card, select the displayed mode in Dictation, click **Arm and focus field**, then start dictating with the native hotkey.
+Quit Monologue before a run because it uses the same double Right Option shortcut. After starting, only use the native hotkey and read the displayed script exactly. There are no checkboxes, notes or export step.
 
-Nothing is uploaded. The only network listener is Python's static server bound to `127.0.0.1`.
+Nothing is uploaded. The server is bound to `127.0.0.1`, accepts only its own browser origin, and saves the active run atomically to `ProductCorpus/Results/latest.json` plus a run-specific JSON file. Recovery tests read the local macOS clipboard through the same server.
