@@ -8,22 +8,27 @@ final class AppDelegate: NSObject, NSApplicationDelegate {
     private var hotKeyMonitor: ModifierHotKeyMonitor?
     private var modelManager: ModelManager?
     private var permissions: PermissionController?
+    private var rules: RulesManager?
 
     func applicationDidFinishLaunching(_ notification: Notification) {
         NSApp.setActivationPolicy(.accessory)
         let speechTranscriber = SpeechTranscriber()
         let modelManager = ModelManager(speechTranscriber: speechTranscriber)
         let permissions = PermissionController()
+        let rules = RulesManager()
         self.modelManager = modelManager
         self.permissions = permissions
+        self.rules = rules
         statusItemController = StatusItemController(
             store: store,
             modelManager: modelManager,
-            permissions: permissions
+            permissions: permissions,
+            rules: rules
         )
         let coordinator = DictationCoordinator(
             store: store,
-            transcriber: speechTranscriber
+            transcriber: speechTranscriber,
+            rules: rules
         )
         self.coordinator = coordinator
         let hotKeyMonitor = ModifierHotKeyMonitor(store: store) { [weak coordinator] action in
@@ -37,7 +42,8 @@ final class AppDelegate: NSObject, NSApplicationDelegate {
             SettingsWindow.shared.show(
                 store: store,
                 modelManager: modelManager,
-                permissions: permissions
+                permissions: permissions,
+                rules: rules
             )
         }
 
@@ -47,6 +53,12 @@ final class AppDelegate: NSObject, NSApplicationDelegate {
 
         if ProcessInfo.processInfo.environment["DICTATION_INSTALL_SPEECH_ON_LAUNCH"] == "1" {
             modelManager.install(.speech)
+        }
+
+        if let transcript = ProcessInfo.processInfo.environment[
+            "DICTATION_TEST_WRITING_ON_LAUNCH"
+        ] {
+            coordinator.testWritingForDebug(transcript)
         }
     }
 

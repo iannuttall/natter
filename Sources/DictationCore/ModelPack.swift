@@ -50,6 +50,19 @@ public enum WritingModelLocation {
             .appendingPathComponent("Qwen3.5-9B-MLX-4bit", isDirectory: true)
     }
 
+    public static func resolve(
+        in paths: AppPaths,
+        environment: [String: String] = ProcessInfo.processInfo.environment,
+        fileManager: FileManager = .default
+    ) -> URL? {
+        if let override = environment["DICTATION_WRITING_MODEL_DIR"], !override.isEmpty {
+            let url = URL(fileURLWithPath: override, isDirectory: true)
+            if isComplete(at: url, fileManager: fileManager) { return url }
+        }
+        let installed = installedDirectory(in: paths)
+        return isComplete(at: installed, fileManager: fileManager) ? installed : nil
+    }
+
     public static func isComplete(
         at directory: URL,
         fileManager: FileManager = .default

@@ -33,7 +33,11 @@ let package = Package(
             dependencies: [
                 "DictationCore",
                 .product(name: "FluidAudio", package: "FluidAudio"),
-                .product(name: "Hub", package: "swift-transformers")
+                .product(name: "Hub", package: "swift-transformers"),
+                .product(name: "MLXHuggingFace", package: "mlx-swift-lm"),
+                .product(name: "MLXLLM", package: "mlx-swift-lm"),
+                .product(name: "MLXLMCommon", package: "mlx-swift-lm"),
+                .product(name: "Tokenizers", package: "swift-transformers")
             ]
         ),
         .executableTarget(

@@ -10,7 +10,8 @@ final class SettingsWindow: NSObject, NSWindowDelegate {
     func show(
         store: DictationStore,
         modelManager: ModelManager,
-        permissions: PermissionController
+        permissions: PermissionController,
+        rules: RulesManager
     ) {
         if let window {
             NSApp.activate(ignoringOtherApps: true)
@@ -32,7 +33,8 @@ final class SettingsWindow: NSObject, NSWindowDelegate {
             rootView: SettingsView(
                 store: store,
                 modelManager: modelManager,
-                permissions: permissions
+                permissions: permissions,
+                rules: rules
             )
         )
         self.window = window

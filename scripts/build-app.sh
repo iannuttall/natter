@@ -15,11 +15,28 @@ contents_dir="$app_dir/Contents"
 
 cd "$repo_dir"
 
-swift build -c "$configuration" --product dictation
-bin_dir="$(swift build -c "$configuration" --show-bin-path)"
+configuration_name="Release"
+if [[ "$configuration" == "debug" || "$configuration" == "Debug" ]]; then
+    configuration_name="Debug"
+fi
+products_dir="$repo_dir/.xcode-build/Build/Products/$configuration_name"
+
+xcodebuild build \
+    -quiet \
+    -scheme dictation \
+    -destination 'platform=macOS,arch=arm64' \
+    -configuration "$configuration_name" \
+    -derivedDataPath .xcode-build \
+    CODE_SIGNING_ALLOWED=NO \
+    -skipPackagePluginValidation \
+    -skipMacroValidation
 
 mkdir -p "$contents_dir/MacOS" "$contents_dir/Resources"
-cp "$bin_dir/$executable_name" "$contents_dir/MacOS/$executable_name"
+cp "$products_dir/$executable_name" "$contents_dir/MacOS/$executable_name"
+strip -S "$contents_dir/MacOS/$executable_name"
+for resource_bundle in "$products_dir"/*.bundle(N/); do
+    ditto "$resource_bundle" "$contents_dir/Resources/$(basename "$resource_bundle")"
+done
 
 /usr/libexec/PlistBuddy -c "Clear dict" "$contents_dir/Info.plist" 2>/dev/null || true
 /usr/libexec/PlistBuddy -c "Add :CFBundleDisplayName string $app_name" "$contents_dir/Info.plist"

@@ -6,17 +6,20 @@ final class StatusItemController: NSObject, NSMenuDelegate {
     private let store: DictationStore
     private let modelManager: ModelManager
     private let permissions: PermissionController
+    private let rules: RulesManager
     private let statusItem: NSStatusItem
     private let menu = NSMenu()
 
     init(
         store: DictationStore,
         modelManager: ModelManager,
-        permissions: PermissionController
+        permissions: PermissionController,
+        rules: RulesManager
     ) {
         self.store = store
         self.modelManager = modelManager
         self.permissions = permissions
+        self.rules = rules
         statusItem = NSStatusBar.system.statusItem(withLength: NSStatusItem.squareLength)
         super.init()
 
@@ -111,7 +114,8 @@ final class StatusItemController: NSObject, NSMenuDelegate {
         SettingsWindow.shared.show(
             store: store,
             modelManager: modelManager,
-            permissions: permissions
+            permissions: permissions,
+            rules: rules
         )
     }
 

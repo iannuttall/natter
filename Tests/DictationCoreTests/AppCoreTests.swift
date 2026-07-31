@@ -130,3 +130,47 @@ import Testing
     ))
     #expect(WritingModelLocation.isComplete(at: directory))
 }
+
+@Test func personalCorrectionsParseAndApplyAtPhraseBoundaries() {
+    let markdown = """
+    # Personal corrections
+    - "en.is" → "ian.is"
+    - "port man" => "Portman"
+    """
+    let rules = PersonalCorrections.parse(markdown)
+
+    #expect(rules.count == 2)
+    #expect(PersonalCorrections.apply(rules, to: "EN.IS and port man") == "ian.is and Portman")
+    #expect(PersonalCorrections.apply(rules, to: "open.island") == "open.island")
+}
+
+@Test func spokenCorrectionCommandExtractsRuleAndSpellingHint() {
+    let transcript = """
+    Hey Dictation, you just transcribed it as en.is but what I actually said was ian.is \
+    i-a-n can you add that to my rules so you remember for next time
+    """
+    let correction = SpokenCorrectionParser.parse(transcript, appNames: ["Dictation"])
+
+    #expect(correction == PersonalCorrection(heard: "en.is", replacement: "ian.is"))
+    #expect(SpokenCorrectionParser.couldBeCommand("hey dicta", appNames: ["Dictation"]))
+    #expect(!SpokenCorrectionParser.couldBeCommand("here is the build", appNames: ["Dictation"]))
+}
+
+@Test func deterministicCleanerRemovesOnlyExplicitFillers() {
+    let cleaned = DeterministicTranscriptCleaner.removeFillers(
+        from: "Um, ship the hummingbird, erm, to /tmp/build at 70%."
+    )
+    #expect(cleaned == "ship the hummingbird, to /tmp/build at 70%.")
+}
+
+@Test func factGuardProtectsNumbersPathsUrlsAndEmails() {
+    let transcript = "Send 70% to ian@example.com from ~/dev/app via https://ian.is/test."
+    let facts = TranscriptFactGuard.protectedFacts(in: transcript)
+
+    #expect(facts.contains("70%"))
+    #expect(facts.contains("ian@example.com"))
+    #expect(facts.contains("~/dev/app"))
+    #expect(facts.contains("https://ian.is/test"))
+    #expect(TranscriptFactGuard.preservesFacts(from: transcript, in: transcript))
+    #expect(!TranscriptFactGuard.preservesFacts(from: transcript, in: "Send it tomorrow."))
+}

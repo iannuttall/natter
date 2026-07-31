@@ -5,6 +5,7 @@ struct SettingsView: View {
     @Bindable var store: DictationStore
     @Bindable var modelManager: ModelManager
     @Bindable var permissions: PermissionController
+    @Bindable var rules: RulesManager
 
     var body: some View {
         ScrollView {
@@ -12,6 +13,7 @@ struct SettingsView: View {
                 header
                 hotKeyPicker
                 modePicker
+                rulesButton
                 modelPacks
                 permissionRows
                 footer
@@ -121,6 +123,22 @@ struct SettingsView: View {
                 Text(errorMessage)
                     .font(.caption)
                     .foregroundStyle(.red)
+            }
+        }
+    }
+
+    private var rulesButton: some View {
+        HStack {
+            VStack(alignment: .leading, spacing: 2) {
+                Text("Personal rules")
+                    .font(.headline)
+                Text("Corrections and Clean, Email and Article instructions.")
+                    .font(.callout)
+                    .foregroundStyle(.secondary)
+            }
+            Spacer()
+            Button("Edit Rules…") {
+                RulesWindow.shared.show(rules: rules)
             }
         }
     }
