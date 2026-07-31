@@ -23,6 +23,8 @@ account, cloud inference, telemetry, Ollama dependency or background server.
    Option once to stop. Right Control can be selected in Settings instead.
 
 The menu-bar menu changes mode and can copy the last completed transcript.
+Settings opens automatically whenever a required permission or the speech model
+is missing.
 
 ## Modes
 
@@ -91,6 +93,9 @@ node --test ProductCorpus/tests/scenarios.test.mjs
 `build-app.sh` uses Xcode rather than `swift build` so MLX's Metal shaders are
 compiled and copied into the signed app. Model weights are never bundled in the
 app; they live under Application Support and are installed through Settings.
+The script uses the first local code-signing identity by default so macOS keeps
+Microphone, Accessibility and Input Monitoring trust across development builds.
+Set `SIGN_IDENTITY` to choose a different certificate.
 
 The direct MLX parity report is in `Results/direct-mlx-parity.md`. The pinned
 Qwen checkpoint is:

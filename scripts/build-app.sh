@@ -9,6 +9,7 @@ executable_name="${EXECUTABLE_NAME:-dictation}"
 bundle_id="${BUNDLE_ID:-is.ian.dictation}"
 version="${VERSION:-0.1.0}"
 build_number="${BUILD_NUMBER:-1}"
+sign_identity="${SIGN_IDENTITY:-}"
 dist_dir="$repo_dir/dist"
 app_dir="$dist_dir/$app_name.app"
 contents_dir="$app_dir/Contents"
@@ -52,5 +53,19 @@ done
 /usr/libexec/PlistBuddy -c "Add :NSHighResolutionCapable bool true" "$contents_dir/Info.plist"
 /usr/libexec/PlistBuddy -c "Add :NSMicrophoneUsageDescription string Dictation uses the microphone only while you are speaking." "$contents_dir/Info.plist"
 
-codesign --force --deep --sign - "$app_dir"
+if [[ -z "$sign_identity" ]]; then
+    sign_identity="$(
+        security find-identity -v -p codesigning 2>/dev/null \
+            | sed -n 's/^[^"]*"\([^"]*\)".*$/\1/p' \
+            | sed -n '1p'
+    )"
+fi
+
+if [[ -z "$sign_identity" ]]; then
+    sign_identity="-"
+    echo "warning: no signing identity found; macOS permissions may reset after rebuilds" >&2
+fi
+
+codesign --force --deep --sign "$sign_identity" "$app_dir"
+echo "Signed with: $sign_identity"
 echo "$app_dir"

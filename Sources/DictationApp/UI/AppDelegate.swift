@@ -38,7 +38,8 @@ final class AppDelegate: NSObject, NSApplicationDelegate {
         hotKeyMonitor.start()
 
         if ProcessInfo.processInfo.environment["DICTATION_OPEN_ON_LAUNCH"] == "1"
-            || !modelManager.speechInstalled {
+            || !modelManager.speechInstalled
+            || !permissions.allRequiredPermissionsGranted {
             SettingsWindow.shared.show(
                 store: store,
                 modelManager: modelManager,

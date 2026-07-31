@@ -47,6 +47,10 @@ final class PermissionController {
         }
     }
 
+    var allRequiredPermissionsGranted: Bool {
+        microphoneGranted && accessibilityGranted && inputMonitoringGranted
+    }
+
     func request(_ permission: AppPermission) {
         switch permission {
         case .microphone:

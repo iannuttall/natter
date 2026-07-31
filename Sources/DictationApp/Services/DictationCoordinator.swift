@@ -288,7 +288,12 @@ final class DictationCoordinator {
 
         do {
             store.latestRecoveryURL = try recovery.saveAndCopy(record)
-            store.statusMessage = "Focus changed · full transcript copied"
+            if reason == FocusedTextInsertionError.accessibilityPermissionRequired
+                .localizedDescription {
+                store.statusMessage = "Allow Accessibility in Settings · transcript copied"
+            } else {
+                store.statusMessage = "Couldn’t type · full transcript copied"
+            }
             store.phase = .recoverable(reason)
         } catch {
             fail(error)

@@ -11,11 +11,11 @@ struct SettingsView: View {
         ScrollView {
             VStack(alignment: .leading, spacing: Theme.Space.section) {
                 header
+                permissionRows
                 hotKeyPicker
                 modePicker
                 rulesButton
                 modelPacks
-                permissionRows
                 footer
             }
             .padding(24)

@@ -63,6 +63,17 @@ final class StatusItemController: NSObject, NSMenuDelegate {
         menu.addItem(status)
         menu.addItem(.separator())
 
+        if !permissions.allRequiredPermissionsGranted {
+            let finishSetup = NSMenuItem(
+                title: "Finish Setup…",
+                action: #selector(openSettings),
+                keyEquivalent: ""
+            )
+            finishSetup.target = self
+            menu.addItem(finishSetup)
+            menu.addItem(.separator())
+        }
+
         for mode in DictationMode.allCases {
             let item = NSMenuItem(
                 title: mode.label,
