@@ -9,6 +9,7 @@ let package = Package(
     ],
     products: [
         .library(name: "DictationCore", targets: ["DictationCore"]),
+        .executable(name: "dictation", targets: ["DictationApp"]),
         .executable(name: "dictation-parity", targets: ["DictationParity"])
     ],
     dependencies: [
@@ -23,6 +24,10 @@ let package = Package(
     ],
     targets: [
         .target(name: "DictationCore"),
+        .executableTarget(
+            name: "DictationApp",
+            dependencies: ["DictationCore"]
+        ),
         .executableTarget(
             name: "DictationParity",
             dependencies: [

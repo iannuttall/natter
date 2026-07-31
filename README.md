@@ -8,7 +8,16 @@ not a runtime dependency.
 
 ## Current build stage
 
-The first executable verifies that Qwen runs directly through MLX Swift with
+The native menu-bar shell, shared state, mode picker and Settings window are
+buildable now:
+
+```sh
+swift test
+./scripts/build-app.sh
+DICTATION_OPEN_ON_LAUNCH=1 dist/Dictation.app/Contents/MacOS/dictation
+```
+
+The parity executable verifies that Qwen runs directly through MLX Swift with
 the same writing fixtures used during model selection. MLX's Metal shaders
 must be built by Xcode, so use the checked-in runner rather than `swift run`:
 
