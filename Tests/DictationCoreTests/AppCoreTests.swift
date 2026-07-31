@@ -11,6 +11,23 @@ import Testing
     #expect(DictationMode.article.isGenerative)
 }
 
+@Test func knownTerminalsUseTerminalDelivery() {
+    for bundleIdentifier in [
+        "com.apple.Terminal",
+        "com.googlecode.iterm2",
+        "com.mitchellh.ghostty",
+        "dev.warp.Warp-Stable",
+        "com.github.wez.wezterm",
+        "net.kovidgoyal.kitty",
+        "org.alacritty"
+    ] {
+        #expect(DestinationApplicationKind.classify(bundleIdentifier: bundleIdentifier) == .terminal)
+    }
+
+    #expect(DestinationApplicationKind.classify(bundleIdentifier: "com.apple.Safari") == .standard)
+    #expect(DestinationApplicationKind.classify(bundleIdentifier: nil) == .standard)
+}
+
 @Test func appPathsStayUnderConfiguredRoot() {
     let root = URL(fileURLWithPath: "/tmp/dictation-tests", isDirectory: true)
     let paths = AppPaths(root: root)

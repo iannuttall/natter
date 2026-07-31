@@ -37,8 +37,8 @@ is missing.
 
 Only append-only stable phrases are sent to the focused app. Mutable guesses
 remain in the non-activating overlay. Text is inserted as small Unicode keyboard
-events rather than one paste, so Terminal does not turn a multiline transcript
-into an opaque bracketed-paste block.
+events rather than through the clipboard. Known terminal apps receive paced
+chunks so coding-agent TUIs do not merge a long transcript into one paste burst.
 
 The app captures the frontmost process and focused Accessibility element when a
 session starts. If focus changes, insertion fails or a writing result drops a

@@ -1,5 +1,6 @@
 import AppKit
 import ApplicationServices
+import DictationCore
 import Foundation
 
 struct FocusedTextTarget {
@@ -33,6 +34,10 @@ enum FocusedTextInsertionError: LocalizedError {
 
 @MainActor
 final class FocusedTextInserter {
+    // Codex classifies character gaps of 8 ms or less as a paste burst.
+    // Keep terminal chunks above that boundary without slowing normal fields.
+    private static let terminalChunkDelay = Duration.milliseconds(12)
+
     func captureTarget() throws -> FocusedTextTarget {
         guard AXIsProcessTrusted() else {
             throw FocusedTextInsertionError.accessibilityPermissionRequired
@@ -50,11 +55,15 @@ final class FocusedTextInserter {
         )
     }
 
-    func insert(_ text: String, into target: FocusedTextTarget) throws {
+    func insert(_ text: String, into target: FocusedTextTarget) async throws {
         guard !text.isEmpty else { return }
-        try validate(target)
+        let chunks = text.utf16Chunks(maximumCount: 16)
+        let applicationKind = DestinationApplicationKind.classify(
+            bundleIdentifier: target.bundleIdentifier
+        )
 
-        for chunk in text.utf16Chunks(maximumCount: 16) {
+        for (index, chunk) in chunks.enumerated() {
+            try validate(target)
             guard let keyDown = CGEvent(
                 keyboardEventSource: nil,
                 virtualKey: 0,
@@ -75,6 +84,10 @@ final class FocusedTextInserter {
             }
             keyDown.postToPid(target.processIdentifier)
             keyUp.postToPid(target.processIdentifier)
+
+            if applicationKind == .terminal, index < chunks.index(before: chunks.endIndex) {
+                try await Task.sleep(for: Self.terminalChunkDelay)
+            }
         }
     }
 

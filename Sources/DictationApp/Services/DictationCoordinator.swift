@@ -118,7 +118,7 @@ final class DictationCoordinator {
                         let rawPartial = try await self?.transcriber.consume(chunk) ?? ""
                         guard !rawPartial.isEmpty else { continue }
                         self?.store.rawTranscript = rawPartial
-                        self?.handlePartial(rawPartial)
+                        await self?.handlePartial(rawPartial)
                     } catch {
                         self?.fail(error)
                         break
@@ -192,7 +192,7 @@ final class DictationCoordinator {
                 if store.selectedMode.isGenerative {
                     await deliverWritingMode(transcript)
                 } else {
-                    deliverFinalTranscript(transcript)
+                    await deliverFinalTranscript(transcript)
                     finishDelivery(of: transcript)
                 }
 
@@ -222,21 +222,21 @@ final class DictationCoordinator {
         }
     }
 
-    private func deliverStablePartial(_ transcript: String) {
+    private func deliverStablePartial(_ transcript: String) async {
         guard store.selectedMode.typesIncrementally, deliveryIssue == nil else { return }
 
         switch emitter.observe(transcript) {
         case .none:
             break
         case let .text(text):
-            insert(text)
+            await insert(text)
         case .conflict:
             deliveryIssue = "The live transcript changed after text had already been typed."
             store.statusMessage = "Still listening · transcript will be copied"
         }
     }
 
-    private func handlePartial(_ rawTranscript: String) {
+    private func handlePartial(_ rawTranscript: String) async {
         if commandCandidate || SpokenCorrectionParser.couldBeCommand(
             rawTranscript,
             appNames: correctionAppNames
@@ -248,30 +248,30 @@ final class DictationCoordinator {
 
         let corrected = PersonalCorrections.apply(sessionCorrections, to: rawTranscript)
         store.liveTranscript = corrected
-        deliverStablePartial(corrected)
+        await deliverStablePartial(corrected)
     }
 
-    private func deliverFinalTranscript(_ transcript: String) {
+    private func deliverFinalTranscript(_ transcript: String) async {
         guard deliveryIssue == nil else { return }
 
         switch emitter.finish(transcript) {
         case .none:
             break
         case let .text(text):
-            insert(text)
+            await insert(text)
         case .conflict:
             deliveryIssue = "The final transcript conflicted with text already typed."
         }
     }
 
-    private func insert(_ text: String) {
+    private func insert(_ text: String) async {
         guard let focusTarget else {
             deliveryIssue = "The original text control is no longer available."
             return
         }
 
         do {
-            try textInserter.insert(text, into: focusTarget)
+            try await textInserter.insert(text, into: focusTarget)
         } catch {
             deliveryIssue = error.localizedDescription
             store.statusMessage = "Still listening · transcript will be copied"
@@ -339,7 +339,7 @@ final class DictationCoordinator {
             )
             store.liveTranscript = output
             store.finalTranscript = output
-            insert(output)
+            await insert(output)
             finishDelivery(of: output)
         } catch {
             recoverTranscript(transcript, reason: error.localizedDescription)
