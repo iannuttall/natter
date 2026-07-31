@@ -26,6 +26,16 @@ struct SettingsView: View {
             modelManager.refresh()
             permissions.refresh()
         }
+        .task {
+            while !Task.isCancelled {
+                permissions.refresh()
+                do {
+                    try await Task.sleep(for: .seconds(1))
+                } catch {
+                    break
+                }
+            }
+        }
     }
 
     private var hotKeyPicker: some View {
