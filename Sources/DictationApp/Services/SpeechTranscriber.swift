@@ -1,4 +1,5 @@
 import AVFoundation
+import DictationCore
 import FluidAudio
 import Foundation
 
@@ -10,6 +11,25 @@ actor SpeechTranscriber {
         guard loadedDirectory != modelDirectory else { return }
         try await manager.loadModels(from: modelDirectory)
         loadedDirectory = modelDirectory
+    }
+
+    func install(
+        to modelsDirectory: URL,
+        progressHandler: @escaping ProgressHandler
+    ) async throws {
+        try await manager.loadModels(
+            to: modelsDirectory,
+            progressHandler: progressHandler
+        )
+        loadedDirectory = modelsDirectory.appendingPathComponent(
+            SpeechModelLocation.relativePath,
+            isDirectory: true
+        )
+    }
+
+    func unload() async {
+        await manager.cleanup()
+        loadedDirectory = nil
     }
 
     func reset() async {

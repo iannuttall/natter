@@ -3,19 +3,27 @@ import SwiftUI
 
 struct SettingsView: View {
     @Bindable var store: DictationStore
+    @Bindable var modelManager: ModelManager
+    @Bindable var permissions: PermissionController
 
     var body: some View {
-        VStack(alignment: .leading, spacing: Theme.Space.section) {
-            header
-            hotKeyPicker
-            modePicker
-            modelSummary
-            Spacer(minLength: 0)
-            footer
+        ScrollView {
+            VStack(alignment: .leading, spacing: Theme.Space.section) {
+                header
+                hotKeyPicker
+                modePicker
+                modelPacks
+                permissionRows
+                footer
+            }
+            .padding(24)
         }
-        .padding(24)
-        .frame(width: 560, height: 500)
+        .frame(width: 600, height: 720)
         .background(Theme.Colour.panel)
+        .onAppear {
+            modelManager.refresh()
+            permissions.refresh()
+        }
     }
 
     private var hotKeyPicker: some View {
@@ -84,18 +92,98 @@ struct SettingsView: View {
         .clipShape(RoundedRectangle(cornerRadius: Theme.Radius.card))
     }
 
-    private var modelSummary: some View {
-        HStack(spacing: Theme.Space.regular) {
-            Label("Speech model", systemImage: "waveform")
-            Spacer()
-            Text("613 MB")
-                .foregroundStyle(.secondary)
-            Divider().frame(height: 16)
-            Label("Writing tools optional", systemImage: "text.badge.star")
-            Text("5.95 GB")
-                .foregroundStyle(.secondary)
+    private var modelPacks: some View {
+        VStack(alignment: .leading, spacing: Theme.Space.regular) {
+            Text("Local models")
+                .font(.headline)
+
+            ForEach(ModelPack.allCases) { pack in
+                HStack(spacing: Theme.Space.regular) {
+                    Image(systemName: pack == .speech ? "waveform" : "text.badge.star")
+                        .foregroundStyle(Theme.Colour.accent)
+                        .frame(width: 24)
+                    VStack(alignment: .leading, spacing: 2) {
+                        Text(pack.label)
+                            .fontWeight(.medium)
+                        Text("\(pack.detail) · \(pack.sizeLabel)")
+                            .font(.caption)
+                            .foregroundStyle(.secondary)
+                    }
+                    Spacer()
+                    modelAction(for: pack)
+                }
+                .padding(Theme.Space.regular)
+                .background(Theme.Colour.secondaryPanel)
+                .clipShape(RoundedRectangle(cornerRadius: Theme.Radius.card))
+            }
+
+            if let errorMessage = modelManager.errorMessage {
+                Text(errorMessage)
+                    .font(.caption)
+                    .foregroundStyle(.red)
+            }
         }
-        .font(.callout)
+    }
+
+    @ViewBuilder
+    private func modelAction(for pack: ModelPack) -> some View {
+        if modelManager.installing == pack {
+            VStack(alignment: .trailing, spacing: 4) {
+                ProgressView(value: modelManager.progress)
+                    .frame(width: 110)
+                Text(modelManager.status)
+                    .font(.caption2)
+                    .foregroundStyle(.secondary)
+                    .lineLimit(1)
+            }
+        } else if modelManager.isInstalled(pack) {
+            HStack(spacing: 8) {
+                Label("Installed", systemImage: "checkmark.circle.fill")
+                    .font(.caption)
+                    .foregroundStyle(.green)
+                Button("Remove", role: .destructive) {
+                    modelManager.remove(pack)
+                }
+                .controlSize(.small)
+            }
+        } else {
+            Button("Download") {
+                modelManager.install(pack)
+            }
+            .disabled(modelManager.installing != nil)
+        }
+    }
+
+    private var permissionRows: some View {
+        VStack(alignment: .leading, spacing: Theme.Space.regular) {
+            Text("macOS permissions")
+                .font(.headline)
+
+            ForEach(AppPermission.allCases) { permission in
+                HStack(spacing: Theme.Space.regular) {
+                    VStack(alignment: .leading, spacing: 2) {
+                        Text(permission.label)
+                            .fontWeight(.medium)
+                        Text(permission.detail)
+                            .font(.caption)
+                            .foregroundStyle(.secondary)
+                    }
+                    Spacer()
+                    if permissions.isGranted(permission) {
+                        Image(systemName: "checkmark.circle.fill")
+                            .foregroundStyle(.green)
+                            .accessibilityLabel("Granted")
+                    } else {
+                        Button("Allow") {
+                            permissions.request(permission)
+                        }
+                    }
+                }
+            }
+        }
+        .padding(Theme.Space.regular)
+        .background(Theme.Colour.secondaryPanel)
+        .clipShape(RoundedRectangle(cornerRadius: Theme.Radius.card))
     }
 
     private var footer: some View {

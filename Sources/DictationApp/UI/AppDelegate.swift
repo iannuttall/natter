@@ -6,11 +6,25 @@ final class AppDelegate: NSObject, NSApplicationDelegate {
     private var statusItemController: StatusItemController?
     private var coordinator: DictationCoordinator?
     private var hotKeyMonitor: ModifierHotKeyMonitor?
+    private var modelManager: ModelManager?
+    private var permissions: PermissionController?
 
     func applicationDidFinishLaunching(_ notification: Notification) {
         NSApp.setActivationPolicy(.accessory)
-        statusItemController = StatusItemController(store: store)
-        let coordinator = DictationCoordinator(store: store)
+        let speechTranscriber = SpeechTranscriber()
+        let modelManager = ModelManager(speechTranscriber: speechTranscriber)
+        let permissions = PermissionController()
+        self.modelManager = modelManager
+        self.permissions = permissions
+        statusItemController = StatusItemController(
+            store: store,
+            modelManager: modelManager,
+            permissions: permissions
+        )
+        let coordinator = DictationCoordinator(
+            store: store,
+            transcriber: speechTranscriber
+        )
         self.coordinator = coordinator
         let hotKeyMonitor = ModifierHotKeyMonitor(store: store) { [weak coordinator] action in
             coordinator?.handle(action)
@@ -18,12 +32,21 @@ final class AppDelegate: NSObject, NSApplicationDelegate {
         self.hotKeyMonitor = hotKeyMonitor
         hotKeyMonitor.start()
 
-        if ProcessInfo.processInfo.environment["DICTATION_OPEN_ON_LAUNCH"] == "1" {
-            SettingsWindow.shared.show(store: store)
+        if ProcessInfo.processInfo.environment["DICTATION_OPEN_ON_LAUNCH"] == "1"
+            || !modelManager.speechInstalled {
+            SettingsWindow.shared.show(
+                store: store,
+                modelManager: modelManager,
+                permissions: permissions
+            )
         }
 
         if ProcessInfo.processInfo.environment["DICTATION_PREPARE_ON_LAUNCH"] == "1" {
             coordinator.prepareForDebug()
+        }
+
+        if ProcessInfo.processInfo.environment["DICTATION_INSTALL_SPEECH_ON_LAUNCH"] == "1" {
+            modelManager.install(.speech)
         }
     }
 

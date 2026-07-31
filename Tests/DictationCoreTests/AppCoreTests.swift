@@ -100,3 +100,33 @@ import Testing
     let encoded = try JSONEncoder().encode(record)
     #expect(try JSONDecoder().decode(RecoveryRecord.self, from: encoded) == record)
 }
+
+@Test func modelPackPathsAndSizesAreExplicit() {
+    let paths = AppPaths(root: URL(fileURLWithPath: "/tmp/dictation-models"))
+
+    #expect(SpeechModelLocation.installedDirectory(in: paths).path
+        == "/tmp/dictation-models/Models/nemotron-streaming/560ms")
+    #expect(WritingModelLocation.installedDirectory(in: paths).path
+        == "/tmp/dictation-models/Models/writing/models/mlx-community/Qwen3.5-9B-MLX-4bit")
+    #expect(ModelPack.writing.downloadSizeBytes > ModelPack.speech.downloadSizeBytes)
+}
+
+@Test func writingModelRequiresWeightsAndMetadata() throws {
+    let directory = FileManager.default.temporaryDirectory
+        .appendingPathComponent(UUID().uuidString, isDirectory: true)
+    defer { try? FileManager.default.removeItem(at: directory) }
+    try FileManager.default.createDirectory(at: directory, withIntermediateDirectories: true)
+
+    for name in ["config.json", "tokenizer.json", "model.safetensors.index.json"] {
+        #expect(FileManager.default.createFile(
+            atPath: directory.appendingPathComponent(name).path,
+            contents: Data()
+        ))
+    }
+    #expect(!WritingModelLocation.isComplete(at: directory))
+    #expect(FileManager.default.createFile(
+        atPath: directory.appendingPathComponent("model-00001-of-00002.safetensors").path,
+        contents: Data()
+    ))
+    #expect(WritingModelLocation.isComplete(at: directory))
+}

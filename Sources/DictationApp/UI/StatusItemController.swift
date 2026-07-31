@@ -4,11 +4,19 @@ import DictationCore
 @MainActor
 final class StatusItemController: NSObject, NSMenuDelegate {
     private let store: DictationStore
+    private let modelManager: ModelManager
+    private let permissions: PermissionController
     private let statusItem: NSStatusItem
     private let menu = NSMenu()
 
-    init(store: DictationStore) {
+    init(
+        store: DictationStore,
+        modelManager: ModelManager,
+        permissions: PermissionController
+    ) {
         self.store = store
+        self.modelManager = modelManager
+        self.permissions = permissions
         statusItem = NSStatusBar.system.statusItem(withLength: NSStatusItem.squareLength)
         super.init()
 
@@ -100,7 +108,11 @@ final class StatusItemController: NSObject, NSMenuDelegate {
     }
 
     @objc private func openSettings() {
-        SettingsWindow.shared.show(store: store)
+        SettingsWindow.shared.show(
+            store: store,
+            modelManager: modelManager,
+            permissions: permissions
+        )
     }
 
     @objc private func copyLastTranscript() {

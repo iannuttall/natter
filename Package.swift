@@ -32,7 +32,8 @@ let package = Package(
             name: "DictationApp",
             dependencies: [
                 "DictationCore",
-                .product(name: "FluidAudio", package: "FluidAudio")
+                .product(name: "FluidAudio", package: "FluidAudio"),
+                .product(name: "Hub", package: "swift-transformers")
             ]
         ),
         .executableTarget(

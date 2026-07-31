@@ -5,7 +5,7 @@ import Foundation
 final class DictationCoordinator {
     private let store: DictationStore
     private let microphone = MicrophoneCapture()
-    private let transcriber = SpeechTranscriber()
+    private let transcriber: SpeechTranscriber
     private let textInserter = FocusedTextInserter()
     private let recovery = TranscriptRecovery()
     private let overlay: OverlayPanelController
@@ -15,8 +15,9 @@ final class DictationCoordinator {
     private var emitter = StableTranscriptEmitter()
     private var deliveryIssue: String?
 
-    init(store: DictationStore) {
+    init(store: DictationStore, transcriber: SpeechTranscriber) {
         self.store = store
+        self.transcriber = transcriber
         overlay = OverlayPanelController(store: store)
     }
 

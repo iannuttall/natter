@@ -7,7 +7,11 @@ final class SettingsWindow: NSObject, NSWindowDelegate {
 
     private var window: NSWindow?
 
-    func show(store: DictationStore) {
+    func show(
+        store: DictationStore,
+        modelManager: ModelManager,
+        permissions: PermissionController
+    ) {
         if let window {
             NSApp.activate(ignoringOtherApps: true)
             window.makeKeyAndOrderFront(nil)
@@ -15,7 +19,7 @@ final class SettingsWindow: NSObject, NSWindowDelegate {
         }
 
         let window = NSWindow(
-            contentRect: NSRect(x: 0, y: 0, width: 560, height: 500),
+            contentRect: NSRect(x: 0, y: 0, width: 600, height: 720),
             styleMask: [.titled, .closable, .miniaturizable],
             backing: .buffered,
             defer: false
@@ -24,7 +28,13 @@ final class SettingsWindow: NSObject, NSWindowDelegate {
         window.isReleasedWhenClosed = false
         window.center()
         window.delegate = self
-        window.contentView = NSHostingView(rootView: SettingsView(store: store))
+        window.contentView = NSHostingView(
+            rootView: SettingsView(
+                store: store,
+                modelManager: modelManager,
+                permissions: permissions
+            )
+        )
         self.window = window
 
         NSApp.activate(ignoringOtherApps: true)

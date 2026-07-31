@@ -1,0 +1,148 @@
+import DictationCore
+import FluidAudio
+import Foundation
+import Observation
+
+@MainActor
+@Observable
+final class ModelManager {
+    private let paths: AppPaths
+    private let speechTranscriber: SpeechTranscriber
+    private let writingInstaller = WritingModelInstaller()
+
+    private(set) var speechInstalled = false
+    private(set) var writingInstalled = false
+    private(set) var installing: ModelPack?
+    private(set) var progress: Double = 0
+    private(set) var status = ""
+    private(set) var errorMessage: String?
+
+    init(
+        paths: AppPaths = .live(bundleIdentifier: AppInfo.bundleIdentifier),
+        speechTranscriber: SpeechTranscriber
+    ) {
+        self.paths = paths
+        self.speechTranscriber = speechTranscriber
+        refresh()
+    }
+
+    func isInstalled(_ pack: ModelPack) -> Bool {
+        switch pack {
+        case .speech: speechInstalled
+        case .writing: writingInstalled
+        }
+    }
+
+    func install(_ pack: ModelPack) {
+        guard installing == nil else { return }
+        installing = pack
+        progress = 0
+        status = "Preparing download…"
+        errorMessage = nil
+
+        Task {
+            do {
+                try ensureDiskSpace(for: pack)
+                switch pack {
+                case .speech:
+                    try await installSpeech()
+                case .writing:
+                    try await installWriting()
+                }
+                refresh()
+                progress = 1
+                status = "Installed"
+                installing = nil
+            } catch {
+                errorMessage = error.localizedDescription
+                status = "Download failed"
+                installing = nil
+            }
+        }
+    }
+
+    func remove(_ pack: ModelPack) {
+        guard installing == nil else { return }
+        errorMessage = nil
+
+        do {
+            switch pack {
+            case .speech:
+                try removeIfPresent(SpeechModelLocation.installedDirectory(in: paths))
+                Task { await speechTranscriber.unload() }
+            case .writing:
+                try removeIfPresent(WritingModelLocation.downloadRoot(in: paths))
+            }
+            refresh()
+            status = "Removed"
+        } catch {
+            errorMessage = error.localizedDescription
+        }
+    }
+
+    func refresh() {
+        speechInstalled = SpeechModelLocation.isComplete(
+            at: SpeechModelLocation.installedDirectory(in: paths)
+        )
+        writingInstalled = WritingModelLocation.isComplete(
+            at: WritingModelLocation.installedDirectory(in: paths)
+        )
+    }
+
+    private func installSpeech() async throws {
+        status = "Downloading live speech…"
+        try await speechTranscriber.install(to: paths.models) { [weak self] progress in
+            Task { @MainActor in
+                self?.progress = progress.fractionCompleted
+                self?.status = Self.label(for: progress.phase)
+            }
+        }
+    }
+
+    private func installWriting() async throws {
+        status = "Downloading writing tools…"
+        let directory = try await writingInstaller.install(in: paths) { [weak self] progress in
+            Task { @MainActor in self?.progress = progress }
+        }
+        guard WritingModelLocation.isComplete(at: directory) else {
+            throw ModelManagerError.incompleteDownload
+        }
+    }
+
+    private func ensureDiskSpace(for pack: ModelPack) throws {
+        let values = try paths.root.resourceValues(forKeys: [.volumeAvailableCapacityForImportantUsageKey])
+        if let available = values.volumeAvailableCapacityForImportantUsage,
+           available < pack.downloadSizeBytes + 1_000_000_000 {
+            throw ModelManagerError.insufficientDiskSpace(pack.sizeLabel)
+        }
+    }
+
+    private func removeIfPresent(_ url: URL) throws {
+        guard FileManager.default.fileExists(atPath: url.path) else { return }
+        try FileManager.default.removeItem(at: url)
+    }
+
+    private static func label(for phase: DownloadPhase) -> String {
+        switch phase {
+        case .listing: "Checking model files…"
+        case let .downloading(completed, total):
+            total > 0 ? "Downloading file \(completed + 1) of \(total)…" : "Checking local files…"
+        case let .compiling(modelName):
+            modelName.isEmpty ? "Finishing…" : "Preparing \(modelName)…"
+        }
+    }
+}
+
+enum ModelManagerError: LocalizedError {
+    case incompleteDownload
+    case insufficientDiskSpace(String)
+
+    var errorDescription: String? {
+        switch self {
+        case .incompleteDownload:
+            "The model download finished without every required file."
+        case let .insufficientDiskSpace(size):
+            "Not enough free space for the \(size) model pack."
+        }
+    }
+}
