@@ -6,3 +6,4 @@
 Results/*.json
 Models/
 dist/
+ProductCorpus/*.json.tmp
