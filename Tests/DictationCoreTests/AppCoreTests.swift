@@ -67,3 +67,36 @@ import Testing
     )
     #expect(!SpeechModelLocation.isComplete(at: directory))
 }
+
+@Test func stableTranscriptOnlyEmitsConfirmedWords() {
+    var emitter = StableTranscriptEmitter()
+
+    #expect(emitter.observe("hello wor") == .none)
+    #expect(emitter.observe("hello world") == .text("hello "))
+    #expect(emitter.observe("hello world from") == .text("world"))
+    #expect(emitter.observe("hello world from Ian") == .text(" from"))
+    #expect(emitter.finish("hello world from Ian.") == .text(" Ian."))
+    #expect(emitter.delivered == "hello world from Ian.")
+}
+
+@Test func stableTranscriptRefusesToRewriteDeliveredText() {
+    var emitter = StableTranscriptEmitter()
+
+    #expect(emitter.observe("ship the build") == .none)
+    #expect(emitter.observe("ship the build now") == .text("ship the build"))
+    #expect(emitter.observe("skip the build now") == .conflict)
+    #expect(emitter.finish("skip the build now") == .conflict)
+}
+
+@Test func recoveryRecordRoundTrips() throws {
+    let record = RecoveryRecord(
+        createdAt: Date(timeIntervalSince1970: 123),
+        transcript: "full transcript",
+        deliveredPrefix: "full ",
+        targetBundleIdentifier: "com.apple.Terminal",
+        reason: "Focus changed"
+    )
+
+    let encoded = try JSONEncoder().encode(record)
+    #expect(try JSONDecoder().decode(RecoveryRecord.self, from: encoded) == record)
+}

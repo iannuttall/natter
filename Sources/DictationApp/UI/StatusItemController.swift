@@ -64,6 +64,16 @@ final class StatusItemController: NSObject, NSMenuDelegate {
         }
 
         menu.addItem(.separator())
+        if !store.finalTranscript.isEmpty {
+            let copyTranscript = NSMenuItem(
+                title: "Copy Last Transcript",
+                action: #selector(copyLastTranscript),
+                keyEquivalent: ""
+            )
+            copyTranscript.target = self
+            menu.addItem(copyTranscript)
+            menu.addItem(.separator())
+        }
         let settings = NSMenuItem(
             title: "Settings…",
             action: #selector(openSettings),
@@ -91,6 +101,11 @@ final class StatusItemController: NSObject, NSMenuDelegate {
 
     @objc private func openSettings() {
         SettingsWindow.shared.show(store: store)
+    }
+
+    @objc private func copyLastTranscript() {
+        NSPasteboard.general.clearContents()
+        NSPasteboard.general.setString(store.finalTranscript, forType: .string)
     }
 
     @objc private func quitApp() {

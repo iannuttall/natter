@@ -26,7 +26,7 @@ struct OverlayView: View {
                     .textSelection(.enabled)
             }
 
-            Text("Tap (store.selectedHotKey.label) to stop")
+            Text(footerText)
                 .font(.caption)
                 .foregroundStyle(.tertiary)
         }
@@ -56,6 +56,19 @@ struct OverlayView: View {
             }
         }
         .animation(.linear(duration: 0.08), value: store.audioLevel)
+    }
+
+    private var footerText: String {
+        switch store.phase {
+        case .preparing, .listening:
+            "Tap \(store.selectedHotKey.label) to stop"
+        case .recoverable:
+            "The complete transcript is on your clipboard"
+        case .failed:
+            "Open Settings to fix this"
+        default:
+            store.statusMessage ?? "Finished locally"
+        }
     }
 
     private func barIsActive(_ index: Int) -> Bool {

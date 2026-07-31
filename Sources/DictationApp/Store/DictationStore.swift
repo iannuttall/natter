@@ -15,6 +15,7 @@ final class DictationStore {
     var finalTranscript = ""
     var audioLevel: Float = 0
     var statusMessage: String?
+    var latestRecoveryURL: URL?
 
     var selectedMode: DictationMode {
         didSet {
