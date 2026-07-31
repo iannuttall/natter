@@ -22,11 +22,20 @@ final class DictationStore {
         }
     }
 
+    var selectedHotKey: ModifierHotKey {
+        didSet {
+            defaults.set(selectedHotKey.rawValue, forKey: Keys.selectedHotKey)
+        }
+    }
+
     private init(defaults: UserDefaults = .standard) {
         self.defaults = defaults
         selectedMode = defaults.string(forKey: Keys.selectedMode)
             .flatMap(DictationMode.init(rawValue:))
             ?? .raw
+        selectedHotKey = defaults.string(forKey: Keys.selectedHotKey)
+            .flatMap(ModifierHotKey.init(rawValue:))
+            ?? .rightOption
 
         try? AppPaths.live(bundleIdentifier: AppInfo.bundleIdentifier)
             .createRequiredDirectories()
@@ -46,6 +55,11 @@ final class DictationStore {
         selectedMode = mode
     }
 
+    func select(_ hotKey: ModifierHotKey) {
+        guard !phase.isBusy else { return }
+        selectedHotKey = hotKey
+    }
+
     func resetSession() {
         phase = .idle
         liveTranscript = ""
@@ -57,6 +71,6 @@ final class DictationStore {
 
     private enum Keys {
         static let selectedMode = "selectedMode"
+        static let selectedHotKey = "selectedHotKey"
     }
 }
-

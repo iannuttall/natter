@@ -14,6 +14,10 @@ let package = Package(
     ],
     dependencies: [
         .package(
+            url: "https://github.com/FluidInference/FluidAudio.git",
+            revision: "88d6d8166880dee1ac7c32c80f8e10cd782f8ca8"
+        ),
+        .package(
             url: "https://github.com/ml-explore/mlx-swift-lm.git",
             revision: "a2736d4ea9472af8809a0b278c294aaf1f0918ba"
         ),
@@ -26,7 +30,10 @@ let package = Package(
         .target(name: "DictationCore"),
         .executableTarget(
             name: "DictationApp",
-            dependencies: ["DictationCore"]
+            dependencies: [
+                "DictationCore",
+                .product(name: "FluidAudio", package: "FluidAudio")
+            ]
         ),
         .executableTarget(
             name: "DictationParity",
