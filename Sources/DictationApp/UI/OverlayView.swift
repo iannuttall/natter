@@ -18,12 +18,20 @@ struct OverlayView: View {
                     .foregroundStyle(.secondary)
             }
 
-            ScrollView {
-                Text(transcript)
-                    .font(.system(size: 16, weight: .regular, design: .rounded))
-                    .foregroundStyle(.primary)
-                    .frame(maxWidth: .infinity, alignment: .leading)
-                    .textSelection(.enabled)
+            ScrollViewReader { proxy in
+                ScrollView {
+                    Text(transcript)
+                        .font(.system(size: 16, weight: .regular, design: .rounded))
+                        .foregroundStyle(.primary)
+                        .frame(maxWidth: .infinity, alignment: .leading)
+                        .textSelection(.enabled)
+                    Color.clear
+                        .frame(height: 1)
+                        .id("transcript-bottom")
+                }
+                .onChange(of: store.liveTranscript) {
+                    proxy.scrollTo("transcript-bottom", anchor: .bottom)
+                }
             }
 
             Text(footerText)

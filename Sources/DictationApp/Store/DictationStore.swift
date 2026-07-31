@@ -29,6 +29,12 @@ final class DictationStore {
         }
     }
 
+    var terminalPacingEnabled: Bool {
+        didSet {
+            defaults.set(terminalPacingEnabled, forKey: Keys.terminalPacingEnabled)
+        }
+    }
+
     private init(defaults: UserDefaults = .standard) {
         self.defaults = defaults
         selectedMode = defaults.string(forKey: Keys.selectedMode)
@@ -37,6 +43,8 @@ final class DictationStore {
         selectedHotKey = defaults.string(forKey: Keys.selectedHotKey)
             .flatMap(ModifierHotKey.init(rawValue:))
             ?? .rightOption
+        terminalPacingEnabled = defaults.object(forKey: Keys.terminalPacingEnabled) as? Bool
+            ?? true
 
         try? AppPaths.live(bundleIdentifier: AppInfo.bundleIdentifier)
             .createRequiredDirectories()
@@ -73,5 +81,6 @@ final class DictationStore {
     private enum Keys {
         static let selectedMode = "selectedMode"
         static let selectedHotKey = "selectedHotKey"
+        static let terminalPacingEnabled = "terminalPacingEnabled"
     }
 }

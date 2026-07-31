@@ -55,7 +55,11 @@ final class FocusedTextInserter {
         )
     }
 
-    func insert(_ text: String, into target: FocusedTextTarget) async throws {
+    func insert(
+        _ text: String,
+        into target: FocusedTextTarget,
+        paceTerminalInput: Bool
+    ) async throws {
         guard !text.isEmpty else { return }
         let chunks = text.utf16Chunks(maximumCount: 16)
         let applicationKind = DestinationApplicationKind.classify(
@@ -85,7 +89,9 @@ final class FocusedTextInserter {
             keyDown.postToPid(target.processIdentifier)
             keyUp.postToPid(target.processIdentifier)
 
-            if applicationKind == .terminal, index < chunks.index(before: chunks.endIndex) {
+            if paceTerminalInput,
+               applicationKind == .terminal,
+               index < chunks.index(before: chunks.endIndex) {
                 try await Task.sleep(for: Self.terminalChunkDelay)
             }
         }

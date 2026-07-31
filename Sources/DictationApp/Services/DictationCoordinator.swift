@@ -271,7 +271,11 @@ final class DictationCoordinator {
         }
 
         do {
-            try await textInserter.insert(text, into: focusTarget)
+            try await textInserter.insert(
+                text,
+                into: focusTarget,
+                paceTerminalInput: store.terminalPacingEnabled
+            )
         } catch {
             deliveryIssue = error.localizedDescription
             store.statusMessage = "Still listening · transcript will be copied"
@@ -356,7 +360,7 @@ final class DictationCoordinator {
     }
 
     private func hideOverlayAfterResult() async {
-        try? await Task.sleep(for: .seconds(1.4))
+        try? await Task.sleep(for: .milliseconds(450))
         if store.phase == .idle || store.isRecoverable { overlay.hide() }
     }
 

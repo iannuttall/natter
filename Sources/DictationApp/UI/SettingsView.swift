@@ -13,6 +13,7 @@ struct SettingsView: View {
                 header
                 permissionRows
                 hotKeyPicker
+                terminalDelivery
                 modePicker
                 rulesButton
                 modelPacks
@@ -36,6 +37,19 @@ struct SettingsView: View {
                 }
             }
         }
+    }
+
+    private var terminalDelivery: some View {
+        Toggle(isOn: $store.terminalPacingEnabled) {
+            VStack(alignment: .leading, spacing: 2) {
+                Text("Keep terminal dictation visible")
+                    .font(.headline)
+                Text("Pace long input so coding agents do not collapse it into a paste block.")
+                    .font(.callout)
+                    .foregroundStyle(.secondary)
+            }
+        }
+        .disabled(store.phase.isBusy)
     }
 
     private var hotKeyPicker: some View {
