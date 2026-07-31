@@ -47,7 +47,9 @@ final class MicrophoneCapture {
     private let engine = AVAudioEngine()
     private var continuation: AsyncStream<AudioChunk>.Continuation?
 
-    func start(levelHandler: @escaping @MainActor (Float) -> Void) throws -> AsyncStream<AudioChunk> {
+    func start(
+        levelHandler: @escaping @MainActor @Sendable (Float) -> Void
+    ) throws -> AsyncStream<AudioChunk> {
         stop()
 
         let input = engine.inputNode
@@ -59,17 +61,15 @@ final class MicrophoneCapture {
         )
         self.continuation = continuation
 
-        input.installTap(onBus: 0, bufferSize: 1_024, format: format) {
-            buffer,
-            _ in
-            guard let channel = buffer.floatChannelData?[0] else { return }
-            let samples = Array(
-                UnsafeBufferPointer(start: channel, count: Int(buffer.frameLength))
+        input.installTap(
+            onBus: 0,
+            bufferSize: 1_024,
+            format: format,
+            block: Self.makeTapHandler(
+                continuation: continuation,
+                levelHandler: levelHandler
             )
-            let chunk = AudioChunk(samples: samples, sampleRate: buffer.format.sampleRate)
-            continuation.yield(chunk)
-            Task { @MainActor in levelHandler(chunk.level) }
-        }
+        )
 
         engine.prepare()
         do {
@@ -81,6 +81,21 @@ final class MicrophoneCapture {
             throw error
         }
         return stream
+    }
+
+    nonisolated private static func makeTapHandler(
+        continuation: AsyncStream<AudioChunk>.Continuation,
+        levelHandler: @escaping @MainActor @Sendable (Float) -> Void
+    ) -> AVAudioNodeTapBlock {
+        { @Sendable buffer, _ in
+            guard let channel = buffer.floatChannelData?[0] else { return }
+            let samples = Array(
+                UnsafeBufferPointer(start: channel, count: Int(buffer.frameLength))
+            )
+            let chunk = AudioChunk(samples: samples, sampleRate: buffer.format.sampleRate)
+            continuation.yield(chunk)
+            Task { @MainActor in levelHandler(chunk.level) }
+        }
     }
 
     func stop() {

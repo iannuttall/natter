@@ -60,6 +60,19 @@ final class AppDelegate: NSObject, NSApplicationDelegate {
         ] {
             coordinator.testWritingForDebug(transcript)
         }
+
+        if ProcessInfo.processInfo.environment["DICTATION_CAPTURE_SMOKE_ON_LAUNCH"] == "1" {
+            coordinator.handle(.start)
+            Task { @MainActor in
+                try? await Task.sleep(for: .seconds(1.5))
+                coordinator.handle(.stop)
+                try? await Task.sleep(for: .seconds(1))
+                FileHandle.standardError.write(
+                    Data("DICTATION_CAPTURE_SMOKE_COMPLETE\n".utf8)
+                )
+                NSApp.terminate(nil)
+            }
+        }
     }
 
     func applicationWillTerminate(_ notification: Notification) {
