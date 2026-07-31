@@ -26,6 +26,21 @@ public enum ModifierHotKeyAction: Equatable, Sendable {
     case stop
 }
 
+public struct ModifierKeyEdgeTracker: Sendable {
+    private var isDown = false
+
+    public init() {}
+
+    public mutating func observe(isActive: Bool) -> Bool {
+        defer { isDown = isActive }
+        return isActive && !isDown
+    }
+
+    public mutating func reset() {
+        isDown = false
+    }
+}
+
 public struct ModifierTapDetector: Sendable {
     public let doubleTapInterval: TimeInterval
     private var firstTapTime: TimeInterval?

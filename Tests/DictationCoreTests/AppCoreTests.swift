@@ -44,6 +44,23 @@ import Testing
     #expect(detector.keyDown(at: 11, sessionIsActive: true) == .stop)
 }
 
+@Test func modifierEdgeTrackerCountsPressesNotReleases() {
+    var tracker = ModifierKeyEdgeTracker()
+
+    let firstPress = tracker.observe(isActive: true)
+    let heldEvent = tracker.observe(isActive: true)
+    let release = tracker.observe(isActive: false)
+    let secondPress = tracker.observe(isActive: true)
+    tracker.reset()
+    let pressAfterReset = tracker.observe(isActive: true)
+
+    #expect(firstPress)
+    #expect(!heldEvent)
+    #expect(!release)
+    #expect(secondPress)
+    #expect(pressAfterReset)
+}
+
 @Test func modifierTapOutsideWindowStartsANewPair() {
     var detector = ModifierTapDetector(doubleTapInterval: 0.42)
 

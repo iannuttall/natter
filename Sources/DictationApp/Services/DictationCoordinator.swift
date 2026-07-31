@@ -10,6 +10,7 @@ final class DictationCoordinator {
     private let writingEngine = WritingEngine()
     private let textInserter = FocusedTextInserter()
     private let recovery = TranscriptRecovery()
+    private let feedback = FeedbackSoundPlayer()
     private let overlay: OverlayPanelController
     private var streamTask: Task<Void, Never>?
     private var sessionTask: Task<Void, Never>?
@@ -108,6 +109,7 @@ final class DictationCoordinator {
             store.statusMessage = deliveryIssue == nil
                 ? nil
                 : "Listening · transcript will be copied"
+            feedback.play(.started)
 
             streamTask = Task { [weak self] in
                 for await chunk in stream {
@@ -132,6 +134,7 @@ final class DictationCoordinator {
         guard store.phase == .preparing || store.phase == .listening else { return }
 
         if store.phase == .preparing {
+            feedback.play(.stopped)
             sessionTask?.cancel()
             sessionTask = nil
             store.resetSession()
@@ -139,6 +142,7 @@ final class DictationCoordinator {
             return
         }
 
+        feedback.play(.stopped)
         microphone.stop()
         let drainingStreamTask = streamTask
         streamTask = nil

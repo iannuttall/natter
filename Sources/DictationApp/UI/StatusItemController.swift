@@ -1,5 +1,6 @@
 import AppKit
 import DictationCore
+import Observation
 
 @MainActor
 final class StatusItemController: NSObject, NSMenuDelegate {
@@ -36,6 +37,7 @@ final class StatusItemController: NSObject, NSMenuDelegate {
         }
 
         menu.delegate = self
+        observeStore()
     }
 
     @objc private func showMenu() {
@@ -126,5 +128,40 @@ final class StatusItemController: NSObject, NSMenuDelegate {
 
     @objc private func quitApp() {
         NSApp.terminate(nil)
+    }
+
+    private func observeStore() {
+        withObservationTracking {
+            updateStatusIcon(phase: store.phase, mode: store.selectedMode)
+        } onChange: { [weak self] in
+            Task { @MainActor in self?.observeStore() }
+        }
+    }
+
+    private func updateStatusIcon(phase: DictationPhase, mode: DictationMode) {
+        guard let button = statusItem.button else { return }
+        let symbolName: String
+        switch phase {
+        case .idle:
+            symbolName = "waveform"
+        case .preparing:
+            symbolName = "hourglass.circle.fill"
+        case .listening:
+            symbolName = "record.circle.fill"
+        case .finalizing, .transforming:
+            symbolName = "ellipsis.circle.fill"
+        case .recoverable:
+            symbolName = "doc.on.clipboard.fill"
+        case .failed:
+            symbolName = "exclamationmark.triangle.fill"
+        }
+
+        let image = NSImage(
+            systemSymbolName: symbolName,
+            accessibilityDescription: "\(AppInfo.displayName): \(phase.label)"
+        )
+        image?.isTemplate = true
+        button.image = image
+        button.toolTip = "\(AppInfo.displayName) · \(phase.label) · \(mode.label)"
     }
 }
