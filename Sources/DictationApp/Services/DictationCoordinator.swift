@@ -164,10 +164,13 @@ final class DictationCoordinator {
                     return
                 }
 
-                let transcript = PersonalCorrections.apply(
+                let correctedTranscript = PersonalCorrections.apply(
                     sessionCorrections,
                     to: rawTranscript
                 )
+                let transcript = store.selectedMode == .raw
+                    ? FinalTranscriptFormatter.punctuateRawProse(correctedTranscript)
+                    : correctedTranscript
                 store.liveTranscript = transcript
                 store.finalTranscript = transcript
 

@@ -32,4 +32,5 @@ test("feature corpus covers every app mode and failure-sensitive workflow", () =
   assert.ok(scenarios.some((scenario) => scenario.expectRecovery));
   assert.ok(scenarios.some((scenario) => scenario.expectEmpty));
   assert.ok(scenarios.some((scenario) => scenario.spokenUntil));
+  assert.ok(scenarios.filter((scenario) => scenario.terminalPunctuation).length >= 2);
 });

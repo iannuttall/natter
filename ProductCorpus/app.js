@@ -131,6 +131,7 @@ function automaticCheckDefinitions(scenario) {
   if (scenario.expectEmpty) labels.push("Destination stayed empty");
   for (const value of scenario.required || []) labels.push(`Contains “${value}”`);
   for (const value of scenario.forbidden || []) labels.push(`Does not contain “${value}”`);
+  if (scenario.terminalPunctuation) labels.push("Ends with sentence punctuation");
   if (scenario.minInputEvents > 0) labels.push(`At least ${scenario.minInputEvents} separate input events`);
   if (scenario.expectRecovery) labels.push("Recovery clipboard contains the complete transcript");
   return labels;
@@ -157,6 +158,12 @@ function evaluate() {
     checks.push({
       label: `Does not contain “${value}”`,
       passed: !lowered.includes(value.toLocaleLowerCase()),
+    });
+  }
+  if (scenario.terminalPunctuation) {
+    checks.push({
+      label: "Ends with sentence punctuation",
+      passed: /[.!?][\"')\]]?$/.test(evaluatedText),
     });
   }
   if (scenario.minInputEvents > 0) {

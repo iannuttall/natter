@@ -95,24 +95,37 @@ import Testing
     #expect(!SpeechModelLocation.isComplete(at: directory))
 }
 
-@Test func stableTranscriptOnlyEmitsConfirmedWords() {
+@Test func appendOnlyTranscriptEmitsEveryNewDelta() {
     var emitter = StableTranscriptEmitter()
 
-    #expect(emitter.observe("hello wor") == .none)
-    #expect(emitter.observe("hello world") == .text("hello "))
-    #expect(emitter.observe("hello world from") == .text("world"))
-    #expect(emitter.observe("hello world from Ian") == .text(" from"))
-    #expect(emitter.finish("hello world from Ian.") == .text(" Ian."))
+    #expect(emitter.observe("hello wor") == .text("hello wor"))
+    #expect(emitter.observe("hello world") == .text("ld"))
+    #expect(emitter.observe("hello world from") == .text(" from"))
+    #expect(emitter.observe("hello world from Ian") == .text(" Ian"))
+    #expect(emitter.finish("hello world from Ian.") == .text("."))
     #expect(emitter.delivered == "hello world from Ian.")
 }
 
 @Test func stableTranscriptRefusesToRewriteDeliveredText() {
     var emitter = StableTranscriptEmitter()
 
-    #expect(emitter.observe("ship the build") == .none)
-    #expect(emitter.observe("ship the build now") == .text("ship the build"))
+    #expect(emitter.observe("ship the build") == .text("ship the build"))
+    #expect(emitter.observe("ship the build now") == .text(" now"))
     #expect(emitter.observe("skip the build now") == .conflict)
     #expect(emitter.finish("skip the build now") == .conflict)
+}
+
+@Test func rawPunctuationFinishesProseButNotTechnicalTokens() {
+    #expect(FinalTranscriptFormatter.punctuateRawProse("this is a sentence")
+        == "this is a sentence.")
+    #expect(FinalTranscriptFormatter.punctuateRawProse("is this complete?")
+        == "is this complete?")
+    #expect(FinalTranscriptFormatter.punctuateRawProse("run git diff --check")
+        == "run git diff --check")
+    #expect(FinalTranscriptFormatter.punctuateRawProse("save to ~/output.json")
+        == "save to ~/output.json")
+    #expect(FinalTranscriptFormatter.punctuateRawProse("email ian@example.com")
+        == "email ian@example.com")
 }
 
 @Test func recoveryRecordRoundTrips() throws {

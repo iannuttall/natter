@@ -8,6 +8,7 @@
     "script": "I want the transcript to appear while I am still speaking, one stable phrase at a time, so I can see a mistake before I reach the end of this sentence.",
     "required": ["stable phrase", "mistake", "end of this sentence"],
     "forbidden": [],
+    "terminalPunctuation": true,
     "minInputEvents": 2,
     "manualChecks": ["The overlay stayed readable while the destination filled"]
   },
@@ -33,6 +34,7 @@
     "script": "I’m not convinced it’s broken, but I can’t ship it today. If the final check passes, we’ll release it tomorrow; otherwise, we won’t.",
     "required": ["not convinced", "ship it today", "release it tomorrow"],
     "forbidden": [],
+    "terminalPunctuation": true,
     "minInputEvents": 2,
     "manualChecks": ["Sentence punctuation looked natural"]
   },
