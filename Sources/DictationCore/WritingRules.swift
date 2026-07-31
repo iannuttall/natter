@@ -59,10 +59,15 @@ public enum WritingRules {
 }
 
 public enum DeterministicTranscriptCleaner {
+    public static func clean(_ transcript: String) -> String {
+        let withoutFillers = removeFillers(from: transcript)
+        return removeRepeatedFragments(from: withoutFillers)
+    }
+
     public static func removeFillers(from transcript: String) -> String {
         var result = transcript
         let patterns = [
-            #"(?i)(?<![\p{L}\p{N}_])(?:um+|erm+|uh+|ah+)(?:[,.]?\s+|[,.]?$)"#,
+            #"(?i)(?<![\p{L}\p{N}_])(?:uhm+|um+|erm+|uh+|ah+|eh+|hmm+)(?:[,.]?\s+|[,.]?$)"#,
             #"\s+([,.;:!?])"#,
             #"[ \t]{2,}"#
         ]
@@ -75,6 +80,68 @@ public enum DeterministicTranscriptCleaner {
             )
         }
         return result.trimmingCharacters(in: .whitespacesAndNewlines)
+    }
+
+    public static func removeRepeatedFragments(from transcript: String) -> String {
+        var result = transcript
+
+        while let range = firstRepeatedFragment(in: result) {
+            result.removeSubrange(range)
+        }
+
+        result = result.replacingOccurrences(
+            of: #"\s+([,.;:!?])"#,
+            with: "$1",
+            options: .regularExpression
+        )
+        result = result.replacingOccurrences(
+            of: #"[ \t]{2,}"#,
+            with: " ",
+            options: .regularExpression
+        )
+        return result.trimmingCharacters(in: .whitespacesAndNewlines)
+    }
+
+    private static func firstRepeatedFragment(in text: String) -> Range<String.Index>? {
+        guard let regex = try? NSRegularExpression(
+            pattern: #"[\p{L}\p{N}]+(?:['’_-][\p{L}\p{N}]+)*"#
+        ) else { return nil }
+
+        let fullRange = NSRange(text.startIndex..., in: text)
+        let tokens = regex.matches(in: text, range: fullRange).compactMap { match -> Token? in
+            guard let range = Range(match.range, in: text) else { return nil }
+            return Token(range: range, folded: text[range].folding(
+                options: [.caseInsensitive, .diacriticInsensitive],
+                locale: .current
+            ))
+        }
+        guard tokens.count >= 2 else { return nil }
+
+        for start in tokens.indices {
+            let maximumLength = min(8, (tokens.count - start) / 2)
+            guard maximumLength > 0 else { continue }
+
+            for length in stride(from: maximumLength, through: 1, by: -1) {
+                let secondStart = start + length
+                let firstWords = tokens[start ..< secondStart].map(\.folded)
+                let secondWords = tokens[secondStart ..< secondStart + length].map(\.folded)
+                guard firstWords == secondWords else { continue }
+
+                let separator = text[tokens[secondStart - 1].range.upperBound
+                    ..< tokens[secondStart].range.lowerBound]
+                guard separator.allSatisfy({ $0.isWhitespace || $0 == "," }) else {
+                    continue
+                }
+
+                return tokens[start].range.lowerBound ..< tokens[secondStart].range.lowerBound
+            }
+        }
+        return nil
+    }
+
+    private struct Token {
+        let range: Range<String.Index>
+        let folded: String
     }
 }
 

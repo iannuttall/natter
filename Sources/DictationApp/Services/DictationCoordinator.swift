@@ -168,9 +168,17 @@ final class DictationCoordinator {
                     sessionCorrections,
                     to: rawTranscript
                 )
-                let transcript = store.selectedMode == .raw
-                    ? FinalTranscriptFormatter.punctuateRawProse(correctedTranscript)
-                    : correctedTranscript
+                let transcript: String
+                switch store.selectedMode {
+                case .raw:
+                    transcript = FinalTranscriptFormatter.punctuateRawProse(correctedTranscript)
+                case .clean:
+                    transcript = FinalTranscriptFormatter.punctuateRawProse(
+                        DeterministicTranscriptCleaner.clean(correctedTranscript)
+                    )
+                case .agent, .email, .article:
+                    transcript = correctedTranscript
+                }
                 store.liveTranscript = transcript
                 store.finalTranscript = transcript
 

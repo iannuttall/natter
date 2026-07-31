@@ -3,7 +3,7 @@
 A native, local macOS dictation app. The working product name is temporary.
 
 Dictation uses FluidAudio Nemotron Streaming 560 ms for live speech and an
-optional Qwen 3.5 9B model through MLX Swift for writing modes. It has no
+optional Qwen 3.5 9B model through MLX Swift for Email and Article. It has no
 account, cloud inference, telemetry, Ollama dependency or background server.
 
 ## Use it
@@ -17,7 +17,7 @@ account, cloud inference, telemetry, Ollama dependency or background server.
 
 2. In Settings, allow Microphone, Accessibility and Input Monitoring.
 3. Download the required 613 MB **Live speech** model. Download the optional
-   5.95 GB **Writing tools** model only if you want Clean, Email or Article.
+   5.95 GB **Writing tools** model only if you want Email or Article.
 4. Quit Monologue while testing because it uses the same global shortcut.
 5. Focus an editable field, double-tap Right Option to start, then tap Right
    Option once to stop. Right Control can be selected in Settings instead.
@@ -28,7 +28,8 @@ The menu-bar menu changes mode and can copy the last completed transcript.
 
 - **Raw** types stable phrases live and applies personal corrections.
 - **Agent** types stable phrases live for terminal and coding-agent prompts.
-- **Clean** removes filler and false starts after stop.
+- **Clean** removes explicit filler and obvious repeated words or phrases after
+  stop, without another model.
 - **Email** formats a direct email body after stop.
 - **Article** restructures longer speech into prose after stop.
 

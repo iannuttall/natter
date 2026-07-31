@@ -16,7 +16,7 @@ public enum ModelPack: String, CaseIterable, Identifiable, Sendable {
     public var detail: String {
         switch self {
         case .speech: "Nemotron Streaming 560 ms · required"
-        case .writing: "Qwen 3.5 9B MLX 4-bit · optional"
+        case .writing: "Qwen 3.5 9B MLX 4-bit · Email and Article"
         }
     }
 

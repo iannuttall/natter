@@ -17,7 +17,7 @@ actor WritingEngine {
         modelDirectory: URL
     ) async throws -> String {
         let container = try await loadIfNeeded(from: modelDirectory)
-        let cleanedInput = DeterministicTranscriptCleaner.removeFillers(from: transcript)
+        let cleanedInput = DeterministicTranscriptCleaner.clean(transcript)
         let session = ChatSession(
             container,
             instructions: WritingBenchmark.baseInstructions,

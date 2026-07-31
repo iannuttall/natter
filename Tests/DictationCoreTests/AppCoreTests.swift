@@ -6,6 +6,7 @@ import Testing
     #expect(DictationMode.raw.typesIncrementally)
     #expect(DictationMode.agent.typesIncrementally)
     #expect(!DictationMode.clean.typesIncrementally)
+    #expect(!DictationMode.clean.isGenerative)
     #expect(DictationMode.email.isGenerative)
     #expect(DictationMode.article.isGenerative)
 }
@@ -201,6 +202,20 @@ import Testing
         from: "Um, ship the hummingbird, erm, to /tmp/build at 70%."
     )
     #expect(cleaned == "ship the hummingbird, to /tmp/build at 70%.")
+}
+
+@Test func deterministicCleanerRemovesObviousRepeatedWordsAndPhrases() {
+    let cleaned = DeterministicTranscriptCleaner.clean(
+        "Um, I need to, I need to send the report today, erm, but but first check it."
+    )
+    #expect(cleaned == "I need to send the report today, but first check it.")
+}
+
+@Test func deterministicCleanerDoesNotDeduplicateAcrossSentenceBoundaries() {
+    let cleaned = DeterministicTranscriptCleaner.clean(
+        "It was ready. It was ready for the next test."
+    )
+    #expect(cleaned == "It was ready. It was ready for the next test.")
 }
 
 @Test func factGuardProtectsNumbersPathsUrlsAndEmails() {

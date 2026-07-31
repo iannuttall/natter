@@ -26,7 +26,7 @@ public enum DictationMode: String, Codable, CaseIterable, Identifiable, Sendable
         case .agent:
             "Live dictation that preserves code, paths, constraints and line breaks."
         case .clean:
-            "Remove filler and resolve false starts after you stop."
+            "Remove filler and obvious repeated words after you stop."
         case .email:
             "Turn the finished transcript into a direct, natural email."
         case .article:
@@ -36,13 +36,16 @@ public enum DictationMode: String, Codable, CaseIterable, Identifiable, Sendable
 
     public var isGenerative: Bool {
         switch self {
-        case .raw, .agent: false
-        case .clean, .email, .article: true
+        case .raw, .agent, .clean: false
+        case .email, .article: true
         }
     }
 
     public var typesIncrementally: Bool {
-        !isGenerative
+        switch self {
+        case .raw, .agent: true
+        case .clean, .email, .article: false
+        }
     }
 }
 

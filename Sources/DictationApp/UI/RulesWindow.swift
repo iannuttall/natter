@@ -4,7 +4,6 @@ import SwiftUI
 
 private enum RulesDocument: String, CaseIterable, Identifiable {
     case personal
-    case clean
     case email
     case article
 
@@ -13,7 +12,6 @@ private enum RulesDocument: String, CaseIterable, Identifiable {
     var label: String {
         switch self {
         case .personal: "Corrections"
-        case .clean: "Clean"
         case .email: "Email"
         case .article: "Article"
         }
@@ -76,7 +74,6 @@ private struct RulesEditorView: View {
             get: {
                 switch document {
                 case .personal: rules.personalMarkdown
-                case .clean: rules.cleanMarkdown
                 case .email: rules.emailMarkdown
                 case .article: rules.articleMarkdown
                 }
@@ -85,8 +82,6 @@ private struct RulesEditorView: View {
                 switch document {
                 case .personal:
                     rules.personalMarkdown = value
-                case .clean:
-                    rules.cleanMarkdown = value
                 case .email:
                     rules.emailMarkdown = value
                 case .article:

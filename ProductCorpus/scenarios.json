@@ -154,12 +154,12 @@
     "category": "Clean mode",
     "mode": "Clean",
     "title": "Filler and false-start cleanup",
-    "instruction": "Include every filler and restart; wait for the Writing phase to finish.",
+    "instruction": "Include every filler and repeated phrase; Clean runs locally as soon as you stop.",
     "script": "Um, I need to, I need to send the report today, erm, but first check whether the figures from Tuesday are actually final.",
     "required": ["send the report today", "figures from Tuesday", "actually final"],
     "forbidden": ["um", "erm", "I need to, I need to"],
     "minInputEvents": 1,
-    "manualChecks": ["Nothing was inserted before the Writing phase completed"]
+    "manualChecks": ["Nothing was inserted before you stopped"]
   },
   {
     "id": "clean-facts",

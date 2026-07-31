@@ -132,7 +132,7 @@ struct SettingsView: View {
             VStack(alignment: .leading, spacing: 2) {
                 Text("Personal rules")
                     .font(.headline)
-                Text("Corrections and Clean, Email and Article instructions.")
+                Text("Corrections plus Email and Article instructions.")
                     .font(.callout)
                     .foregroundStyle(.secondary)
             }
