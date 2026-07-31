@@ -101,6 +101,15 @@ async function prepareCurrentScenario() {
   attemptOutputs = [];
   renderScenario();
 
+  if (["Email", "Article"].includes(scenario().mode)) {
+    try {
+      const status = await fetch("/api/status", { cache: "no-store" }).then((response) => response.json());
+      if (!status.writingInstalled) return skipMissingWritingModel();
+    } catch {
+      return skipMissingWritingModel();
+    }
+  }
+
   try {
     const response = await fetch("/api/mode", {
       method: "POST",
@@ -120,6 +129,40 @@ async function prepareCurrentScenario() {
 
   await new Promise((resolve) => window.setTimeout(resolve, 350));
   armScenario();
+}
+
+function skipMissingWritingModel() {
+  const item = scenario();
+  const result = {
+    scenarioId: item.id,
+    mode: item.mode,
+    completedAt: new Date().toISOString(),
+    passed: false,
+    skipped: true,
+    skipReason: "Writing tools model is not installed",
+    output: "",
+    attempts: [],
+    checks: [{ label: "Writing tools model is installed", passed: false }],
+    events: [],
+  };
+  results[item.id] = result;
+  showResult(result);
+  elements.runState.textContent = "Skipped · install Writing tools in Dictation Settings to test this mode";
+  saveResults().finally(() => {
+    if (currentIndex === scenarios.length - 1) {
+      phase = "complete";
+      elements.runState.textContent = "Run complete · every available result is saved locally";
+      elements.saveState.textContent = "Complete";
+      elements.startButton.hidden = false;
+      elements.startButton.textContent = "Start another run";
+      elements.pauseButton.hidden = true;
+      return;
+    }
+    settlingTask = window.setTimeout(() => {
+      currentIndex += 1;
+      prepareCurrentScenario();
+    }, 1_600);
+  });
 }
 
 function armScenario() {
@@ -282,8 +325,12 @@ function evaluateChecks(item, output, timedOut) {
 function showResult(result) {
   elements.resultPanel.hidden = false;
   elements.resultPanel.className = `result-panel ${result.passed ? "pass" : "fail"}`;
-  elements.resultTitle.textContent = result.passed ? "Passed" : "Needs review";
-  elements.resultSummary.textContent = result.passed ? "Advancing automatically…" : "Saved with the failed checks; continuing…";
+  elements.resultTitle.textContent = result.skipped ? "Skipped" : result.passed ? "Passed" : "Needs review";
+  elements.resultSummary.textContent = result.skipped
+    ? "The optional Writing tools model is not installed; continuing…"
+    : result.passed
+      ? "Advancing automatically…"
+      : "Saved with the failed checks; continuing…";
   elements.automaticChecks.replaceChildren();
   for (const check of result.checks) {
     const chip = document.createElement("span");

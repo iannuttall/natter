@@ -16,6 +16,10 @@ ALLOWED_ORIGINS = {
     "http://127.0.0.1:4173",
     "http://localhost:4173",
 }
+WRITING_MODEL = (
+    Path.home()
+    / "Library/Application Support/is.ian.dictation/Models/writing/models/mlx-community/Qwen3.5-9B-MLX-4bit"
+)
 
 
 class CorpusHandler(SimpleHTTPRequestHandler):
@@ -26,6 +30,13 @@ class CorpusHandler(SimpleHTTPRequestHandler):
         path = urlparse(self.path).path
         if path == "/api/health":
             return self.send_json({"ok": True})
+        if path == "/api/status":
+            required = ["config.json", "tokenizer.json", "model.safetensors.index.json"]
+            writing_installed = (
+                all((WRITING_MODEL / name).exists() for name in required)
+                and any(WRITING_MODEL.glob("*.safetensors"))
+            )
+            return self.send_json({"writingInstalled": writing_installed})
         if path == "/api/clipboard":
             completed = subprocess.run(
                 ["/usr/bin/pbpaste"],
