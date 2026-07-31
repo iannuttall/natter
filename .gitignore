@@ -1,0 +1,8 @@
+.build/
+.xcode-build/
+.swiftpm/
+.DS_Store
+*.profraw
+Results/*.json
+Models/
+dist/
