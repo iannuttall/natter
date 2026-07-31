@@ -2,28 +2,109 @@
 
 A native, local macOS dictation app. The working product name is temporary.
 
-The app will use FluidAudio Nemotron Streaming 560 ms for live speech and an
-optional Qwen 3.5 9B MLX model for Clean, Email, and Article modes. Ollama is
-not a runtime dependency.
+Dictation uses FluidAudio Nemotron Streaming 560 ms for live speech and an
+optional Qwen 3.5 9B model through MLX Swift for writing modes. It has no
+account, cloud inference, telemetry, Ollama dependency or background server.
 
-## Current build stage
+## Use it
 
-The native menu-bar shell, shared state, mode picker and Settings window are
-buildable now:
+1. Build and launch the signed app:
+
+   ```sh
+   ./scripts/build-app.sh
+   open dist/Dictation.app
+   ```
+
+2. In Settings, allow Microphone, Accessibility and Input Monitoring.
+3. Download the required 613 MB **Live speech** model. Download the optional
+   5.95 GB **Writing tools** model only if you want Clean, Email or Article.
+4. Quit Monologue while testing because it uses the same global shortcut.
+5. Focus an editable field, double-tap Right Option to start, then tap Right
+   Option once to stop. Right Control can be selected in Settings instead.
+
+The menu-bar menu changes mode and can copy the last completed transcript.
+
+## Modes
+
+- **Raw** types stable phrases live and applies personal corrections.
+- **Agent** types stable phrases live for terminal and coding-agent prompts.
+- **Clean** removes filler and false starts after stop.
+- **Email** formats a direct email body after stop.
+- **Article** restructures longer speech into prose after stop.
+
+Only append-only stable phrases are sent to the focused app. Mutable guesses
+remain in the non-activating overlay. Text is inserted as small Unicode keyboard
+events rather than one paste, so Terminal does not turn a multiline transcript
+into an opaque bracketed-paste block.
+
+The app captures the frontmost process and focused Accessibility element when a
+session starts. If focus changes, insertion fails or a writing result drops a
+protected fact, the complete intended transcript is copied to the clipboard and
+saved under:
+
+```text
+~/Library/Application Support/is.ian.dictation/Recovery/latest.json
+```
+
+## Personal rules
+
+Settings opens a native editor for local Markdown files under:
+
+```text
+~/Library/Application Support/is.ian.dictation/Rules/
+```
+
+`personal.md` stores deterministic corrections. The other files hold the Clean,
+Email and Article instructions. A correction can also be taught by voice:
+
+> Hey Dictation, you just transcribed it as port man but what I actually said
+> was Portman p-o-r-t-m-a-n can you add that to my rules so you remember for
+> next time.
+
+The command is not typed into the destination. It is parsed locally and saved
+to the same reversible Markdown file.
+
+## Product corpus
+
+The local browser harness covers 21 delivery, recovery, correction, writing and
+stress scenarios. It deliberately does not repeat accent/model selection; the
+recorded model benchmark already tested Ian's British accent.
+
+```sh
+./scripts/serve-product-corpus.sh
+```
+
+Open `http://127.0.0.1:4173`, follow the setup strip, and export the JSON after a
+test session. Results stay in browser local storage until export.
+
+## Build and verification
 
 ```sh
 swift test
 ./scripts/build-app.sh
-DICTATION_OPEN_ON_LAUNCH=1 dist/Dictation.app/Contents/MacOS/dictation
-```
-
-The parity executable verifies that Qwen runs directly through MLX Swift with
-the same writing fixtures used during model selection. MLX's Metal shaders
-must be built by Xcode, so use the checked-in runner rather than `swift run`:
-
-```sh
+codesign --verify --deep --strict --verbose=2 dist/Dictation.app
 ./scripts/run-parity.sh
+node --test ProductCorpus/tests/scenarios.test.mjs
 ```
 
-Pure Swift logic remains testable with `swift test`.
+`build-app.sh` uses Xcode rather than `swift build` so MLX's Metal shaders are
+compiled and copied into the signed app. Model weights are never bundled in the
+app; they live under Application Support and are installed through Settings.
 
+The direct MLX parity report is in `Results/direct-mlx-parity.md`. The pinned
+Qwen checkpoint is:
+
+```text
+mlx-community/Qwen3.5-9B-MLX-4bit@938d8919941c6e7efd3c7150eff7fe9d12afa631
+```
+
+## Repository map
+
+```text
+Sources/DictationCore/   pure models, rules and pipeline logic
+Sources/DictationApp/    native lifecycle, services and SwiftUI/AppKit UI
+Sources/DictationParity/ direct MLX writing benchmark
+Tests/                   pure Swift regression tests
+ProductCorpus/           local workflow test harness
+scripts/                 build, parity and corpus entry points
+```

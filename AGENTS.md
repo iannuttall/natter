@@ -31,10 +31,11 @@ swift build -c release --product dictation
 ./scripts/run-parity.sh
 ```
 
-## MLX packaging trap
+## MLX packaging
 
 `swift build` does not compile MLX's Metal shaders. Any target that links MLX
 for production must be built with `xcodebuild` and include
 `mlx-swift_Cmlx.bundle` beside the executable. The parity runner already does
-this. Keep the lightweight app shell on `swift build` until the writing runtime
-is linked, then switch the app build script to the same Xcode path.
+this. The app build script uses the same Xcode path and copies every generated
+resource bundle into `Contents/Resources` before signing. Do not replace that
+production build with a plain `swift build` invocation.
