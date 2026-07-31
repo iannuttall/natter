@@ -26,6 +26,16 @@ import Testing
     #expect(!DictationPhase.recoverable("saved").isBusy)
 }
 
+@Test func aResolvedFailureCanStartANewSession() {
+    #expect(DictationPhase.idle.canStartSession)
+    #expect(DictationPhase.recoverable("copied").canStartSession)
+    #expect(DictationPhase.failed("permission missing").canStartSession)
+    #expect(!DictationPhase.preparing.canStartSession)
+    #expect(!DictationPhase.listening.canStartSession)
+    #expect(!DictationPhase.finalizing.canStartSession)
+    #expect(!DictationPhase.transforming.canStartSession)
+}
+
 @Test func modifierDoubleTapStartsAndActiveTapStops() {
     var detector = ModifierTapDetector(doubleTapInterval: 0.42)
 

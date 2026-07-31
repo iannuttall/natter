@@ -140,13 +140,16 @@ final class DictationCoordinator {
         }
 
         microphone.stop()
-        streamTask?.cancel()
+        let drainingStreamTask = streamTask
         streamTask = nil
         store.audioLevel = 0
         store.phase = .finalizing
         store.statusMessage = "Finishing locally…"
 
         sessionTask = Task {
+            await drainingStreamTask?.value
+            guard store.phase == .finalizing else { return }
+
             do {
                 let rawTranscript = try await transcriber.finish()
                     .trimmingCharacters(in: .whitespacesAndNewlines)

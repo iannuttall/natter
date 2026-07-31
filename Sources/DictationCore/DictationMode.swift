@@ -62,6 +62,13 @@ public enum DictationPhase: Equatable, Sendable {
         }
     }
 
+    public var canStartSession: Bool {
+        switch self {
+        case .idle, .recoverable, .failed: true
+        case .preparing, .listening, .finalizing, .transforming: false
+        }
+    }
+
     public var label: String {
         switch self {
         case .idle: "Ready"
@@ -74,4 +81,3 @@ public enum DictationPhase: Equatable, Sendable {
         }
     }
 }
-

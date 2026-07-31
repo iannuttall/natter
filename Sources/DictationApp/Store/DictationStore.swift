@@ -43,7 +43,7 @@ final class DictationStore {
     }
 
     var canStart: Bool {
-        phase == .idle || isRecoverable
+        phase.canStartSession
     }
 
     var isRecoverable: Bool {
