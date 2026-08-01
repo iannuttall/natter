@@ -14,6 +14,7 @@ final class StatusItemController: NSObject, NSMenuDelegate {
     private let cancelHandler: () -> Void
     private let statusItem: NSStatusItem
     private let menu = NSMenu()
+    private let audioInputs = AudioInputDeviceManager.shared
 
     init(
         store: DictationStore,
@@ -65,95 +66,211 @@ final class StatusItemController: NSObject, NSMenuDelegate {
 
     private func rebuildMenu() {
         menu.removeAllItems()
+        audioInputs.refresh()
 
-        let status = NSMenuItem(
+        let status = item(
             title: "\(store.phase.label) · \(store.selectedMode.label)",
-            action: nil,
-            keyEquivalent: ""
+            symbol: phaseSymbol
         )
         status.isEnabled = false
         menu.addItem(status)
         menu.addItem(.separator())
 
+        menu.addItem(item(
+            title: "Open \(AppInfo.displayName)…",
+            action: #selector(openNatter),
+            symbol: "macwindow"
+        ))
+
         if store.phase == .preparing || store.phase == .listening {
-            let cancel = NSMenuItem(
+            let cancel = item(
                 title: "Cancel Dictation",
                 action: #selector(cancelDictation),
-                keyEquivalent: ""
+                symbol: "xmark.circle"
             )
-            cancel.target = self
             menu.addItem(cancel)
-            menu.addItem(.separator())
         }
 
         if onboarding.needsAttention(
             modelManager: modelManager,
             permissions: permissions
         ) {
-            let finishSetup = NSMenuItem(
+            let finishSetup = item(
                 title: "Finish Setup…",
                 action: #selector(openOnboarding),
-                keyEquivalent: ""
+                symbol: "checklist"
             )
-            finishSetup.target = self
             menu.addItem(finishSetup)
-            menu.addItem(.separator())
-        }
-
-        for mode in DictationMode.allCases {
-            let item = NSMenuItem(
-                title: mode.label,
-                action: #selector(selectMode(_:)),
-                keyEquivalent: ""
-            )
-            item.target = self
-            item.representedObject = mode.rawValue
-            item.state = store.selectedMode == mode ? .on : .off
-            item.isEnabled = !store.phase.isBusy
-            menu.addItem(item)
         }
 
         menu.addItem(.separator())
+        let modeMenu = NSMenu()
+        for mode in DictationMode.allCases {
+            let modeItem = item(
+                title: mode.label,
+                action: #selector(selectMode(_:)),
+                symbol: symbol(for: mode)
+            )
+            modeItem.representedObject = mode.rawValue
+            modeItem.state = store.selectedMode == mode ? .on : .off
+            modeItem.isEnabled = !store.phase.isBusy
+            modeMenu.addItem(modeItem)
+        }
+        let modes = item(title: "Mode: \(store.selectedMode.label)", symbol: "slider.horizontal.3")
+        modes.submenu = modeMenu
+        menu.addItem(modes)
+
+        let microphoneMenu = NSMenu()
+        let systemDefault = item(
+            title: "System Default",
+            action: #selector(selectMicrophone(_:)),
+            symbol: "mic"
+        )
+        systemDefault.representedObject = ""
+        systemDefault.state = audioInputs.selectedDeviceUID.isEmpty ? .on : .off
+        systemDefault.isEnabled = !store.phase.isBusy
+        microphoneMenu.addItem(systemDefault)
+        for device in audioInputs.devices {
+            let microphone = item(
+                title: device.name,
+                action: #selector(selectMicrophone(_:)),
+                symbol: "mic"
+            )
+            microphone.representedObject = device.id
+            microphone.state = audioInputs.selectedDeviceUID == device.id ? .on : .off
+            microphone.isEnabled = !store.phase.isBusy
+            microphoneMenu.addItem(microphone)
+        }
+        let microphone = item(title: "Microphone: \(selectedMicrophoneName)", symbol: "mic")
+        microphone.submenu = microphoneMenu
+        menu.addItem(microphone)
+
+        let recent = history.recentRecords.compactMap { record -> (DictationHistoryRecord, String)? in
+            guard let transcript = record.transcript?.trimmingCharacters(in: .whitespacesAndNewlines),
+                  !transcript.isEmpty else { return nil }
+            return (record, transcript)
+        }.prefix(5)
+        if !recent.isEmpty {
+            let recentMenu = NSMenu()
+            for (record, transcript) in recent {
+                let recentItem = NSMenuItem(
+                    title: transcriptPreview(transcript),
+                    action: #selector(copyRecentTranscript(_:)),
+                    keyEquivalent: ""
+                )
+                recentItem.target = self
+                recentItem.representedObject = transcript
+                recentItem.toolTip = transcript
+                recentItem.image = applicationIcon(bundleIdentifier: record.sourceBundleIdentifier)
+                recentMenu.addItem(recentItem)
+            }
+            recentMenu.addItem(.separator())
+            recentMenu.addItem(item(
+                title: "View All…",
+                action: #selector(openHistory),
+                symbol: "clock.arrow.circlepath"
+            ))
+            let recentItem = item(title: "Recent Dictations", symbol: "clock")
+            recentItem.submenu = recentMenu
+            menu.addItem(recentItem)
+        }
+
         if !store.finalTranscript.isEmpty {
-            let copyTranscript = NSMenuItem(
+            let copyTranscript = item(
                 title: "Copy Last Transcript",
                 action: #selector(copyLastTranscript),
-                keyEquivalent: ""
+                symbol: "doc.on.doc"
             )
-            copyTranscript.target = self
             menu.addItem(copyTranscript)
-            menu.addItem(.separator())
         }
-        let settings = NSMenuItem(
+
+        menu.addItem(.separator())
+        let settings = item(
             title: "Settings…",
             action: #selector(openSettings),
-            keyEquivalent: ","
+            keyEquivalent: ",",
+            symbol: "gearshape"
         )
-        settings.target = self
-        let historyItem = NSMenuItem(
-            title: "History & Stats…",
-            action: #selector(openHistory),
-            keyEquivalent: ""
-        )
-        historyItem.target = self
-        menu.addItem(historyItem)
         menu.addItem(settings)
 
-        let legal = NSMenuItem(
+        let legal = item(
             title: "About & Legal…",
             action: #selector(openLegal),
-            keyEquivalent: ""
+            symbol: "info.circle"
         )
-        legal.target = self
         menu.addItem(legal)
 
-        let quit = NSMenuItem(
+        let quit = item(
             title: "Quit \(AppInfo.displayName)",
             action: #selector(quitApp),
-            keyEquivalent: "q"
+            keyEquivalent: "q",
+            symbol: "power"
         )
-        quit.target = self
         menu.addItem(quit)
+    }
+
+    private func item(
+        title: String,
+        action: Selector? = nil,
+        keyEquivalent: String = "",
+        symbol: String? = nil
+    ) -> NSMenuItem {
+        let item = NSMenuItem(title: title, action: action, keyEquivalent: keyEquivalent)
+        item.target = action == nil ? nil : self
+        if let symbol,
+           let image = NSImage(systemSymbolName: symbol, accessibilityDescription: nil) {
+            image.isTemplate = true
+            image.size = NSSize(width: 16, height: 16)
+            item.image = image
+        }
+        return item
+    }
+
+    private var phaseSymbol: String {
+        switch store.phase {
+        case .idle: "waveform"
+        case .preparing: "hourglass.circle.fill"
+        case .listening: "record.circle.fill"
+        case .finalizing, .transforming: "ellipsis.circle.fill"
+        case .recoverable: "doc.on.clipboard.fill"
+        case .failed: "exclamationmark.triangle.fill"
+        }
+    }
+
+    private func symbol(for mode: DictationMode) -> String {
+        switch mode {
+        case .raw: "waveform"
+        case .agent: "terminal"
+        case .clean: "sparkles"
+        case .email: "envelope"
+        case .article: "doc.text"
+        }
+    }
+
+    private var selectedMicrophoneName: String {
+        guard !audioInputs.selectedDeviceUID.isEmpty else { return "System Default" }
+        return audioInputs.devices.first { $0.id == audioInputs.selectedDeviceUID }?.name
+            ?? "Unavailable"
+    }
+
+    private func transcriptPreview(_ transcript: String) -> String {
+        let singleLine = transcript
+            .split(whereSeparator: { $0.isWhitespace })
+            .joined(separator: " ")
+        guard singleLine.count > 54 else { return singleLine }
+        return "\(singleLine.prefix(53))…"
+    }
+
+    private func applicationIcon(bundleIdentifier: String?) -> NSImage? {
+        let image: NSImage?
+        if let bundleIdentifier,
+           let url = NSWorkspace.shared.urlForApplication(withBundleIdentifier: bundleIdentifier) {
+            image = NSWorkspace.shared.icon(forFile: url.path)
+        } else {
+            image = NSImage(systemSymbolName: "app", accessibilityDescription: nil)
+        }
+        image?.size = NSSize(width: 16, height: 16)
+        return image
     }
 
     @objc private func selectMode(_ sender: NSMenuItem) {
@@ -164,7 +281,20 @@ final class StatusItemController: NSObject, NSMenuDelegate {
         store.select(mode)
     }
 
+    @objc private func selectMicrophone(_ sender: NSMenuItem) {
+        guard let uid = sender.representedObject as? String else { return }
+        audioInputs.selectedDeviceUID = uid
+    }
+
+    @objc private func openNatter() {
+        showApp(section: .home)
+    }
+
     @objc private func openSettings() {
+        showApp(section: .settings)
+    }
+
+    private func showApp(section: NatterAppSection) {
         SettingsWindow.shared.show(
             store: store,
             modelManager: modelManager,
@@ -172,7 +302,8 @@ final class StatusItemController: NSObject, NSMenuDelegate {
             rules: rules,
             profiles: profiles,
             history: history,
-            onboarding: onboarding
+            onboarding: onboarding,
+            section: section
         )
     }
 
@@ -186,7 +317,7 @@ final class StatusItemController: NSObject, NSMenuDelegate {
     }
 
     @objc private func openHistory() {
-        HistoryWindow.shared.show(history: history)
+        showApp(section: .home)
     }
 
     @objc private func openLegal() {
@@ -200,6 +331,12 @@ final class StatusItemController: NSObject, NSMenuDelegate {
     @objc private func copyLastTranscript() {
         NSPasteboard.general.clearContents()
         NSPasteboard.general.setString(store.finalTranscript, forType: .string)
+    }
+
+    @objc private func copyRecentTranscript(_ sender: NSMenuItem) {
+        guard let transcript = sender.representedObject as? String else { return }
+        NSPasteboard.general.clearContents()
+        NSPasteboard.general.setString(transcript, forType: .string)
     }
 
     @objc private func quitApp() {

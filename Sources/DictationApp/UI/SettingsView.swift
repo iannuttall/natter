@@ -9,8 +9,29 @@ struct SettingsView: View {
     @Bindable var profiles: ApplicationProfileManager
     @Bindable var history: HistoryManager
     @Bindable var onboarding: OnboardingManager
+    let onShowHistory: () -> Void
     @State private var launchAtLogin = LaunchAtLoginManager()
     @State private var audioInputs = AudioInputDeviceManager.shared
+
+    init(
+        store: DictationStore,
+        modelManager: ModelManager,
+        permissions: PermissionController,
+        rules: RulesManager,
+        profiles: ApplicationProfileManager,
+        history: HistoryManager,
+        onboarding: OnboardingManager,
+        onShowHistory: @escaping () -> Void = {}
+    ) {
+        self.store = store
+        self.modelManager = modelManager
+        self.permissions = permissions
+        self.rules = rules
+        self.profiles = profiles
+        self.history = history
+        self.onboarding = onboarding
+        self.onShowHistory = onShowHistory
+    }
 
     var body: some View {
         ScrollView {
@@ -20,19 +41,14 @@ struct SettingsView: View {
                 permissionRows
                 microphonePicker
                 hotKeyPicker
-                terminalDelivery
-                agentDelivery
                 overlayPreferences
-                modePicker
-                applicationProfiles
                 historyPreferences
-                rulesControls
                 modelPacks
                 footer
             }
             .padding(24)
         }
-        .frame(width: 600, height: 720)
+        .frame(maxWidth: .infinity, maxHeight: .infinity)
         .background(Theme.Colour.panel)
         .onAppear {
             modelManager.refresh()
@@ -156,7 +172,7 @@ struct SettingsView: View {
                         .foregroundStyle(.secondary)
                 }
                 Spacer()
-                Button("View History…") { HistoryWindow.shared.show(history: history) }
+                Button("View History…", action: onShowHistory)
             }
 
             HStack {

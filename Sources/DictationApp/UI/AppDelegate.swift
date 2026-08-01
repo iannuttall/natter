@@ -88,7 +88,10 @@ final class AppDelegate: NSObject, NSApplicationDelegate {
         let insertionSmokeText = ProcessInfo.processInfo.environment[
             "NATTER_TEST_INSERT_ON_LAUNCH"
         ]
-        if ProcessInfo.processInfo.environment["DICTATION_OPEN_ON_LAUNCH"] == "1" {
+        if let requestedSection = ProcessInfo.processInfo.environment["DICTATION_OPEN_ON_LAUNCH"] {
+            let section = requestedSection == "1"
+                ? NatterAppSection.home
+                : NatterAppSection(rawValue: requestedSection) ?? .home
             SettingsWindow.shared.show(
                 store: store,
                 modelManager: modelManager,
@@ -96,7 +99,8 @@ final class AppDelegate: NSObject, NSApplicationDelegate {
                 rules: rules,
                 profiles: profiles,
                 history: history,
-                onboarding: onboarding
+                onboarding: onboarding,
+                section: section
             )
         } else if insertionSmokeText == nil, onboarding.needsAttention(
             modelManager: modelManager,

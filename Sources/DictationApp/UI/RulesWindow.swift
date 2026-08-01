@@ -2,7 +2,7 @@ import AppKit
 import DictationCore
 import SwiftUI
 
-private enum RulesDocument: String, CaseIterable, Identifiable {
+enum RulesDocument: String, CaseIterable, Identifiable {
     case personal
     case agent
     case clean
@@ -22,7 +22,7 @@ private enum RulesDocument: String, CaseIterable, Identifiable {
     }
 }
 
-private struct RulesEditorView: View {
+struct RulesEditorView: View {
     @Bindable var rules: RulesManager
     @State private var document: RulesDocument = .personal
 
@@ -69,7 +69,7 @@ private struct RulesEditorView: View {
             }
         }
         .padding(24)
-        .frame(width: 680, height: 520)
+        .frame(maxWidth: .infinity, maxHeight: .infinity)
         .background(Theme.Colour.panel)
     }
 

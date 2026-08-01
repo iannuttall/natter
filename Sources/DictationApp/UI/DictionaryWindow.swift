@@ -3,12 +3,18 @@ import DictationCore
 import SwiftUI
 import UniformTypeIdentifiers
 
-private struct DictionaryView: View {
+struct DictionaryView: View {
     @Bindable var rules: RulesManager
+    let onOpenRules: (() -> Void)?
     @State private var heard = ""
     @State private var replacement = ""
     @State private var scope: PersonalCorrectionScope = .everywhere
     @State private var importError: String?
+
+    init(rules: RulesManager, onOpenRules: (() -> Void)? = nil) {
+        self.rules = rules
+        self.onOpenRules = onOpenRules
+    }
 
     var body: some View {
         VStack(alignment: .leading, spacing: 18) {
@@ -91,11 +97,17 @@ private struct DictionaryView: View {
                     .font(.caption)
                     .foregroundStyle(.secondary)
                 Spacer()
-                Button("Edit Markdown…") { RulesWindow.shared.show(rules: rules) }
+                Button("Edit Markdown…") {
+                    if let onOpenRules {
+                        onOpenRules()
+                    } else {
+                        RulesWindow.shared.show(rules: rules)
+                    }
+                }
             }
         }
         .padding(24)
-        .frame(width: 760, height: 540)
+        .frame(maxWidth: .infinity, maxHeight: .infinity)
         .background(Theme.Colour.panel)
     }
 
