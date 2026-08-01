@@ -7,6 +7,7 @@ struct SettingsView: View {
     @Bindable var permissions: PermissionController
     @Bindable var rules: RulesManager
     @Bindable var profiles: ApplicationProfileManager
+    @Bindable var history: HistoryManager
 
     var body: some View {
         ScrollView {
@@ -18,6 +19,7 @@ struct SettingsView: View {
                 overlayPreferences
                 modePicker
                 applicationProfiles
+                historyPreferences
                 rulesButton
                 modelPacks
                 footer
@@ -41,6 +43,67 @@ struct SettingsView: View {
                 }
             }
         }
+    }
+
+    private var historyPreferences: some View {
+        VStack(alignment: .leading, spacing: Theme.Space.regular) {
+            HStack {
+                VStack(alignment: .leading, spacing: 2) {
+                    Text("Local history")
+                        .font(.headline)
+                    Text("Track usage privately and keep recent transcripts if you want them.")
+                        .font(.callout)
+                        .foregroundStyle(.secondary)
+                }
+                Spacer()
+                Button("View History…") { HistoryWindow.shared.show(history: history) }
+            }
+
+            HStack {
+                Text("Store")
+                Spacer()
+                Picker("Store", selection: $history.storageMode) {
+                    ForEach(HistoryStorageMode.allCases) { mode in
+                        Text(mode.label).tag(mode)
+                    }
+                }
+                .labelsHidden()
+                .frame(width: 175)
+            }
+
+            if history.storageMode == .full {
+                HStack {
+                    Text("Keep transcript text")
+                    Spacer()
+                    Picker("Keep transcript text", selection: $history.retention) {
+                        ForEach(TranscriptRetention.allCases) { retention in
+                            Text(retention.label).tag(retention)
+                        }
+                    }
+                    .labelsHidden()
+                    .frame(width: 120)
+                }
+            }
+
+            Stepper(
+                "Typing baseline: \(Int(history.typingWordsPerMinute)) WPM",
+                value: $history.typingWordsPerMinute,
+                in: 10...200,
+                step: 5
+            )
+            Text("Time saved compares speaking time with this typing speed.")
+                .font(.caption)
+                .foregroundStyle(.secondary)
+
+            if let errorMessage = history.errorMessage {
+                Text(errorMessage)
+                    .font(.caption)
+                    .foregroundStyle(.red)
+            }
+        }
+        .padding(Theme.Space.regular)
+        .background(Theme.Colour.secondaryPanel)
+        .clipShape(RoundedRectangle(cornerRadius: Theme.Radius.card))
     }
 
     private var overlayPreferences: some View {

@@ -265,6 +265,68 @@ import Testing
 
     let encoded = try JSONEncoder().encode(record)
     #expect(try JSONDecoder().decode(RecoveryRecord.self, from: encoded) == record)
+    #expect(record.clipboardTranscript == "transcript")
+}
+
+@Test func recoveryCopiesOnlyTheUndeliveredAppendOnlyTail() {
+    let record = RecoveryRecord(
+        transcript: "The first phrase and the remaining words.",
+        deliveredPrefix: "The first phrase",
+        targetBundleIdentifier: "com.example.editor",
+        reason: "Focus changed"
+    )
+    #expect(record.clipboardTranscript == " and the remaining words.")
+
+    let conflict = RecoveryRecord(
+        transcript: "A revised sentence.",
+        deliveredPrefix: "The original",
+        targetBundleIdentifier: "com.example.editor",
+        reason: "Transcript changed"
+    )
+    #expect(conflict.clipboardTranscript == "A revised sentence.")
+}
+
+@Test func historyStatisticsAggregateWordsTimeAndSources() {
+    let calendar = Calendar(identifier: .gregorian)
+    let first = Date(timeIntervalSince1970: 1_000)
+    let records = [
+        DictationHistoryRecord(
+            createdAt: first,
+            durationSeconds: 30,
+            mode: .raw,
+            wordCount: 100,
+            sourceBundleIdentifier: "com.example.editor",
+            sourceApplicationName: "Editor",
+            transcript: "stored locally",
+            outcome: .delivered
+        ),
+        DictationHistoryRecord(
+            createdAt: first.addingTimeInterval(60),
+            durationSeconds: 30,
+            mode: .agent,
+            wordCount: 50,
+            sourceBundleIdentifier: "com.example.terminal",
+            sourceApplicationName: "Terminal",
+            transcript: nil,
+            outcome: .recovered
+        )
+    ]
+    let statistics = DictationStatistics(
+        records: records,
+        typingWordsPerMinute: 50,
+        calendar: calendar
+    )
+
+    #expect(statistics.totalWords == 150)
+    #expect(statistics.totalDurationSeconds == 60)
+    #expect(statistics.averageWordsPerMinute == 150)
+    #expect(statistics.estimatedTimeSavedSeconds == 120)
+    #expect(statistics.activeDayCount == 1)
+    #expect(statistics.topSources.first?.applicationName == "Editor")
+}
+
+@Test func historyWordCountUsesWhitespaceBoundaries() {
+    #expect(DictationHistoryRecord.countWords(in: "Ship v2 to ian@example.com.") == 4)
 }
 
 @Test func modelPackPathsAndSizesAreExplicit() {
@@ -399,6 +461,13 @@ import Testing
 
     #expect(SpokenTechnicalTextNormalizer.normalize(transcript, context: .technical) ==
         "Set scroll restoration: true, run tool --verbose, and open .unfamiliar/config.")
+}
+
+@Test func agentModeShortensEtCeteraWithoutChangingProse() {
+    let transcript = "Test Claude, ChatGPT, Codex, et cetera before release"
+    #expect(SpokenTechnicalTextNormalizer.normalize(transcript, context: .technical) ==
+        "Test Claude, ChatGPT, Codex, etc. before release")
+    #expect(SpokenTechnicalTextNormalizer.normalize(transcript, context: .prose) == transcript)
 }
 
 @Test func agentModeAcceptsCommonDoubleHyphenPhrases() {

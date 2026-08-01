@@ -11,6 +11,7 @@ final class AppDelegate: NSObject, NSApplicationDelegate {
     private var permissions: PermissionController?
     private var rules: RulesManager?
     private var profiles: ApplicationProfileManager?
+    private var history: HistoryManager?
 
     func applicationDidFinishLaunching(_ notification: Notification) {
         NSApp.setActivationPolicy(.accessory)
@@ -19,24 +20,29 @@ final class AppDelegate: NSObject, NSApplicationDelegate {
         let permissions = PermissionController()
         let rules = RulesManager()
         let profiles = ApplicationProfileManager()
+        let history = HistoryManager()
         self.modelManager = modelManager
         self.permissions = permissions
         self.rules = rules
         self.profiles = profiles
+        self.history = history
+        let coordinator = DictationCoordinator(
+            store: store,
+            transcriber: speechTranscriber,
+            rules: rules,
+            profiles: profiles,
+            history: history
+        )
+        self.coordinator = coordinator
         statusItemController = StatusItemController(
             store: store,
             modelManager: modelManager,
             permissions: permissions,
             rules: rules,
-            profiles: profiles
+            profiles: profiles,
+            history: history,
+            cancelHandler: { [weak coordinator] in coordinator?.cancel() }
         )
-        let coordinator = DictationCoordinator(
-            store: store,
-            transcriber: speechTranscriber,
-            rules: rules,
-            profiles: profiles
-        )
-        self.coordinator = coordinator
         let hotKeyMonitor = ModifierHotKeyMonitor(store: store) { [weak coordinator] action in
             coordinator?.handle(action)
         }
@@ -51,7 +57,8 @@ final class AppDelegate: NSObject, NSApplicationDelegate {
                 modelManager: modelManager,
                 permissions: permissions,
                 rules: rules,
-                profiles: profiles
+                profiles: profiles,
+                history: history
             )
         }
 

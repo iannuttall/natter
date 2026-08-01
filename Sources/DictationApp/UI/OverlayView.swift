@@ -3,6 +3,7 @@ import SwiftUI
 
 struct OverlayView: View {
     @Bindable var store: DictationStore
+    let onCancel: () -> Void
 
     var body: some View {
         switch store.overlayStyle {
@@ -35,9 +36,18 @@ struct OverlayView: View {
                 }
             }
 
-            Text(footerText)
-                .font(.caption)
-                .foregroundStyle(.tertiary)
+            HStack {
+                Text(footerText)
+                    .font(.caption)
+                    .foregroundStyle(.tertiary)
+                Spacer()
+                if canCancel {
+                    Button("Cancel", role: .cancel, action: onCancel)
+                        .buttonStyle(.plain)
+                        .font(.caption)
+                        .foregroundStyle(.secondary)
+                }
+            }
         }
         .padding(16)
         .frame(width: 440, height: 166)
@@ -58,6 +68,14 @@ struct OverlayView: View {
                 .font(.system(size: 12, weight: .medium))
                 .foregroundStyle(.secondary)
             Spacer(minLength: 0)
+            if canCancel {
+                Button(action: onCancel) {
+                    Image(systemName: "xmark")
+                }
+                .buttonStyle(.plain)
+                .foregroundStyle(.secondary)
+                .accessibilityLabel("Cancel dictation")
+            }
         }
         .padding(.horizontal, 16)
         .frame(width: 250, height: 56)
@@ -89,6 +107,10 @@ struct OverlayView: View {
 
     private var modeContext: String? {
         store.activeModeSource ?? store.activeApplicationName
+    }
+
+    private var canCancel: Bool {
+        store.phase == .preparing || store.phase == .listening
     }
 
     private var transcript: String {

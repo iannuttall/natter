@@ -9,6 +9,8 @@ final class StatusItemController: NSObject, NSMenuDelegate {
     private let permissions: PermissionController
     private let rules: RulesManager
     private let profiles: ApplicationProfileManager
+    private let history: HistoryManager
+    private let cancelHandler: () -> Void
     private let statusItem: NSStatusItem
     private let menu = NSMenu()
 
@@ -17,13 +19,17 @@ final class StatusItemController: NSObject, NSMenuDelegate {
         modelManager: ModelManager,
         permissions: PermissionController,
         rules: RulesManager,
-        profiles: ApplicationProfileManager
+        profiles: ApplicationProfileManager,
+        history: HistoryManager,
+        cancelHandler: @escaping () -> Void
     ) {
         self.store = store
         self.modelManager = modelManager
         self.permissions = permissions
         self.rules = rules
         self.profiles = profiles
+        self.history = history
+        self.cancelHandler = cancelHandler
         statusItem = NSStatusBar.system.statusItem(withLength: NSStatusItem.squareLength)
         super.init()
 
@@ -66,6 +72,17 @@ final class StatusItemController: NSObject, NSMenuDelegate {
         menu.addItem(status)
         menu.addItem(.separator())
 
+        if store.phase == .preparing || store.phase == .listening {
+            let cancel = NSMenuItem(
+                title: "Cancel Dictation",
+                action: #selector(cancelDictation),
+                keyEquivalent: ""
+            )
+            cancel.target = self
+            menu.addItem(cancel)
+            menu.addItem(.separator())
+        }
+
         if !permissions.allRequiredPermissionsGranted {
             let finishSetup = NSMenuItem(
                 title: "Finish Setup…",
@@ -107,6 +124,13 @@ final class StatusItemController: NSObject, NSMenuDelegate {
             keyEquivalent: ","
         )
         settings.target = self
+        let historyItem = NSMenuItem(
+            title: "History & Stats…",
+            action: #selector(openHistory),
+            keyEquivalent: ""
+        )
+        historyItem.target = self
+        menu.addItem(historyItem)
         menu.addItem(settings)
 
         let quit = NSMenuItem(
@@ -132,8 +156,17 @@ final class StatusItemController: NSObject, NSMenuDelegate {
             modelManager: modelManager,
             permissions: permissions,
             rules: rules,
-            profiles: profiles
+            profiles: profiles,
+            history: history
         )
+    }
+
+    @objc private func openHistory() {
+        HistoryWindow.shared.show(history: history)
+    }
+
+    @objc private func cancelDictation() {
+        cancelHandler()
     }
 
     @objc private func copyLastTranscript() {

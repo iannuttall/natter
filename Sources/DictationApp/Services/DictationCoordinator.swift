@@ -8,6 +8,7 @@ final class DictationCoordinator {
     private let transcriber: SpeechTranscriber
     private let rules: RulesManager
     private let profiles: ApplicationProfileManager
+    private let history: HistoryManager
     private let writingEngine = WritingEngine()
     private let textInserter = FocusedTextInserter()
     private let recovery = TranscriptRecovery()
@@ -22,18 +23,24 @@ final class DictationCoordinator {
     private var liveTranscriptConflict = false
     private var sessionCorrections: [PersonalCorrection] = []
     private var commandCandidate = false
+    private var recordingStartedAt: Date?
+    private var recordingStoppedAt: Date?
+    private var historyWasRecorded = false
 
     init(
         store: DictationStore,
         transcriber: SpeechTranscriber,
         rules: RulesManager,
-        profiles: ApplicationProfileManager
+        profiles: ApplicationProfileManager,
+        history: HistoryManager
     ) {
         self.store = store
         self.transcriber = transcriber
         self.rules = rules
         self.profiles = profiles
+        self.history = history
         overlay = OverlayPanelController(store: store)
+        overlay.onCancel = { [weak self] in self?.cancel() }
     }
 
     func handle(_ action: ModifierHotKeyAction) {
@@ -41,6 +48,47 @@ final class DictationCoordinator {
         case .start: start()
         case .stop: stop()
         case .cycleMode: cycleMode()
+        }
+    }
+
+    func cancel() {
+        guard store.phase == .preparing || store.phase == .listening else { return }
+        feedback.play(.stopped)
+        recordingStoppedAt = Date()
+        microphone.stop()
+        streamTask?.cancel()
+        streamTask = nil
+        sessionTask?.cancel()
+        sessionTask = nil
+        store.audioLevel = 0
+
+        let draft = (store.liveTranscript.isEmpty
+            ? store.rawTranscript
+            : store.liveTranscript)
+            .trimmingCharacters(in: .whitespacesAndNewlines)
+        if !draft.isEmpty {
+            let record = RecoveryRecord(
+                transcript: draft,
+                deliveredPrefix: emitter.delivered,
+                targetBundleIdentifier: focusTarget?.bundleIdentifier,
+                reason: "Cancelled by user"
+            )
+            store.latestRecoveryURL = try? recovery.saveAndCopy(
+                record,
+                copyToClipboard: false
+            )
+            store.finalTranscript = draft
+            recordHistory(draft, outcome: .cancelled)
+            store.statusMessage = "Cancelled · draft saved locally"
+        } else {
+            store.statusMessage = "Cancelled"
+        }
+        store.phase = .idle
+        sessionTask = Task {
+            try? await Task.sleep(for: .milliseconds(450))
+            guard store.phase == .idle else { return }
+            overlay.hide()
+            store.statusMessage = nil
         }
     }
 
@@ -135,6 +183,9 @@ final class DictationCoordinator {
         liveTranscriptConflict = false
         sessionCorrections = rules.corrections
         commandCandidate = false
+        recordingStartedAt = nil
+        recordingStoppedAt = nil
+        historyWasRecorded = false
         captureFocusTarget()
         let resolution = profiles.resolution(
             bundleIdentifier: focusTarget?.bundleIdentifier,
@@ -157,6 +208,7 @@ final class DictationCoordinator {
                 store?.audioLevel = level
             }
             store.phase = .listening
+            recordingStartedAt = Date()
             store.statusMessage = deliveryIssue == nil
                 ? nil
                 : "Listening · transcript will be copied"
@@ -194,6 +246,7 @@ final class DictationCoordinator {
         }
 
         feedback.play(.stopped)
+        recordingStoppedAt = Date()
         microphone.stop()
         let drainingStreamTask = streamTask
         streamTask = nil
@@ -392,6 +445,7 @@ final class DictationCoordinator {
 
         do {
             store.latestRecoveryURL = try recovery.saveAndCopy(record)
+            recordHistory(transcript, outcome: .recovered)
             if reason == FocusedTextInsertionError.accessibilityPermissionRequired
                 .localizedDescription {
                 store.statusMessage = "Allow Accessibility in Settings · transcript copied"
@@ -468,9 +522,28 @@ final class DictationCoordinator {
         if let deliveryIssue {
             recoverTranscript(transcript, reason: deliveryIssue)
         } else {
+            recordHistory(transcript, outcome: .delivered)
             store.statusMessage = nil
             store.phase = .idle
         }
+    }
+
+    private func recordHistory(
+        _ transcript: String,
+        outcome: DictationOutcome
+    ) {
+        guard !historyWasRecorded else { return }
+        let end = recordingStoppedAt ?? Date()
+        let duration = recordingStartedAt.map { end.timeIntervalSince($0) } ?? 0
+        history.record(
+            transcript: transcript,
+            durationSeconds: duration,
+            mode: store.selectedMode,
+            sourceBundleIdentifier: focusTarget?.bundleIdentifier,
+            sourceApplicationName: focusTarget?.applicationName,
+            outcome: outcome
+        )
+        historyWasRecorded = true
     }
 
     private func hideOverlayAfterResult() async {
