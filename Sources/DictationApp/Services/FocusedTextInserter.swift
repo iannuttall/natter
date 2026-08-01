@@ -51,10 +51,12 @@ final class FocusedTextInserter {
     // Codex classifies character gaps of 8 ms or less as a paste burst.
     // Keep terminal chunks above that boundary without slowing normal fields.
     private static let terminalChunkDelay = Duration.milliseconds(12)
+    private static let standardChunkDelay = Duration.milliseconds(1)
     private static let lineBreakDelay = Duration.milliseconds(8)
+    private let eventPoster = KeyboardEventPoster()
 
     func captureTarget() throws -> FocusedTextTarget {
-        guard AXIsProcessTrusted() else {
+        guard AXIsProcessTrusted(), CGPreflightPostEventAccess() else {
             throw FocusedTextInsertionError.accessibilityPermissionRequired
         }
         guard let application = NSWorkspace.shared.frontmostApplication else {
@@ -62,11 +64,12 @@ final class FocusedTextInserter {
         }
 
         let appElement = AXUIElementCreateApplication(application.processIdentifier)
-        let focusedElement = try copyFocusedElement(from: appElement)
-        let focusedWindow = copyElementAttribute(
-            kAXFocusedWindowAttribute,
-            from: appElement
-        )
+        let focusedElement = try copyCurrentFocusedElement(from: appElement)
+        guard isEditableTextControl(focusedElement) else {
+            throw FocusedTextInsertionError.noFocusedTextControl
+        }
+        let focusedWindow = copyElementAttribute(kAXWindowAttribute, from: focusedElement)
+            ?? copyElementAttribute(kAXFocusedWindowAttribute, from: appElement)
         return FocusedTextTarget(
             processIdentifier: application.processIdentifier,
             bundleIdentifier: application.bundleIdentifier,
@@ -92,21 +95,30 @@ final class FocusedTextInserter {
         for (segmentIndex, segment) in segments.enumerated() {
             switch segment {
             case let .text(value):
-                let chunks = value.utf16Chunks(maximumCount: 16)
+                let chunks = TextInsertionPlan.chunks(
+                    for: value,
+                    maximumCharacterCount: 16
+                )
                 for (chunkIndex, chunk) in chunks.enumerated() {
                     try validate(target)
-                    try postUnicode(chunk, to: target.processIdentifier)
+                    try await eventPoster.postText(
+                        chunk,
+                        into: target.element,
+                        destination: applicationKind
+                    )
 
-                    if paceTerminalInput,
-                       applicationKind == .terminal,
-                       (chunkIndex < chunks.index(before: chunks.endIndex)
-                        || segmentIndex < segments.index(before: segments.endIndex)) {
-                        try await Task.sleep(for: Self.terminalChunkDelay)
+                    if chunkIndex < chunks.index(before: chunks.endIndex)
+                        || segmentIndex < segments.index(before: segments.endIndex) {
+                        if paceTerminalInput, applicationKind == .terminal {
+                            try await Task.sleep(for: Self.terminalChunkDelay)
+                        } else if applicationKind == .standard {
+                            try await Task.sleep(for: Self.standardChunkDelay)
+                        }
                     }
                 }
             case .lineBreak:
                 try validate(target)
-                try postKey(code: 36, to: target.processIdentifier)
+                try eventPoster.postLineBreak(into: target.element)
                 try await Task.sleep(for: Self.lineBreakDelay)
             }
         }
@@ -126,7 +138,7 @@ final class FocusedTextInserter {
             if index.isMultiple(of: 16) {
                 try validate(target)
             }
-            try postKey(code: 51, to: target.processIdentifier)
+            try eventPoster.postBackspace()
 
             if paceTerminalInput,
                applicationKind == .terminal,
@@ -143,44 +155,6 @@ final class FocusedTextInserter {
         )
     }
 
-    private func postKey(code: CGKeyCode, to processIdentifier: pid_t) throws {
-        guard let keyDown = CGEvent(
-            keyboardEventSource: nil,
-            virtualKey: code,
-            keyDown: true
-        ), let keyUp = CGEvent(
-            keyboardEventSource: nil,
-            virtualKey: code,
-            keyDown: false
-        ) else {
-            throw FocusedTextInsertionError.eventCreationFailed
-        }
-        keyDown.postToPid(processIdentifier)
-        keyUp.postToPid(processIdentifier)
-    }
-
-    private func postUnicode(_ units: [UniChar], to processIdentifier: pid_t) throws {
-        guard let keyDown = CGEvent(
-            keyboardEventSource: nil,
-            virtualKey: 0,
-            keyDown: true
-        ), let keyUp = CGEvent(
-            keyboardEventSource: nil,
-            virtualKey: 0,
-            keyDown: false
-        ) else {
-            throw FocusedTextInsertionError.eventCreationFailed
-        }
-        units.withUnsafeBufferPointer { buffer in
-            keyDown.keyboardSetUnicodeString(
-                stringLength: buffer.count,
-                unicodeString: buffer.baseAddress
-            )
-        }
-        keyDown.postToPid(processIdentifier)
-        keyUp.postToPid(processIdentifier)
-    }
-
     private func validate(_ target: FocusedTextTarget) throws {
         guard NSWorkspace.shared.frontmostApplication?.processIdentifier
             == target.processIdentifier else {
@@ -188,7 +162,10 @@ final class FocusedTextInserter {
         }
 
         let appElement = AXUIElementCreateApplication(target.processIdentifier)
-        let current = try copyFocusedElement(from: appElement)
+        let current = try copyCurrentFocusedElement(from: appElement)
+        guard isEditableTextControl(current) else {
+            throw FocusedTextInsertionError.focusChanged
+        }
         guard CFEqual(current, target.element)
                 || fingerprint(of: current).matches(target.elementFingerprint) else {
             throw FocusedTextInsertionError.focusChanged
@@ -200,6 +177,16 @@ final class FocusedTextInserter {
            !fingerprint(of: currentWindow).matches(expected) {
             throw FocusedTextInsertionError.focusChanged
         }
+    }
+
+    private func copyCurrentFocusedElement(
+        from application: AXUIElement
+    ) throws -> AXUIElement {
+        let systemWide = AXUIElementCreateSystemWide()
+        if let focused = try? copyFocusedElement(from: systemWide) {
+            return focused
+        }
+        return try copyFocusedElement(from: application)
     }
 
     private func copyFocusedElement(from application: AXUIElement) throws -> AXUIElement {
@@ -214,6 +201,20 @@ final class FocusedTextInserter {
             throw FocusedTextInsertionError.noFocusedTextControl
         }
         return unsafeDowncast(value, to: AXUIElement.self)
+    }
+
+    private func isEditableTextControl(_ element: AXUIElement) -> Bool {
+        var selectedTextIsSettable = DarwinBoolean(false)
+        let settableResult = AXUIElementIsAttributeSettable(
+            element,
+            kAXSelectedTextAttribute as CFString,
+            &selectedTextIsSettable
+        )
+        return EditableTextTargetPolicy.accepts(
+            role: copyStringAttribute(kAXRoleAttribute, from: element),
+            selectedTextIsSettable: settableResult == .success
+                && selectedTextIsSettable.boolValue
+        )
     }
 
     private func copyElementAttribute(
@@ -300,15 +301,5 @@ private extension AccessibilityFingerprint {
         let smallerArea = min(rectangle.width * rectangle.height,
                               otherRectangle.width * otherRectangle.height)
         return intersection.width * intersection.height >= smallerArea * 0.45
-    }
-}
-
-private extension String {
-    func utf16Chunks(maximumCount: Int) -> [[UniChar]] {
-        let units = Array(utf16)
-        guard !units.isEmpty else { return [] }
-        return stride(from: 0, to: units.count, by: maximumCount).map { start in
-            Array(units[start..<Swift.min(start + maximumCount, units.count)])
-        }
     }
 }

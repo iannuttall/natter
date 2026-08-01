@@ -366,6 +366,36 @@ import Testing
     ) == [.text(" Next paragraph")])
 }
 
+@Test func textInsertionChunksPreserveComposedCharacters() {
+    #expect(TextInsertionPlan.chunks(
+        for: "123456789012345🙂next",
+        maximumCharacterCount: 16
+    ) == ["123456789012345🙂", "next"])
+    #expect(TextInsertionPlan.chunks(
+        for: "👨‍👩‍👧‍👦 café",
+        maximumCharacterCount: 1
+    ).first == "👨‍👩‍👧‍👦")
+}
+
+@Test func editableTextPolicyRejectsFocusedWebContentAndLinks() {
+    #expect(EditableTextTargetPolicy.accepts(
+        role: "AXTextArea",
+        selectedTextIsSettable: false
+    ))
+    #expect(EditableTextTargetPolicy.accepts(
+        role: "AXGroup",
+        selectedTextIsSettable: true
+    ))
+    #expect(!EditableTextTargetPolicy.accepts(
+        role: "AXWebArea",
+        selectedTextIsSettable: false
+    ))
+    #expect(!EditableTextTargetPolicy.accepts(
+        role: "AXLink",
+        selectedTextIsSettable: false
+    ))
+}
+
 @Test func recoveryRecordRoundTrips() throws {
     let record = RecoveryRecord(
         createdAt: Date(timeIntervalSince1970: 123),

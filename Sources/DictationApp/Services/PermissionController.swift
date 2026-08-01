@@ -74,6 +74,7 @@ final class PermissionController {
         case .accessibility:
             let options = ["AXTrustedCheckOptionPrompt": true] as CFDictionary
             AXIsProcessTrustedWithOptions(options)
+            CGRequestPostEventAccess()
             scheduleRefresh()
         case .inputMonitoring:
             CGRequestListenEventAccess()

@@ -75,6 +75,9 @@ final class AppDelegate: NSObject, NSApplicationDelegate {
             }
         }
 
+        let insertionSmokeText = ProcessInfo.processInfo.environment[
+            "NATTER_TEST_INSERT_ON_LAUNCH"
+        ]
         if ProcessInfo.processInfo.environment["DICTATION_OPEN_ON_LAUNCH"] == "1" {
             SettingsWindow.shared.show(
                 store: store,
@@ -85,7 +88,7 @@ final class AppDelegate: NSObject, NSApplicationDelegate {
                 history: history,
                 onboarding: onboarding
             )
-        } else if onboarding.needsAttention(
+        } else if insertionSmokeText == nil, onboarding.needsAttention(
             modelManager: modelManager,
             permissions: permissions
         ) {
@@ -109,6 +112,22 @@ final class AppDelegate: NSObject, NSApplicationDelegate {
             "DICTATION_TEST_WRITING_ON_LAUNCH"
         ] {
             coordinator.testWritingForDebug(transcript)
+        }
+
+        if let insertionSmokeText {
+            let delayMilliseconds = ProcessInfo.processInfo.environment[
+                "NATTER_TEST_INSERT_DELAY_MS"
+            ].flatMap(Int.init) ?? 2_000
+            coordinator.testInsertionForDebug(
+                insertionSmokeText,
+                delay: .milliseconds(delayMilliseconds)
+            )
+            if ProcessInfo.processInfo.environment["NATTER_EXIT_AFTER_INSERT"] == "1" {
+                Task { @MainActor in
+                    try? await Task.sleep(for: .milliseconds(delayMilliseconds + 3_000))
+                    NSApp.terminate(nil)
+                }
+            }
         }
 
         if ProcessInfo.processInfo.environment["DICTATION_CAPTURE_SMOKE_ON_LAUNCH"] == "1" {

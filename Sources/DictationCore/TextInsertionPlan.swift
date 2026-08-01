@@ -6,6 +6,28 @@ public enum TextInsertionSegment: Equatable, Sendable {
 }
 
 public enum TextInsertionPlan {
+    public static func chunks(
+        for text: String,
+        maximumCharacterCount: Int
+    ) -> [String] {
+        guard !text.isEmpty, maximumCharacterCount > 0 else { return [] }
+        var chunks: [String] = []
+        var current = ""
+        var currentCount = 0
+
+        for character in text {
+            current.append(character)
+            currentCount += 1
+            if currentCount == maximumCharacterCount {
+                chunks.append(current)
+                current = ""
+                currentCount = 0
+            }
+        }
+        if !current.isEmpty { chunks.append(current) }
+        return chunks
+    }
+
     public static func segments(
         for text: String,
         destination: DestinationApplicationKind

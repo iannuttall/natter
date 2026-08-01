@@ -171,6 +171,33 @@ final class DictationCoordinator {
         }
     }
 
+    func testInsertionForDebug(_ text: String, delay: Duration = .seconds(2)) {
+        sessionTask?.cancel()
+        sessionTask = Task {
+            do {
+                try await Task.sleep(for: delay)
+                let target = try textInserter.captureTarget()
+                FileHandle.standardError.write(Data((
+                    "NATTER_INSERT_TARGET: \(target.applicationName ?? "unknown") "
+                        + "\(target.bundleIdentifier ?? "unknown") "
+                        + "\(target.elementFingerprint.role ?? "unknown")\n"
+                ).utf8))
+                try await textInserter.insert(
+                    text,
+                    into: target,
+                    paceTerminalInput: false
+                )
+                FileHandle.standardError.write(
+                    Data("NATTER_INSERT_RESULT: success\n".utf8)
+                )
+            } catch {
+                FileHandle.standardError.write(
+                    Data("NATTER_INSERT_ERROR: \(error.localizedDescription)\n".utf8)
+                )
+            }
+        }
+    }
+
     private func start() {
         guard store.canStart else { return }
         sessionTask?.cancel()
