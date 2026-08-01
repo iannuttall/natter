@@ -48,6 +48,7 @@ final class DictationCoordinator {
         case .start: start()
         case .stop: stop()
         case .cycleMode: cycleMode()
+        case .cancel: cancel()
         }
     }
 
@@ -114,7 +115,7 @@ final class DictationCoordinator {
     private func cycleActiveMode() {
         let nextMode = nextAvailableMode(after: store.selectedMode)
         store.selectDuringSession(nextMode)
-        store.statusMessage = nextMode.typesIncrementally
+        store.statusMessage = sessionTypesIncrementally
             ? "Switched to \(nextMode.label) · typing live"
             : "Switched to \(nextMode.label) · finishes when you stop"
     }
@@ -274,7 +275,8 @@ final class DictationCoordinator {
                 )
                 let correctedTranscript = PersonalCorrections.apply(
                     sessionCorrections,
-                    to: normalizedTranscript
+                    to: normalizedTranscript,
+                    scope: correctionScope
                 )
                 let transcript: String
                 switch store.selectedMode {
@@ -301,7 +303,7 @@ final class DictationCoordinator {
                     return
                 }
 
-                if store.selectedMode.isGenerative {
+                if shouldUseWritingModel {
                     await deliverWritingMode(transcript)
                 } else {
                     await deliverFinalTranscript(transcript)
@@ -335,7 +337,7 @@ final class DictationCoordinator {
     }
 
     private func deliverStablePartial(_ transcript: String) async {
-        guard store.selectedMode.typesIncrementally, deliveryIssue == nil else { return }
+        guard sessionTypesIncrementally, deliveryIssue == nil else { return }
 
         switch emitter.observe(transcript) {
         case .none:
@@ -363,7 +365,11 @@ final class DictationCoordinator {
             rawTranscript,
             context: spokenFormattingContext
         )
-        store.liveTranscript = PersonalCorrections.apply(sessionCorrections, to: visible)
+        store.liveTranscript = PersonalCorrections.apply(
+            sessionCorrections,
+            to: visible,
+            scope: correctionScope
+        )
 
         switch stabilizer.observe(store.liveTranscript) {
         case let .prefix(prefix):
@@ -467,7 +473,11 @@ final class DictationCoordinator {
             return false
         }
 
-        rules.add(correction)
+        rules.add(PersonalCorrection(
+            heard: correction.heard,
+            replacement: correction.replacement,
+            scope: correctionScope
+        ))
         store.liveTranscript = "Remembered “\(correction.heard)” → “\(correction.replacement)”"
         store.finalTranscript = ""
         store.statusMessage = "Personal correction saved locally"
@@ -481,6 +491,11 @@ final class DictationCoordinator {
 
         let paths = AppPaths.live(bundleIdentifier: AppInfo.bundleIdentifier)
         guard let modelDirectory = WritingModelLocation.resolve(in: paths) else {
+            if store.selectedMode == .agent {
+                await deliverFinalTranscript(transcript)
+                finishDelivery(of: transcript)
+                return
+            }
             recoverTranscript(
                 transcript,
                 reason: DictationCoordinatorError.writingModelMissing.localizedDescription
@@ -537,6 +552,7 @@ final class DictationCoordinator {
         let duration = recordingStartedAt.map { end.timeIntervalSince($0) } ?? 0
         history.record(
             transcript: transcript,
+            rawTranscript: store.rawTranscript,
             durationSeconds: duration,
             mode: store.selectedMode,
             sourceBundleIdentifier: focusTarget?.bundleIdentifier,
@@ -565,6 +581,16 @@ final class DictationCoordinator {
         }
     }
 
+    private var sessionTypesIncrementally: Bool {
+        store.selectedMode == .raw
+            || (store.selectedMode == .agent && store.agentTypesLive)
+    }
+
+    private var shouldUseWritingModel: Bool {
+        store.selectedMode.isGenerative
+            || (store.selectedMode == .agent && store.smartAgentEnabled)
+    }
+
     private var correctionAppNames: [String] {
         Array(Set([AppInfo.displayName, "Dictation"]))
     }
@@ -577,6 +603,10 @@ final class DictationCoordinator {
             return .technical
         }
         return .prose
+    }
+
+    private var correctionScope: PersonalCorrectionScope {
+        store.selectedMode == .agent ? .agent : .everywhere
     }
 
     private func fail(_ error: Error) {

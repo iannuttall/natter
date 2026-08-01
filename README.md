@@ -30,7 +30,7 @@ is missing.
 ## Modes
 
 - **Raw** types stable phrases live and applies personal corrections.
-- **Agent** types stable phrases live for terminal and coding-agent prompts.
+- **Agent** shows the live transcript in the overlay, applies conservative local technical formatting when you stop, then types the result visibly. Live Agent typing remains an advanced option.
 - **Clean** removes explicit filler and obvious repeated words or phrases after
   stop, without another model.
 - **Email** formats a direct email body after stop.
@@ -71,7 +71,7 @@ to the same reversible Markdown file.
 
 ## Product corpus
 
-The local browser harness covers 25 delivery, recovery, correction, writing and
+The local browser harness covers delivery, recovery, correction, writing and
 stress scenarios. It switches modes, captures and grades output, saves results
 to disk and advances automatically. It deliberately does not repeat accent/model
 selection; the recorded benchmark already tested Ian's British accent.

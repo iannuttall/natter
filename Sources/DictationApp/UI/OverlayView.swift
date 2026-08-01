@@ -42,10 +42,7 @@ struct OverlayView: View {
                     .foregroundStyle(.tertiary)
                 Spacer()
                 if canCancel {
-                    Button("Cancel", role: .cancel, action: onCancel)
-                        .buttonStyle(.plain)
-                        .font(.caption)
-                        .foregroundStyle(.secondary)
+                    OverlayCancelButton(compact: false, action: onCancel)
                 }
             }
         }
@@ -69,12 +66,7 @@ struct OverlayView: View {
                 .foregroundStyle(.secondary)
             Spacer(minLength: 0)
             if canCancel {
-                Button(action: onCancel) {
-                    Image(systemName: "xmark")
-                }
-                .buttonStyle(.plain)
-                .foregroundStyle(.secondary)
-                .accessibilityLabel("Cancel dictation")
+                OverlayCancelButton(compact: true, action: onCancel)
             }
         }
         .padding(.horizontal, 16)
@@ -134,7 +126,7 @@ struct OverlayView: View {
     private var footerText: String {
         switch store.phase {
         case .preparing, .listening:
-            "Tap \(store.selectedHotKey.label) to stop"
+            "Tap \(store.selectedHotKey.label) to stop · both right modifiers cancel"
         case .recoverable:
             "The complete transcript is on your clipboard"
         case .failed:
@@ -146,5 +138,35 @@ struct OverlayView: View {
 
     private func barIsActive(_ index: Int) -> Bool {
         store.audioLevel >= Float(index + 1) / 6
+    }
+}
+
+private struct OverlayCancelButton: View {
+    let compact: Bool
+    let action: () -> Void
+    @State private var isHovered = false
+
+    var body: some View {
+        Button(action: action) {
+            HStack(spacing: 4) {
+                Image(systemName: "xmark")
+                    .font(.system(size: 9, weight: .semibold))
+                if !compact { Text("Cancel") }
+            }
+            .font(.system(size: 11, weight: .medium))
+            .foregroundStyle(isHovered ? .white : .red)
+            .frame(minWidth: compact ? 24 : nil, minHeight: 22)
+            .padding(.horizontal, compact ? 2 : 8)
+            .background(
+                RoundedRectangle(cornerRadius: 6)
+                    .fill(isHovered ? Color.red : Color.red.opacity(0.14))
+            )
+        }
+        .buttonStyle(.plain)
+        .help("Cancel dictation · press Right Option and Right Control together")
+        .onHover { hovering in
+            withAnimation(.easeInOut(duration: 0.12)) { isHovered = hovering }
+        }
+        .accessibilityLabel("Cancel dictation")
     }
 }

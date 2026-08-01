@@ -27,9 +27,18 @@ The generic prompt changed `Set scroll restoration: true in the router options.`
 ## Product boundary
 
 - Raw stays model-free and conservative.
-- Agent applies explicit technical grammar while streaming.
-- Context-dependent Agent cleanup should be an optional after-stop pass with minimal-edit instructions, personal/project vocabulary and fact guards.
+- Agent shows live recognition in the overlay, then applies explicit technical grammar and an optional local-model pass after stop before paced keyboard delivery.
+- Context-dependent Agent cleanup uses minimal-edit instructions, personal/project vocabulary and fact guards. Live Agent typing remains an advanced opt-in because already-delivered text cannot be safely rewritten in every destination.
 - Clean needs a separate cleanup benchmark because removing false starts is broader than formatting.
 - Email and Article keep their existing writing prompts because restructuring is intentional in those modes.
 
-The current seven smart cases prove the architecture and latency, not broad release readiness. Expand them with real recogniser errors and more professions before enabling smart Agent formatting by default.
+## Agent recogniser-error baseline
+
+Fourteen production-prompt cases cover six technical recognition repairs, two already-correct technical prompts and six ambiguous prose negatives.
+
+- Every ambiguous prose negative remained exact, including ancient codex, video codecs, an animal that clawed a door, Claude Monet, capital P and prose about scroll restoration.
+- Without supplied vocabulary, the model did not repair `Codecs exec`, `Claude P`, `Clawed Desktop` or `scroll restoration: true`.
+- p50/p95 generation latency was 0.72s/0.79s. A more forceful generic prompt made no additional repairs and regressed latency to 0.82s/0.89s, so it was rejected.
+- The earlier vocabulary-supplied pass repaired its seven contextual cases with 100% required and forbidden checks.
+
+The boundary is now clear: the model should not guess names from sound alone. Personal corrections work immediately; future automatic context should supply installed app names, available commands and optional project vocabulary to the same guarded final pass.

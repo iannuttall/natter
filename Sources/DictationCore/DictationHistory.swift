@@ -15,6 +15,7 @@ public struct DictationHistoryRecord: Codable, Equatable, Identifiable, Sendable
     public let sourceBundleIdentifier: String?
     public let sourceApplicationName: String?
     public var transcript: String?
+    public var rawTranscript: String?
     public let outcome: DictationOutcome
 
     public init(
@@ -26,6 +27,7 @@ public struct DictationHistoryRecord: Codable, Equatable, Identifiable, Sendable
         sourceBundleIdentifier: String?,
         sourceApplicationName: String?,
         transcript: String?,
+        rawTranscript: String? = nil,
         outcome: DictationOutcome
     ) {
         self.id = id
@@ -36,6 +38,7 @@ public struct DictationHistoryRecord: Codable, Equatable, Identifiable, Sendable
         self.sourceBundleIdentifier = sourceBundleIdentifier
         self.sourceApplicationName = sourceApplicationName
         self.transcript = transcript
+        self.rawTranscript = rawTranscript
         self.outcome = outcome
     }
 

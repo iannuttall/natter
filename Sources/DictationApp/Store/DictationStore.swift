@@ -39,6 +39,14 @@ final class DictationStore {
         }
     }
 
+    var agentTypesLive: Bool {
+        didSet { defaults.set(agentTypesLive, forKey: Keys.agentTypesLive) }
+    }
+
+    var smartAgentEnabled: Bool {
+        didSet { defaults.set(smartAgentEnabled, forKey: Keys.smartAgentEnabled) }
+    }
+
     var overlayStyle: OverlayStyle {
         didSet {
             defaults.set(overlayStyle.rawValue, forKey: Keys.overlayStyle)
@@ -60,6 +68,10 @@ final class DictationStore {
             .flatMap(ModifierHotKey.init(rawValue:))
             ?? .rightOption
         terminalPacingEnabled = defaults.object(forKey: Keys.terminalPacingEnabled) as? Bool
+            ?? true
+        agentTypesLive = defaults.object(forKey: Keys.agentTypesLive) as? Bool
+            ?? false
+        smartAgentEnabled = defaults.object(forKey: Keys.smartAgentEnabled) as? Bool
             ?? true
         overlayStyle = defaults.string(forKey: Keys.overlayStyle)
             .flatMap(OverlayStyle.init(rawValue:))
@@ -148,6 +160,8 @@ final class DictationStore {
         static let legacySelectedMode = "selectedMode"
         static let selectedHotKey = "selectedHotKey"
         static let terminalPacingEnabled = "terminalPacingEnabled"
+        static let agentTypesLive = "agentTypesLive"
+        static let smartAgentEnabled = "smartAgentEnabled"
         static let overlayStyle = "overlayStyle"
     }
 }

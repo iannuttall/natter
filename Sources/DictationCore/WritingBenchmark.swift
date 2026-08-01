@@ -84,7 +84,7 @@ public enum WritingBenchmark {
     """
 
     public static func systemInstructions(for fixture: WritingFixture) -> String {
-        guard fixture.mode == "Smart formatting" else { return baseInstructions }
+        guard usesMinimalFormatting(for: fixture) else { return baseInstructions }
         return baseInstructions + "\n" + minimalFormattingInstructions
     }
 
@@ -97,6 +97,13 @@ public enum WritingBenchmark {
     public static func prompt(for fixture: WritingFixture, repeatTranscript: Int = 1) -> String {
         let transcript = Array(repeating: fixture.transcript, count: repeatTranscript)
             .joined(separator: "\n\n")
+        if fixture.mode.caseInsensitiveCompare(DictationMode.agent.label) == .orderedSame {
+            return WritingRules.prompt(
+                transcript: transcript,
+                mode: .agent,
+                markdownRules: WritingRules.defaultMarkdown(for: .agent)
+            )
+        }
         return """
         Mode instructions:
         \(fixture.instructions)
@@ -113,7 +120,7 @@ public enum WritingBenchmark {
         rawOutput: String,
         latencySeconds: Double
     ) -> WritingFixtureResult {
-        let output = fixture.mode == "Smart formatting"
+        let output = usesMinimalFormatting(for: fixture)
             ? cleanMinimalFormattingEnvelope(rawOutput)
             : cleanEnvelope(rawOutput)
         let expectedWords = normalizedWords(fixture.expected)
@@ -237,5 +244,10 @@ public enum WritingBenchmark {
         guard !sortedValues.isEmpty else { return nil }
         let index = Int((Double(sortedValues.count - 1) * fraction).rounded())
         return sortedValues[index]
+    }
+
+    private static func usesMinimalFormatting(for fixture: WritingFixture) -> Bool {
+        fixture.mode == "Smart formatting"
+            || fixture.mode.caseInsensitiveCompare(DictationMode.agent.label) == .orderedSame
     }
 }

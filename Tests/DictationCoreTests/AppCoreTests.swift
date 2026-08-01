@@ -4,7 +4,7 @@ import Testing
 
 @Test func modesSeparateLiveAndGenerativeDelivery() {
     #expect(DictationMode.raw.typesIncrementally)
-    #expect(DictationMode.agent.typesIncrementally)
+    #expect(!DictationMode.agent.typesIncrementally)
     #expect(!DictationMode.clean.typesIncrementally)
     #expect(!DictationMode.clean.isGenerative)
     #expect(DictationMode.email.isGenerative)
@@ -108,6 +108,25 @@ import Testing
     #expect(shortPress == .tap)
     #expect(longPress == .hold)
     #expect(detector.keyUp(at: 13) == nil)
+}
+
+@Test func bothRightModifiersCancelOnlyAnActiveSession() {
+    var detector = CancelModifierChordDetector()
+
+    #expect(detector.observe(keyCode: 61, isDown: true, sessionIsActive: false)
+        == .passThrough)
+    #expect(detector.observe(keyCode: 62, isDown: true, sessionIsActive: false)
+        == .passThrough)
+    detector.reset()
+
+    #expect(detector.observe(keyCode: 61, isDown: true, sessionIsActive: true)
+        == .passThrough)
+    #expect(detector.observe(keyCode: 62, isDown: true, sessionIsActive: true)
+        == .cancel)
+    #expect(detector.observe(keyCode: 61, isDown: false, sessionIsActive: true)
+        == .suppress)
+    #expect(detector.observe(keyCode: 62, isDown: false, sessionIsActive: true)
+        == .suppress)
 }
 
 @Test func dictationModesCycleInDisplayedOrder() {
@@ -397,6 +416,43 @@ import Testing
     #expect(updated == markdown)
 }
 
+@Test func personalCorrectionsRespectAgentScope() {
+    let markdown = """
+    # Personal corrections
+    - "port man" → "Portman"
+    - [Agent] "clawed" → "Claude"
+    """
+    let corrections = PersonalCorrections.parse(markdown)
+
+    #expect(corrections == [
+        PersonalCorrection(heard: "port man", replacement: "Portman"),
+        PersonalCorrection(heard: "clawed", replacement: "Claude", scope: .agent)
+    ])
+    #expect(PersonalCorrections.apply(
+        corrections,
+        to: "port man and the animal clawed the door"
+    ) == "Portman and the animal clawed the door")
+    #expect(PersonalCorrections.apply(
+        corrections,
+        to: "port man opened clawed desktop",
+        scope: .agent
+    ) == "Portman opened Claude desktop")
+}
+
+@Test func identicalCorrectionsCanExistInDifferentScopes() {
+    let everywhere = PersonalCorrection(heard: "clawed", replacement: "Claude")
+    let agent = PersonalCorrection(heard: "clawed", replacement: "Claude", scope: .agent)
+    let markdown = PersonalCorrections.appending(
+        agent,
+        to: PersonalCorrections.appending(everywhere, to: PersonalCorrections.defaultMarkdown)
+    )
+
+    #expect(PersonalCorrections.parse(markdown) == [everywhere, agent])
+    #expect(PersonalCorrections.parse(PersonalCorrections.removing(agent, from: markdown)) == [
+        everywhere
+    ])
+}
+
 @Test func spokenCorrectionCommandExtractsRuleAndSpellingHint() {
     let transcript = """
     Hey Dictation, you just transcribed it as en.is but what I actually said was ian.is \
@@ -468,6 +524,21 @@ import Testing
     #expect(SpokenTechnicalTextNormalizer.normalize(transcript, context: .technical) ==
         "Test Claude, ChatGPT, Codex, etc. before release")
     #expect(SpokenTechnicalTextNormalizer.normalize(transcript, context: .prose) == transcript)
+}
+
+@Test func explicitSpellingAndSingleLetterFlagsBecomeLiteral() {
+    #expect(SpokenTechnicalTextNormalizer.normalize(
+        "Run C O D E X exec then Claude dash P",
+        context: .technical
+    ) == "Run CODEX exec then Claude -p")
+    #expect(SpokenTechnicalTextNormalizer.normalize(
+        "The code is I-A-N",
+        context: .prose
+    ) == "The code is IAN")
+    #expect(SpokenTechnicalTextNormalizer.normalize(
+        "Use lowercase C O D E X",
+        context: .technical
+    ) == "Use codex")
 }
 
 @Test func agentModeAcceptsCommonDoubleHyphenPhrases() {

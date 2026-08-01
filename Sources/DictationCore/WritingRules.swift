@@ -13,6 +13,18 @@ public enum WritingRules {
 
     public static func defaultMarkdown(for mode: DictationMode) -> String {
         switch mode {
+        case .agent:
+            """
+            # Agent mode
+
+            - Make the smallest possible corrections justified by technical context.
+            - Correct obvious speech-recognition homophones for commands, tools and identifiers.
+            - Format explicit CLI commands, subcommands, flags, paths and code symbols literally.
+            - Lowercase command names and flags only when the command context is unambiguous.
+            - Preserve the speaker's request, word order, constraints, profanity and line breaks.
+            - Do not turn prose into source code, Markdown or a different command.
+            - If a change is uncertain, leave it unchanged.
+            """
         case .clean:
             """
             # Clean mode
@@ -43,7 +55,7 @@ public enum WritingRules {
             - Use headings only when the transcript contains several distinct sections that need them.
             - Never invent evidence, transitions or conclusions.
             """
-        case .raw, .agent:
+        case .raw:
             ""
         }
     }

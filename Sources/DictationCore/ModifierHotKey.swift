@@ -25,6 +25,55 @@ public enum ModifierHotKeyAction: Equatable, Sendable {
     case start
     case stop
     case cycleMode
+    case cancel
+}
+
+public enum CancelModifierChordEvent: Equatable, Sendable {
+    case passThrough
+    case cancel
+    case suppress
+}
+
+public struct CancelModifierChordDetector: Sendable {
+    private var downKeyCodes: Set<UInt16> = []
+    private var chordIsActive = false
+
+    public init() {}
+
+    public mutating func observe(
+        keyCode: UInt16,
+        isDown: Bool,
+        sessionIsActive: Bool
+    ) -> CancelModifierChordEvent {
+        guard keyCode == ModifierHotKey.rightOption.keyCode
+                || keyCode == ModifierHotKey.rightControl.keyCode else {
+            return .passThrough
+        }
+
+        if isDown {
+            downKeyCodes.insert(keyCode)
+        } else {
+            downKeyCodes.remove(keyCode)
+        }
+
+        if chordIsActive {
+            if downKeyCodes.isEmpty { chordIsActive = false }
+            return .suppress
+        }
+
+        if sessionIsActive,
+           downKeyCodes.contains(ModifierHotKey.rightOption.keyCode),
+           downKeyCodes.contains(ModifierHotKey.rightControl.keyCode) {
+            chordIsActive = true
+            return .cancel
+        }
+        return .passThrough
+    }
+
+    public mutating func reset() {
+        downKeyCodes = []
+        chordIsActive = false
+    }
 }
 
 public enum ModifierPressGesture: Equatable, Sendable {

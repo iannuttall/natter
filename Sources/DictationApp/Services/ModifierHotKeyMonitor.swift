@@ -8,6 +8,7 @@ final class ModifierHotKeyMonitor {
     private var detector = ModifierTapDetector()
     private var holdDetector = ModifierHoldDetector()
     private var edgeTracker = ModifierKeyEdgeTracker()
+    private var cancelChordDetector = CancelModifierChordDetector()
     private var globalMonitor: Any?
     private var localMonitor: Any?
     private var pressStartedDuringSession = false
@@ -43,17 +44,36 @@ final class ModifierHotKeyMonitor {
         edgeTracker.reset()
         detector.reset()
         holdDetector.reset()
+        cancelChordDetector.reset()
     }
 
     private func handle(_ event: NSEvent) {
         let hotKey = store.selectedHotKey
-        guard event.keyCode == hotKey.keyCode else {
+        let sessionIsActive = store.phase == .preparing || store.phase == .listening
+        let eventModifierIsActive = event.modifierFlags.contains(
+            ModifierHotKey.modifierFlag(for: event.keyCode)
+        )
+        switch cancelChordDetector.observe(
+            keyCode: event.keyCode,
+            isDown: eventModifierIsActive,
+            sessionIsActive: sessionIsActive
+        ) {
+        case .cancel:
+            detector.reset()
+            holdDetector.reset()
+            edgeTracker.reset()
+            actionHandler(.cancel)
             return
+        case .suppress:
+            return
+        case .passThrough:
+            break
         }
+
+        guard event.keyCode == hotKey.keyCode else { return }
 
         let modifierIsActive = event.modifierFlags.contains(hotKey.modifierFlag)
         let pressed = edgeTracker.observe(isActive: modifierIsActive)
-        let sessionIsActive = store.phase == .preparing || store.phase == .listening
 
         if !modifierIsActive {
             guard let gesture = holdDetector.keyUp(at: event.timestamp) else { return }
@@ -89,6 +109,14 @@ private extension ModifierHotKey {
         switch self {
         case .rightOption: .option
         case .rightControl: .control
+        }
+    }
+
+    static func modifierFlag(for keyCode: UInt16) -> NSEvent.ModifierFlags {
+        switch keyCode {
+        case ModifierHotKey.rightOption.keyCode: .option
+        case ModifierHotKey.rightControl.keyCode: .control
+        default: []
         }
     }
 }

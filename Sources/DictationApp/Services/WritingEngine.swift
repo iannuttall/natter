@@ -20,7 +20,10 @@ actor WritingEngine {
         let cleanedInput = DeterministicTranscriptCleaner.clean(transcript)
         let session = ChatSession(
             container,
-            instructions: WritingBenchmark.baseInstructions,
+            instructions: mode == .agent
+                ? WritingBenchmark.baseInstructions + "\n"
+                    + WritingBenchmark.minimalFormattingInstructions
+                : WritingBenchmark.baseInstructions,
             generateParameters: GenerateParameters(
                 maxTokens: 1_800,
                 temperature: 0,

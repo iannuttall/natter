@@ -24,7 +24,7 @@ public enum DictationMode: String, Codable, CaseIterable, Identifiable, Sendable
         case .raw:
             "Fast live dictation with personal corrections only."
         case .agent:
-            "Live dictation that preserves code, paths, constraints and line breaks."
+            "Format technical dictation after you stop, then type it visibly."
         case .clean:
             "Remove filler and obvious repeated words after you stop."
         case .email:
@@ -43,8 +43,8 @@ public enum DictationMode: String, Codable, CaseIterable, Identifiable, Sendable
 
     public var typesIncrementally: Bool {
         switch self {
-        case .raw, .agent: true
-        case .clean, .email, .article: false
+        case .raw: true
+        case .agent, .clean, .email, .article: false
         }
     }
 

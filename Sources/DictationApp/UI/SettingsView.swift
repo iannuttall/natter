@@ -16,11 +16,12 @@ struct SettingsView: View {
                 permissionRows
                 hotKeyPicker
                 terminalDelivery
+                agentDelivery
                 overlayPreferences
                 modePicker
                 applicationProfiles
                 historyPreferences
-                rulesButton
+                rulesControls
                 modelPacks
                 footer
             }
@@ -43,6 +44,25 @@ struct SettingsView: View {
                 }
             }
         }
+    }
+
+    private var agentDelivery: some View {
+        VStack(alignment: .leading, spacing: Theme.Space.regular) {
+            Text("Agent delivery")
+                .font(.headline)
+            Toggle("Type live while speaking", isOn: $store.agentTypesLive)
+            Text("Off by default: show the live transcript in the overlay, format it when you stop, then type it visibly into the destination.")
+                .font(.caption)
+                .foregroundStyle(.secondary)
+            Toggle("Use local AI cleanup when installed", isOn: $store.smartAgentEnabled)
+            Text("Falls back to deterministic technical formatting when Writing tools are not installed.")
+                .font(.caption)
+                .foregroundStyle(.secondary)
+        }
+        .padding(Theme.Space.regular)
+        .background(Theme.Colour.secondaryPanel)
+        .clipShape(RoundedRectangle(cornerRadius: Theme.Radius.card))
+        .disabled(store.phase.isBusy)
     }
 
     private var historyPreferences: some View {
@@ -376,17 +396,20 @@ struct SettingsView: View {
         }
     }
 
-    private var rulesButton: some View {
+    private var rulesControls: some View {
         HStack {
             VStack(alignment: .leading, spacing: 2) {
-                Text("Personal rules")
+                Text("Dictionary and writing rules")
                     .font(.headline)
-                Text("Corrections plus Email and Article instructions.")
+                Text("Correct recurring mistakes or customise local AI formatting.")
                     .font(.callout)
                     .foregroundStyle(.secondary)
             }
             Spacer()
-            Button("Edit Rules…") {
+            Button("Dictionary…") {
+                DictionaryWindow.shared.show(rules: rules)
+            }
+            Button("Writing Rules…") {
                 RulesWindow.shared.show(rules: rules)
             }
         }

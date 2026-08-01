@@ -1,0 +1,131 @@
+{
+  "version": 1,
+  "fixtures": [
+    {
+      "id": "agent-codex-exec",
+      "mode": "Agent",
+      "instructions": "# Agent mode\n\n- Make the smallest possible corrections justified by technical context.\n- Correct obvious speech-recognition homophones for commands, tools and identifiers.\n- Format explicit CLI commands, subcommands, flags, paths and code symbols literally.\n- Lowercase command names and flags only when the command context is unambiguous.\n- Preserve the speaker's request, word order, constraints, profanity and line breaks.\n- Do not turn prose into source code, Markdown or a different command.\n- If a change is uncertain, leave it unchanged.",
+      "transcript": "Run Codecs exec and keep the process open until the test exits.",
+      "expected": "Run codex exec and keep the process open until the test exits.",
+      "required": ["codex exec", "until the test exits"],
+      "forbidden": ["Codecs exec", "codec exec"]
+    },
+    {
+      "id": "agent-claude-short-flag",
+      "mode": "Agent",
+      "instructions": "# Agent mode\n\n- Make the smallest possible corrections justified by technical context.\n- Correct obvious speech-recognition homophones for commands, tools and identifiers.\n- Format explicit CLI commands, subcommands, flags, paths and code symbols literally.\n- Lowercase command names and flags only when the command context is unambiguous.\n- Preserve the speaker's request, word order, constraints, profanity and line breaks.\n- Do not turn prose into source code, Markdown or a different command.\n- If a change is uncertain, leave it unchanged.",
+      "transcript": "Start Claude P with a timestamped heartbeat.",
+      "expected": "Start claude -p with a timestamped heartbeat.",
+      "required": ["claude -p", "timestamped heartbeat"],
+      "forbidden": ["Claude P", "claude p"]
+    },
+    {
+      "id": "agent-explicit-flag",
+      "mode": "Agent",
+      "instructions": "# Agent mode\n\n- Make the smallest possible corrections justified by technical context.\n- Correct obvious speech-recognition homophones for commands, tools and identifiers.\n- Format explicit CLI commands, subcommands, flags, paths and code symbols literally.\n- Lowercase command names and flags only when the command context is unambiguous.\n- Preserve the speaker's request, word order, constraints, profanity and line breaks.\n- Do not turn prose into source code, Markdown or a different command.\n- If a change is uncertain, leave it unchanged.",
+      "transcript": "Run Claude -P after codex exec finishes.",
+      "expected": "Run claude -p after codex exec finishes.",
+      "required": ["claude -p", "codex exec"],
+      "forbidden": ["Claude -P"]
+    },
+    {
+      "id": "agent-claude-desktop",
+      "mode": "Agent",
+      "instructions": "# Agent mode\n\n- Make the smallest possible corrections justified by technical context.\n- Correct obvious speech-recognition homophones for commands, tools and identifiers.\n- Format explicit CLI commands, subcommands, flags, paths and code symbols literally.\n- Lowercase command names and flags only when the command context is unambiguous.\n- Preserve the speaker's request, word order, constraints, profanity and line breaks.\n- Do not turn prose into source code, Markdown or a different command.\n- If a change is uncertain, leave it unchanged.",
+      "transcript": "Paste the result into Clawed Desktop and Chat GPT Desktop.",
+      "expected": "Paste the result into Claude Desktop and ChatGPT Desktop.",
+      "required": ["Claude Desktop", "ChatGPT Desktop"],
+      "forbidden": ["Clawed Desktop", "Chat GPT Desktop"]
+    },
+    {
+      "id": "agent-scroll-restoration",
+      "mode": "Agent",
+      "instructions": "# Agent mode\n\n- Make the smallest possible corrections justified by technical context.\n- Correct obvious speech-recognition homophones for commands, tools and identifiers.\n- Format explicit CLI commands, subcommands, flags, paths and code symbols literally.\n- Lowercase command names and flags only when the command context is unambiguous.\n- Preserve the speaker's request, word order, constraints, profanity and line breaks.\n- Do not turn prose into source code, Markdown or a different command.\n- If a change is uncertain, leave it unchanged.",
+      "transcript": "Set scroll restoration: true in the router options.",
+      "expected": "Set scrollRestoration: true in the router options.",
+      "required": ["scrollRestoration: true", "router options"],
+      "forbidden": ["router.options", "```", "const "]
+    },
+    {
+      "id": "agent-facts-and-path",
+      "mode": "Agent",
+      "instructions": "# Agent mode\n\n- Make the smallest possible corrections justified by technical context.\n- Correct obvious speech-recognition homophones for commands, tools and identifiers.\n- Format explicit CLI commands, subcommands, flags, paths and code symbols literally.\n- Lowercase command names and flags only when the command context is unambiguous.\n- Preserve the speaker's request, word order, constraints, profanity and line breaks.\n- Do not turn prose into source code, Markdown or a different command.\n- If a change is uncertain, leave it unchanged.",
+      "transcript": "Run Codecs exec in ~/dev/native/dictation with 70 recordings and keep the 5.24% result.",
+      "expected": "Run codex exec in ~/dev/native/dictation with 70 recordings and keep the 5.24% result.",
+      "required": ["codex exec", "~/dev/native/dictation", "70 recordings", "5.24%"],
+      "forbidden": ["Codecs exec"]
+    },
+    {
+      "id": "agent-existing-symbols",
+      "mode": "Agent",
+      "instructions": "# Agent mode\n\n- Make the smallest possible corrections justified by technical context.\n- Correct obvious speech-recognition homophones for commands, tools and identifiers.\n- Format explicit CLI commands, subcommands, flags, paths and code symbols literally.\n- Lowercase command names and flags only when the command context is unambiguous.\n- Preserve the speaker's request, word order, constraints, profanity and line breaks.\n- Do not turn prose into source code, Markdown or a different command.\n- If a change is uncertain, leave it unchanged.",
+      "transcript": "Keep @MainActor on the class and set scrollRestoration: true.",
+      "expected": "Keep @MainActor on the class and set scrollRestoration: true.",
+      "required": ["@MainActor", "scrollRestoration: true"],
+      "forbidden": ["```", "class ", "router.options"]
+    },
+    {
+      "id": "agent-profanity-and-constraint",
+      "mode": "Agent",
+      "instructions": "# Agent mode\n\n- Make the smallest possible corrections justified by technical context.\n- Correct obvious speech-recognition homophones for commands, tools and identifiers.\n- Format explicit CLI commands, subcommands, flags, paths and code symbols literally.\n- Lowercase command names and flags only when the command context is unambiguous.\n- Preserve the speaker's request, word order, constraints, profanity and line breaks.\n- Do not turn prose into source code, Markdown or a different command.\n- If a change is uncertain, leave it unchanged.",
+      "transcript": "Run codex exec, but do not fucking deploy anything until the tests pass.",
+      "expected": "Run codex exec, but do not fucking deploy anything until the tests pass.",
+      "required": ["do not fucking deploy anything", "until the tests pass"],
+      "forbidden": ["please", "production"]
+    },
+    {
+      "id": "negative-ancient-codex",
+      "mode": "Agent",
+      "instructions": "# Agent mode\n\n- Make the smallest possible corrections justified by technical context.\n- Correct obvious speech-recognition homophones for commands, tools and identifiers.\n- Format explicit CLI commands, subcommands, flags, paths and code symbols literally.\n- Lowercase command names and flags only when the command context is unambiguous.\n- Preserve the speaker's request, word order, constraints, profanity and line breaks.\n- Do not turn prose into source code, Markdown or a different command.\n- If a change is uncertain, leave it unchanged.",
+      "transcript": "The ancient codex was displayed beside the manuscript.",
+      "expected": "The ancient codex was displayed beside the manuscript.",
+      "required": ["ancient codex", "manuscript"],
+      "forbidden": ["Codex CLI", "codex exec"]
+    },
+    {
+      "id": "negative-video-codecs",
+      "mode": "Agent",
+      "instructions": "# Agent mode\n\n- Make the smallest possible corrections justified by technical context.\n- Correct obvious speech-recognition homophones for commands, tools and identifiers.\n- Format explicit CLI commands, subcommands, flags, paths and code symbols literally.\n- Lowercase command names and flags only when the command context is unambiguous.\n- Preserve the speaker's request, word order, constraints, profanity and line breaks.\n- Do not turn prose into source code, Markdown or a different command.\n- If a change is uncertain, leave it unchanged.",
+      "transcript": "These video codecs use less bandwidth on older devices.",
+      "expected": "These video codecs use less bandwidth on older devices.",
+      "required": ["video codecs", "older devices"],
+      "forbidden": ["Codex", "codex exec"]
+    },
+    {
+      "id": "negative-animal-clawed",
+      "mode": "Agent",
+      "instructions": "# Agent mode\n\n- Make the smallest possible corrections justified by technical context.\n- Correct obvious speech-recognition homophones for commands, tools and identifiers.\n- Format explicit CLI commands, subcommands, flags, paths and code symbols literally.\n- Lowercase command names and flags only when the command context is unambiguous.\n- Preserve the speaker's request, word order, constraints, profanity and line breaks.\n- Do not turn prose into source code, Markdown or a different command.\n- If a change is uncertain, leave it unchanged.",
+      "transcript": "The cat clawed the door while I was working.",
+      "expected": "The cat clawed the door while I was working.",
+      "required": ["cat clawed the door"],
+      "forbidden": ["Claude", "desktop app"]
+    },
+    {
+      "id": "negative-claude-monet",
+      "mode": "Agent",
+      "instructions": "# Agent mode\n\n- Make the smallest possible corrections justified by technical context.\n- Correct obvious speech-recognition homophones for commands, tools and identifiers.\n- Format explicit CLI commands, subcommands, flags, paths and code symbols literally.\n- Lowercase command names and flags only when the command context is unambiguous.\n- Preserve the speaker's request, word order, constraints, profanity and line breaks.\n- Do not turn prose into source code, Markdown or a different command.\n- If a change is uncertain, leave it unchanged.",
+      "transcript": "Claude Monet painted the scene in several different lights.",
+      "expected": "Claude Monet painted the scene in several different lights.",
+      "required": ["Claude Monet", "different lights"],
+      "forbidden": ["claude -p", "Claude Desktop"]
+    },
+    {
+      "id": "negative-capital-p",
+      "mode": "Agent",
+      "instructions": "# Agent mode\n\n- Make the smallest possible corrections justified by technical context.\n- Correct obvious speech-recognition homophones for commands, tools and identifiers.\n- Format explicit CLI commands, subcommands, flags, paths and code symbols literally.\n- Lowercase command names and flags only when the command context is unambiguous.\n- Preserve the speaker's request, word order, constraints, profanity and line breaks.\n- Do not turn prose into source code, Markdown or a different command.\n- If a change is uncertain, leave it unchanged.",
+      "transcript": "The heading should start with a capital P, not a lowercase letter.",
+      "expected": "The heading should start with a capital P, not a lowercase letter.",
+      "required": ["capital P", "not a lowercase letter"],
+      "forbidden": ["-p", "flag"]
+    },
+    {
+      "id": "negative-scroll-restoration-prose",
+      "mode": "Agent",
+      "instructions": "# Agent mode\n\n- Make the smallest possible corrections justified by technical context.\n- Correct obvious speech-recognition homophones for commands, tools and identifiers.\n- Format explicit CLI commands, subcommands, flags, paths and code symbols literally.\n- Lowercase command names and flags only when the command context is unambiguous.\n- Preserve the speaker's request, word order, constraints, profanity and line breaks.\n- Do not turn prose into source code, Markdown or a different command.\n- If a change is uncertain, leave it unchanged.",
+      "transcript": "Scroll restoration is useful when readers return to a long article.",
+      "expected": "Scroll restoration is useful when readers return to a long article.",
+      "required": ["Scroll restoration is useful", "long article"],
+      "forbidden": ["scrollRestoration", "true", "router"]
+    }
+  ]
+}

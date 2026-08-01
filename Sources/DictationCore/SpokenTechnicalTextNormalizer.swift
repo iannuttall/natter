@@ -40,7 +40,7 @@ public enum SpokenTechnicalTextNormalizer {
         _ transcript: String,
         context: SpokenFormattingContext = .prose
     ) -> String {
-        var result = transcript
+        var result = replaceSpelledLetterSequences(in: transcript)
         if context == .technical {
             result = replaceMatches(
                 in: result,
@@ -90,6 +90,11 @@ public enum SpokenTechnicalTextNormalizer {
                 in: result,
                 pattern: #"(?i)\b(?:dash\s+dash|double\s+dash|hyphen\s+hyphen|two\s+(?:dashes|hyphens))(?:\s+[\p{L}\p{N}][\p{L}\p{N}-]*)?"#,
                 with: doubleDash
+            )
+            result = replaceMatches(
+                in: result,
+                pattern: #"(?i)\b(?:dash|hyphen)\s+[a-z0-9]\b"#,
+                with: singleDash
             )
             result = replaceMatches(
                 in: result,
@@ -217,6 +222,38 @@ public enum SpokenTechnicalTextNormalizer {
             return "-- " + candidate
         }
         return "--" + candidate
+    }
+
+    private static func singleDash(_ match: String) -> String {
+        guard let value = match.split(whereSeparator: \.isWhitespace).last else {
+            return match
+        }
+        return "-" + value.lowercased()
+    }
+
+    private static func replaceSpelledLetterSequences(in text: String) -> String {
+        var result = replaceMatches(
+            in: text,
+            pattern: #"(?i)\blowercase\s+((?:[a-z]\s+){2,}[a-z])\b"#
+        ) { match in
+            match.split(whereSeparator: \.isWhitespace)
+                .dropFirst()
+                .joined()
+                .lowercased()
+        }
+        result = replaceMatches(
+            in: result,
+            pattern: #"(?<![\p{L}\p{N}])(?:[A-Z]\s+){2,}[A-Z](?![\p{L}\p{N}])"#
+        ) { match in
+            match.filter(\.isLetter)
+        }
+        result = replaceMatches(
+            in: result,
+            pattern: #"(?<![\p{L}\p{N}])(?:[A-Za-z]-){2,}[A-Za-z](?![\p{L}\p{N}])"#
+        ) { match in
+            match.filter(\.isLetter)
+        }
+        return result
     }
 
     private static func replaceDigitSequences(in text: String) -> String {

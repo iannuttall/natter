@@ -130,6 +130,7 @@ final class HistoryManager {
 
     func record(
         transcript: String,
+        rawTranscript: String,
         durationSeconds: TimeInterval,
         mode: DictationMode,
         sourceBundleIdentifier: String?,
@@ -144,6 +145,7 @@ final class HistoryManager {
             sourceBundleIdentifier: sourceBundleIdentifier,
             sourceApplicationName: sourceApplicationName,
             transcript: storageMode == .full ? transcript : nil,
+            rawTranscript: storageMode == .full ? rawTranscript : nil,
             outcome: outcome
         )
         records.insert(record, at: 0)
@@ -168,6 +170,10 @@ final class HistoryManager {
                 records[index].transcript = nil
                 changed = true
             }
+            if records[index].rawTranscript != nil {
+                records[index].rawTranscript = nil
+                changed = true
+            }
         }
         if changed { save() }
     }
@@ -176,6 +182,10 @@ final class HistoryManager {
         var changed = false
         for index in records.indices where records[index].transcript != nil {
             records[index].transcript = nil
+            changed = true
+        }
+        for index in records.indices where records[index].rawTranscript != nil {
+            records[index].rawTranscript = nil
             changed = true
         }
         if changed { save() }

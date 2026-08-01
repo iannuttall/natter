@@ -4,6 +4,8 @@ import SwiftUI
 
 private enum RulesDocument: String, CaseIterable, Identifiable {
     case personal
+    case agent
+    case clean
     case email
     case article
 
@@ -12,6 +14,8 @@ private enum RulesDocument: String, CaseIterable, Identifiable {
     var label: String {
         switch self {
         case .personal: "Corrections"
+        case .agent: "Agent"
+        case .clean: "Clean"
         case .email: "Email"
         case .article: "Article"
         }
@@ -38,7 +42,7 @@ private struct RulesEditorView: View {
                     }
                 }
                 .pickerStyle(.segmented)
-                .frame(width: 320)
+                .frame(width: 380)
             }
 
             TextEditor(text: markdownBinding)
@@ -74,6 +78,8 @@ private struct RulesEditorView: View {
             get: {
                 switch document {
                 case .personal: rules.personalMarkdown
+                case .agent: rules.agentMarkdown
+                case .clean: rules.cleanMarkdown
                 case .email: rules.emailMarkdown
                 case .article: rules.articleMarkdown
                 }
@@ -82,6 +88,10 @@ private struct RulesEditorView: View {
                 switch document {
                 case .personal:
                     rules.personalMarkdown = value
+                case .agent:
+                    rules.agentMarkdown = value
+                case .clean:
+                    rules.cleanMarkdown = value
                 case .email:
                     rules.emailMarkdown = value
                 case .article:

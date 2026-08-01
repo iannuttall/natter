@@ -8,6 +8,7 @@ final class RulesManager {
     private let paths: AppPaths
 
     var personalMarkdown = ""
+    var agentMarkdown = ""
     var cleanMarkdown = ""
     var emailMarkdown = ""
     var articleMarkdown = ""
@@ -25,24 +26,31 @@ final class RulesManager {
 
     func markdown(for mode: DictationMode) -> String {
         switch mode {
+        case .agent: agentMarkdown
         case .clean: cleanMarkdown
         case .email: emailMarkdown
         case .article: articleMarkdown
-        case .raw, .agent: ""
+        case .raw: ""
         }
     }
 
     func setMarkdown(_ markdown: String, for mode: DictationMode) {
         switch mode {
+        case .agent: agentMarkdown = markdown
         case .clean: cleanMarkdown = markdown
         case .email: emailMarkdown = markdown
         case .article: articleMarkdown = markdown
-        case .raw, .agent: break
+        case .raw: break
         }
     }
 
     func add(_ correction: PersonalCorrection) {
         personalMarkdown = PersonalCorrections.appending(correction, to: personalMarkdown)
+        save()
+    }
+
+    func remove(_ correction: PersonalCorrection) {
+        personalMarkdown = PersonalCorrections.removing(correction, from: personalMarkdown)
         save()
     }
 
@@ -52,6 +60,10 @@ final class RulesManager {
             personalMarkdown = try loadOrCreate(
                 at: personalURL,
                 defaultContents: PersonalCorrections.defaultMarkdown
+            )
+            agentMarkdown = try loadOrCreate(
+                at: modeURL(.agent),
+                defaultContents: WritingRules.defaultMarkdown(for: .agent)
             )
             cleanMarkdown = try loadOrCreate(
                 at: modeURL(.clean),
@@ -77,6 +89,7 @@ final class RulesManager {
         do {
             try paths.createRequiredDirectories()
             try Data(personalMarkdown.utf8).write(to: personalURL, options: .atomic)
+            try Data(agentMarkdown.utf8).write(to: modeURL(.agent), options: .atomic)
             try Data(cleanMarkdown.utf8).write(to: modeURL(.clean), options: .atomic)
             try Data(emailMarkdown.utf8).write(to: modeURL(.email), options: .atomic)
             try Data(articleMarkdown.utf8).write(to: modeURL(.article), options: .atomic)

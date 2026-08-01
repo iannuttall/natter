@@ -1,12 +1,34 @@
 import Foundation
 
-public struct PersonalCorrection: Equatable, Sendable {
+public enum PersonalCorrectionScope: String, CaseIterable, Codable, Identifiable, Sendable {
+    case everywhere
+    case agent
+
+    public var id: String { rawValue }
+
+    public var label: String {
+        switch self {
+        case .everywhere: "Everywhere"
+        case .agent: "Agent only"
+        }
+    }
+}
+
+public struct PersonalCorrection: Equatable, Identifiable, Sendable {
     public let heard: String
     public let replacement: String
+    public let scope: PersonalCorrectionScope
 
-    public init(heard: String, replacement: String) {
+    public var id: String { scope.rawValue + "\u{0}" + heard.lowercased() }
+
+    public init(
+        heard: String,
+        replacement: String,
+        scope: PersonalCorrectionScope = .everywhere
+    ) {
         self.heard = heard
         self.replacement = replacement
+        self.scope = scope
     }
 }
 
@@ -23,8 +45,14 @@ public enum PersonalCorrections {
         markdown.split(whereSeparator: \.isNewline).compactMap { parseLine(String($0)) }
     }
 
-    public static func apply(_ corrections: [PersonalCorrection], to text: String) -> String {
-        corrections.reduce(text) { result, correction in
+    public static func apply(
+        _ corrections: [PersonalCorrection],
+        to text: String,
+        scope: PersonalCorrectionScope = .everywhere
+    ) -> String {
+        corrections.filter {
+            $0.scope == .everywhere || $0.scope == scope
+        }.reduce(text) { result, correction in
             let escaped = NSRegularExpression.escapedPattern(for: correction.heard)
             let pattern = #"(?i)(?<![\p{L}\p{N}_])"# + escaped + #"(?![\p{L}\p{N}_])"#
             guard let regex = try? NSRegularExpression(pattern: pattern) else { return result }
@@ -47,6 +75,7 @@ public enum PersonalCorrections {
         if existing.contains(where: {
             $0.heard.caseInsensitiveCompare(correction.heard) == .orderedSame
                 && $0.replacement == correction.replacement
+                && $0.scope == correction.scope
         }) {
             return markdown
         }
@@ -55,6 +84,7 @@ public enum PersonalCorrections {
         if let index = lines.firstIndex(where: {
             guard let existing = parseLine($0) else { return false }
             return existing.heard.caseInsensitiveCompare(correction.heard) == .orderedSame
+                && existing.scope == correction.scope
         }) {
             lines[index] = formattedLine(for: correction)
             return lines.joined(separator: "\n")
@@ -64,24 +94,45 @@ public enum PersonalCorrections {
         return markdown + separator + formattedLine(for: correction) + "\n"
     }
 
+    public static func removing(
+        _ correction: PersonalCorrection,
+        from markdown: String
+    ) -> String {
+        let lines = markdown.components(separatedBy: "\n")
+        return lines.filter { line in
+            guard let existing = parseLine(line) else { return true }
+            return existing.id != correction.id
+        }.joined(separator: "\n")
+    }
+
     private static func parseLine(_ line: String) -> PersonalCorrection? {
         let text = line.trimmingCharacters(in: .whitespaces)
-        guard text.hasPrefix("- \""),
+        let scope: PersonalCorrectionScope
+        let prefix: String
+        if text.hasPrefix("- [Agent] \"") {
+            scope = .agent
+            prefix = "- [Agent] \""
+        } else {
+            scope = .everywhere
+            prefix = "- \""
+        }
+        guard text.hasPrefix(prefix),
               let arrowRange = text.range(of: "\" → \"") ?? text.range(of: "\" => \""),
               text.hasSuffix("\"") else {
             return nil
         }
 
-        let heardStart = text.index(text.startIndex, offsetBy: 3)
+        let heardStart = text.index(text.startIndex, offsetBy: prefix.count)
         let heard = String(text[heardStart..<arrowRange.lowerBound])
         let replacementStart = arrowRange.upperBound
         let replacement = String(text[replacementStart..<text.index(before: text.endIndex)])
         guard !heard.isEmpty, !replacement.isEmpty else { return nil }
-        return PersonalCorrection(heard: heard, replacement: replacement)
+        return PersonalCorrection(heard: heard, replacement: replacement, scope: scope)
     }
 
     private static func formattedLine(for correction: PersonalCorrection) -> String {
-        "- \"\(correction.heard)\" → \"\(correction.replacement)\""
+        let scope = correction.scope == .agent ? "[Agent] " : ""
+        return "- \(scope)\"\(correction.heard)\" → \"\(correction.replacement)\""
     }
 }
 

@@ -26,6 +26,29 @@ import Testing
     #expect(instructions.contains("Never translate prose into source code"))
 }
 
+@Test func agentBenchmarkUsesTheProductionPromptAndEnvelope() {
+    let fixture = WritingFixture(
+        id: "agent",
+        mode: "Agent",
+        instructions: "- Format explicit CLI commands literally.",
+        transcript: "Run Claude dash P.",
+        expected: "Run claude -p.",
+        required: [],
+        forbidden: []
+    )
+
+    #expect(WritingBenchmark.systemInstructions(for: fixture)
+        .contains("smallest possible edit"))
+    #expect(WritingBenchmark.prompt(for: fixture).contains("Mode: Agent"))
+    #expect(WritingBenchmark.prompt(for: fixture)
+        .contains("speech-recognition homophones"))
+    #expect(WritingBenchmark.evaluate(
+        fixture: fixture,
+        rawOutput: "Run `claude -p`.",
+        latencySeconds: 0.5
+    ).output == "Run claude -p.")
+}
+
 @Test func smartFormattingRemovesUnrequestedMarkdownBackticks() {
     #expect(WritingBenchmark.cleanMinimalFormattingEnvelope(
         "Keep the `@MainActor` annotation."
