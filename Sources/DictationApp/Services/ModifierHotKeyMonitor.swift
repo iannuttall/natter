@@ -47,6 +47,11 @@ final class ModifierHotKeyMonitor {
         cancelChordDetector.reset()
     }
 
+    func restart() {
+        stop()
+        start()
+    }
+
     private func handle(_ event: NSEvent) {
         let hotKey = store.selectedHotKey
         let sessionIsActive = store.phase == .preparing || store.phase == .listening

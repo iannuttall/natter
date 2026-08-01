@@ -2,6 +2,68 @@ import Foundation
 import Testing
 @testable import DictationCore
 
+@Test func onboardingStopsAtTheFirstIncompleteRequirement() {
+    var snapshot = OnboardingSnapshot(
+        welcomed: false,
+        speechModelInstalled: false,
+        microphoneGranted: false,
+        accessibilityGranted: false,
+        inputMonitoringGranted: false,
+        practiceCompleted: false,
+        writingChoiceCompleted: false
+    )
+    #expect(snapshot.currentStep == .welcome)
+
+    snapshot = OnboardingSnapshot(
+        welcomed: true,
+        speechModelInstalled: false,
+        microphoneGranted: true,
+        accessibilityGranted: true,
+        inputMonitoringGranted: true,
+        practiceCompleted: true,
+        writingChoiceCompleted: true
+    )
+    #expect(snapshot.currentStep == .speechModel)
+
+    snapshot = OnboardingSnapshot(
+        welcomed: true,
+        speechModelInstalled: true,
+        microphoneGranted: true,
+        accessibilityGranted: false,
+        inputMonitoringGranted: true,
+        practiceCompleted: true,
+        writingChoiceCompleted: true
+    )
+    #expect(snapshot.currentStep == .permissions)
+}
+
+@Test func writingModelChoiceIsOptionalButExplicit() {
+    let pending = OnboardingSnapshot(
+        welcomed: true,
+        speechModelInstalled: true,
+        microphoneGranted: true,
+        accessibilityGranted: true,
+        inputMonitoringGranted: true,
+        practiceCompleted: true,
+        writingChoiceCompleted: false
+    )
+    #expect(pending.currentStep == .writingModel)
+    #expect(!pending.isReadyToComplete)
+
+    let ready = OnboardingSnapshot(
+        welcomed: true,
+        speechModelInstalled: true,
+        microphoneGranted: true,
+        accessibilityGranted: true,
+        inputMonitoringGranted: true,
+        practiceCompleted: true,
+        writingChoiceCompleted: true
+    )
+    #expect(ready.currentStep == .ready)
+    #expect(ready.isReadyToComplete)
+    #expect(ready.essentialSetupIsValid)
+}
+
 @Test func modesSeparateLiveAndGenerativeDelivery() {
     #expect(DictationMode.raw.typesIncrementally)
     #expect(!DictationMode.agent.typesIncrementally)

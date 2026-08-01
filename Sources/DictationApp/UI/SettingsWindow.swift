@@ -13,7 +13,8 @@ final class SettingsWindow: NSObject, NSWindowDelegate {
         permissions: PermissionController,
         rules: RulesManager,
         profiles: ApplicationProfileManager,
-        history: HistoryManager
+        history: HistoryManager,
+        onboarding: OnboardingManager
     ) {
         if let window {
             NSApp.activate(ignoringOtherApps: true)
@@ -38,7 +39,8 @@ final class SettingsWindow: NSObject, NSWindowDelegate {
                 permissions: permissions,
                 rules: rules,
                 profiles: profiles,
-                history: history
+                history: history,
+                onboarding: onboarding
             )
         )
         self.window = window

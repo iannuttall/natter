@@ -8,6 +8,7 @@ struct SettingsView: View {
     @Bindable var rules: RulesManager
     @Bindable var profiles: ApplicationProfileManager
     @Bindable var history: HistoryManager
+    @Bindable var onboarding: OnboardingManager
 
     var body: some View {
         ScrollView {
@@ -463,6 +464,10 @@ struct SettingsView: View {
                         Image(systemName: "checkmark.circle.fill")
                             .foregroundStyle(.green)
                             .accessibilityLabel("Granted")
+                    } else if permissions.wasRequested(permission) {
+                        Button("Open Settings") {
+                            permissions.openSystemSettings(for: permission)
+                        }
                     } else {
                         Button("Allow") {
                             permissions.request(permission)
@@ -482,6 +487,14 @@ struct SettingsView: View {
                 .font(.caption)
                 .foregroundStyle(.tertiary)
             Spacer()
+            Button("Setup Assistant…") {
+                OnboardingWindow.shared.show(
+                    store: store,
+                    modelManager: modelManager,
+                    permissions: permissions,
+                    onboarding: onboarding
+                )
+            }
             Button("Quit \(AppInfo.displayName)") {
                 NSApp.terminate(nil)
             }

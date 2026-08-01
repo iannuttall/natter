@@ -1,4 +1,5 @@
 import AVFoundation
+import AppKit
 import ApplicationServices
 import CoreGraphics
 import Foundation
@@ -31,11 +32,19 @@ enum AppPermission: String, CaseIterable, Identifiable {
 @MainActor
 @Observable
 final class PermissionController {
+    private let defaults: UserDefaults
+
     private(set) var microphoneGranted = false
     private(set) var accessibilityGranted = false
     private(set) var inputMonitoringGranted = false
+    private(set) var requestedPermissions: Set<AppPermission> = []
 
-    init() {
+    init(defaults: UserDefaults = .standard) {
+        self.defaults = defaults
+        requestedPermissions = Set(
+            defaults.stringArray(forKey: Keys.requestedPermissions)?
+                .compactMap(AppPermission.init(rawValue:)) ?? []
+        )
         refresh()
     }
 
@@ -52,10 +61,15 @@ final class PermissionController {
     }
 
     func request(_ permission: AppPermission) {
+        markRequested(permission)
         switch permission {
         case .microphone:
-            AVCaptureDevice.requestAccess(for: .audio) { [weak self] _ in
-                Task { @MainActor in self?.refresh() }
+            if AVCaptureDevice.authorizationStatus(for: .audio) == .notDetermined {
+                AVCaptureDevice.requestAccess(for: .audio) { [weak self] _ in
+                    Task { @MainActor in self?.refresh() }
+                }
+            } else {
+                openSystemSettings(for: permission)
             }
         case .accessibility:
             let options = ["AXTrustedCheckOptionPrompt": true] as CFDictionary
@@ -69,8 +83,28 @@ final class PermissionController {
 
     func refresh() {
         microphoneGranted = AVCaptureDevice.authorizationStatus(for: .audio) == .authorized
-        accessibilityGranted = AXIsProcessTrusted()
+        accessibilityGranted = AXIsProcessTrusted() && CGPreflightPostEventAccess()
         inputMonitoringGranted = CGPreflightListenEventAccess()
+    }
+
+    func wasRequested(_ permission: AppPermission) -> Bool {
+        requestedPermissions.contains(permission)
+    }
+
+    func openSystemSettings(for permission: AppPermission) {
+        let pane: String
+        switch permission {
+        case .microphone:
+            pane = "Privacy_Microphone"
+        case .accessibility:
+            pane = "Privacy_Accessibility"
+        case .inputMonitoring:
+            pane = "Privacy_ListenEvent"
+        }
+        guard let url = URL(
+            string: "x-apple.systempreferences:com.apple.preference.security?" + pane
+        ) else { return }
+        NSWorkspace.shared.open(url)
     }
 
     private func scheduleRefresh() {
@@ -78,5 +112,14 @@ final class PermissionController {
             try? await Task.sleep(for: .seconds(1))
             refresh()
         }
+    }
+
+    private func markRequested(_ permission: AppPermission) {
+        requestedPermissions.insert(permission)
+        defaults.set(requestedPermissions.map(\.rawValue).sorted(), forKey: Keys.requestedPermissions)
+    }
+
+    private enum Keys {
+        static let requestedPermissions = "permissions.requested"
     }
 }

@@ -10,6 +10,7 @@ final class StatusItemController: NSObject, NSMenuDelegate {
     private let rules: RulesManager
     private let profiles: ApplicationProfileManager
     private let history: HistoryManager
+    private let onboarding: OnboardingManager
     private let cancelHandler: () -> Void
     private let statusItem: NSStatusItem
     private let menu = NSMenu()
@@ -21,6 +22,7 @@ final class StatusItemController: NSObject, NSMenuDelegate {
         rules: RulesManager,
         profiles: ApplicationProfileManager,
         history: HistoryManager,
+        onboarding: OnboardingManager,
         cancelHandler: @escaping () -> Void
     ) {
         self.store = store
@@ -29,6 +31,7 @@ final class StatusItemController: NSObject, NSMenuDelegate {
         self.rules = rules
         self.profiles = profiles
         self.history = history
+        self.onboarding = onboarding
         self.cancelHandler = cancelHandler
         statusItem = NSStatusBar.system.statusItem(withLength: NSStatusItem.squareLength)
         super.init()
@@ -83,10 +86,13 @@ final class StatusItemController: NSObject, NSMenuDelegate {
             menu.addItem(.separator())
         }
 
-        if !permissions.allRequiredPermissionsGranted {
+        if onboarding.needsAttention(
+            modelManager: modelManager,
+            permissions: permissions
+        ) {
             let finishSetup = NSMenuItem(
                 title: "Finish Setup…",
-                action: #selector(openSettings),
+                action: #selector(openOnboarding),
                 keyEquivalent: ""
             )
             finishSetup.target = self
@@ -157,7 +163,17 @@ final class StatusItemController: NSObject, NSMenuDelegate {
             permissions: permissions,
             rules: rules,
             profiles: profiles,
-            history: history
+            history: history,
+            onboarding: onboarding
+        )
+    }
+
+    @objc private func openOnboarding() {
+        OnboardingWindow.shared.show(
+            store: store,
+            modelManager: modelManager,
+            permissions: permissions,
+            onboarding: onboarding
         )
     }
 
