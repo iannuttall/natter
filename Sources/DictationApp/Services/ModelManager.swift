@@ -9,6 +9,7 @@ final class ModelManager {
     private let paths: AppPaths
     private let speechTranscriber: SpeechTranscriber
     private let writingInstaller = WritingModelInstaller()
+    private var installationTask: Task<Void, Never>?
 
     private(set) var speechInstalled = false
     private(set) var writingInstalled = false
@@ -40,7 +41,7 @@ final class ModelManager {
         status = "Preparing download…"
         errorMessage = nil
 
-        Task {
+        installationTask = Task {
             do {
                 try ensureDiskSpace(for: pack)
                 switch pack {
@@ -53,12 +54,25 @@ final class ModelManager {
                 progress = 1
                 status = "Installed"
                 installing = nil
+                installationTask = nil
+            } catch is CancellationError {
+                errorMessage = nil
+                status = "Download paused"
+                installing = nil
+                installationTask = nil
             } catch {
                 errorMessage = error.localizedDescription
                 status = "Download failed"
                 installing = nil
+                installationTask = nil
             }
         }
+    }
+
+    func cancelInstallation() {
+        guard installing != nil else { return }
+        installationTask?.cancel()
+        status = "Stopping download…"
     }
 
     func remove(_ pack: ModelPack) {

@@ -455,8 +455,10 @@ final class DictationCoordinator {
             if reason == FocusedTextInsertionError.accessibilityPermissionRequired
                 .localizedDescription {
                 store.statusMessage = "Allow Accessibility in Settings · transcript copied"
+            } else if record.clipboardTranscript != record.transcript {
+                store.statusMessage = "Couldn’t finish typing · remaining text copied"
             } else {
-                store.statusMessage = "Couldn’t type · full transcript copied"
+                store.statusMessage = "Couldn’t type · transcript copied"
             }
             store.phase = .recoverable(reason)
         } catch {

@@ -335,12 +335,14 @@ private struct OnboardingView: View {
     @ViewBuilder
     private func modelAction(_ pack: ModelPack) -> some View {
         if modelManager.installing == pack {
-            VStack(alignment: .trailing, spacing: 4) {
+            VStack(alignment: .trailing, spacing: 6) {
                 ProgressView(value: modelManager.progress)
                     .frame(width: 130)
                 Text(modelManager.status)
                     .font(.caption2)
                     .foregroundStyle(.secondary)
+                Button("Cancel") { modelManager.cancelInstallation() }
+                    .controlSize(.small)
             }
         } else if modelManager.isInstalled(pack) {
             Label("Installed", systemImage: "checkmark.circle.fill")

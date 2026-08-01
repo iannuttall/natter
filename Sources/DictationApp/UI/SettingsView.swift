@@ -469,6 +469,8 @@ struct SettingsView: View {
                     .font(.caption2)
                     .foregroundStyle(.secondary)
                     .lineLimit(1)
+                Button("Cancel") { modelManager.cancelInstallation() }
+                    .controlSize(.small)
             }
         } else if modelManager.isInstalled(pack) {
             HStack(spacing: 8) {
