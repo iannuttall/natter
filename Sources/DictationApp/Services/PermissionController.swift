@@ -27,6 +27,36 @@ enum AppPermission: String, CaseIterable, Identifiable {
         case .inputMonitoring: "Hear the right-side modifier key outside this app."
         }
     }
+
+    var onboardingExplanation: String {
+        switch self {
+        case .microphone:
+            "Natter only listens after you start dictation and stops using the microphone when the session ends."
+        case .accessibility:
+            "Natter uses this only to remember the text control you started from and insert your transcript there."
+        case .inputMonitoring:
+            "This lets Natter recognise your chosen modifier-key shortcut while another app is active."
+        }
+    }
+
+    var settingsPath: String {
+        switch self {
+        case .microphone:
+            "Privacy & Security → Microphone"
+        case .accessibility:
+            "Privacy & Security → Accessibility"
+        case .inputMonitoring:
+            "Privacy & Security → Input Monitoring"
+        }
+    }
+
+    var symbol: String {
+        switch self {
+        case .microphone: "mic"
+        case .accessibility: "text.cursor"
+        case .inputMonitoring: "keyboard"
+        }
+    }
 }
 
 @MainActor
@@ -37,7 +67,10 @@ final class PermissionController {
     private(set) var microphoneGranted = false
     private(set) var accessibilityGranted = false
     private(set) var inputMonitoringGranted = false
+    private(set) var accessibilityControlGranted = false
+    private(set) var keyboardEventPostingGranted = false
     private(set) var requestedPermissions: Set<AppPermission> = []
+    private(set) var permissionsAwaitingRelaunch: Set<AppPermission> = []
 
     init(defaults: UserDefaults = .standard) {
         self.defaults = defaults
@@ -72,11 +105,13 @@ final class PermissionController {
                 openSystemSettings(for: permission)
             }
         case .accessibility:
+            permissionsAwaitingRelaunch.insert(permission)
             let options = ["AXTrustedCheckOptionPrompt": true] as CFDictionary
             AXIsProcessTrustedWithOptions(options)
             CGRequestPostEventAccess()
             scheduleRefresh()
         case .inputMonitoring:
+            permissionsAwaitingRelaunch.insert(permission)
             CGRequestListenEventAccess()
             scheduleRefresh()
         }
@@ -84,8 +119,18 @@ final class PermissionController {
 
     func refresh() {
         microphoneGranted = AVCaptureDevice.authorizationStatus(for: .audio) == .authorized
-        accessibilityGranted = AXIsProcessTrusted() && CGPreflightPostEventAccess()
+        accessibilityControlGranted = AXIsProcessTrusted()
+        keyboardEventPostingGranted = CGPreflightPostEventAccess()
+        accessibilityGranted = accessibilityControlGranted && keyboardEventPostingGranted
         inputMonitoringGranted = CGPreflightListenEventAccess()
+
+        for permission in AppPermission.allCases where isGranted(permission) {
+            permissionsAwaitingRelaunch.remove(permission)
+        }
+    }
+
+    func requiresRelaunch(_ permission: AppPermission) -> Bool {
+        !isGranted(permission) && permissionsAwaitingRelaunch.contains(permission)
     }
 
     func wasRequested(_ permission: AppPermission) -> Bool {
@@ -93,6 +138,10 @@ final class PermissionController {
     }
 
     func openSystemSettings(for permission: AppPermission) {
+        markRequested(permission)
+        if permission != .microphone {
+            permissionsAwaitingRelaunch.insert(permission)
+        }
         let pane: String
         switch permission {
         case .microphone:

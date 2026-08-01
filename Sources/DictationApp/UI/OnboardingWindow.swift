@@ -10,6 +10,8 @@ private struct OnboardingView: View {
     let dismiss: () -> Void
 
     @State private var practiceText = ""
+    @State private var practiceBaselineWordCount = 0
+    @State private var practiceWasStarted = false
     @FocusState private var practiceIsFocused: Bool
 
     private var snapshot: OnboardingSnapshot {
@@ -157,30 +159,14 @@ private struct OnboardingView: View {
 
     private var permissionSetup: some View {
         setupPage(
-            title: "Allow only what dictation needs",
-            detail: "macOS controls these permissions. \(AppInfo.displayName) checks the real capabilities again whenever you return from System Settings.",
+            title: "Set up macOS permissions",
+            detail: "Natter will take you through each permission and verify that it actually works before continuing.",
             symbol: "checkmark.shield"
         ) {
-            VStack(spacing: 10) {
-                ForEach(AppPermission.allCases) { permission in
-                    permissionRow(permission)
-                }
-            }
+            permissionProgress
 
-            if AppPermission.allCases.contains(where: {
-                permissions.wasRequested($0) && !permissions.isGranted($0)
-            }) {
-                VStack(alignment: .leading, spacing: 8) {
-                    Text("Already enabled it?")
-                        .fontWeight(.medium)
-                    Text("Some macOS releases activate Input Monitoring only after the app restarts.")
-                        .font(.caption)
-                        .foregroundStyle(.secondary)
-                    Button("Restart \(AppInfo.displayName)") { AppRelauncher.relaunch() }
-                }
-                .padding(14)
-                .background(Theme.Colour.secondaryPanel)
-                .clipShape(RoundedRectangle(cornerRadius: Theme.Radius.card))
+            if let permission = nextRequiredPermission {
+                guidedPermissionCard(permission)
             }
 
             Spacer()
@@ -207,9 +193,22 @@ private struct OnboardingView: View {
                         .stroke(Theme.Colour.accent.opacity(0.45), lineWidth: 1)
                 }
                 .onChange(of: store.phase) { _, phase in
-                    if phase == .idle,
-                       practiceText.split(whereSeparator: \.isWhitespace).count >= 3 {
-                        onboarding.completePractice()
+                    switch phase {
+                    case .listening:
+                        practiceBaselineWordCount = practiceText
+                            .split(whereSeparator: \.isWhitespace).count
+                        practiceWasStarted = true
+                    case .idle where practiceWasStarted:
+                        let currentWordCount = practiceText
+                            .split(whereSeparator: \.isWhitespace).count
+                        if currentWordCount >= practiceBaselineWordCount + 3 {
+                            onboarding.completePractice()
+                        }
+                        practiceWasStarted = false
+                    case .recoverable, .failed:
+                        practiceWasStarted = false
+                    default:
+                        break
                     }
                 }
                 .onAppear {
@@ -355,39 +354,129 @@ private struct OnboardingView: View {
         }
     }
 
-    private func permissionRow(_ permission: AppPermission) -> some View {
-        HStack(spacing: 14) {
-            Image(systemName: permissions.isGranted(permission)
-                ? "checkmark.circle.fill"
-                : "circle")
-                .foregroundStyle(permissions.isGranted(permission) ? .green : .secondary)
-                .frame(width: 22)
-            VStack(alignment: .leading, spacing: 2) {
-                Text(permission.label)
-                    .fontWeight(.medium)
-                Text(permission.detail)
+    private var nextRequiredPermission: AppPermission? {
+        AppPermission.allCases.first { !permissions.isGranted($0) }
+    }
+
+    private var grantedPermissionCount: Int {
+        AppPermission.allCases.count(where: permissions.isGranted)
+    }
+
+    private var permissionProgress: some View {
+        VStack(alignment: .leading, spacing: 8) {
+            HStack {
+                Text("\(grantedPermissionCount) of \(AppPermission.allCases.count) allowed")
                     .font(.caption)
                     .foregroundStyle(.secondary)
+                Spacer()
+                ForEach(AppPermission.allCases) { permission in
+                    Image(systemName: permissions.isGranted(permission)
+                        ? "checkmark.circle.fill"
+                        : "circle")
+                        .foregroundStyle(permissions.isGranted(permission) ? .green : .secondary)
+                        .accessibilityLabel(
+                            "\(permission.label): "
+                                + (permissions.isGranted(permission) ? "allowed" : "waiting")
+                        )
+                }
             }
-            Spacer()
-            if permissions.isGranted(permission) {
-                Text("Allowed")
-                    .font(.caption)
-                    .foregroundStyle(.secondary)
-            } else if permissions.wasRequested(permission) {
-                Button("Open Settings") { permissions.openSystemSettings(for: permission) }
-            } else {
-                Button("Allow") { permissions.request(permission) }
-            }
+            ProgressView(
+                value: Double(grantedPermissionCount),
+                total: Double(AppPermission.allCases.count)
+            )
         }
-        .padding(14)
+    }
+
+    private func guidedPermissionCard(_ permission: AppPermission) -> some View {
+        let index = AppPermission.allCases.firstIndex(of: permission) ?? 0
+        return VStack(alignment: .leading, spacing: 16) {
+            HStack(alignment: .top, spacing: 14) {
+                Image(systemName: permission.symbol)
+                    .font(.system(size: 26))
+                    .frame(width: 34)
+                    .foregroundStyle(Theme.Colour.accent)
+                VStack(alignment: .leading, spacing: 4) {
+                    Text("Step \(index + 1): \(permission.label)")
+                        .font(.headline)
+                    Text(permission.detail)
+                        .foregroundStyle(.secondary)
+                }
+            }
+
+            Text(permission.onboardingExplanation)
+                .fixedSize(horizontal: false, vertical: true)
+
+            Label(permission.settingsPath, systemImage: "gear")
+                .font(.caption)
+                .foregroundStyle(.secondary)
+
+            Divider()
+
+            permissionActions(permission)
+        }
+        .padding(18)
         .background(Theme.Colour.secondaryPanel)
         .clipShape(RoundedRectangle(cornerRadius: Theme.Radius.card))
+    }
+
+    @ViewBuilder
+    private func permissionActions(_ permission: AppPermission) -> some View {
+        if permissions.requiresRelaunch(permission) {
+            VStack(alignment: .leading, spacing: 10) {
+                Label("Restart required", systemImage: "arrow.clockwise")
+                    .fontWeight(.medium)
+                Text(relaunchExplanation(for: permission))
+                    .font(.caption)
+                    .foregroundStyle(.secondary)
+                HStack {
+                    Button("Open Settings Again") {
+                        permissions.openSystemSettings(for: permission)
+                    }
+                    Spacer()
+                    Button("Restart Natter") { AppRelauncher.relaunch() }
+                        .buttonStyle(.borderedProminent)
+                }
+            }
+        } else if permissions.wasRequested(permission) {
+            VStack(alignment: .leading, spacing: 10) {
+                Text("Natter still cannot verify this permission. Make sure its switch is on in System Settings, then return here.")
+                    .font(.caption)
+                    .foregroundStyle(.secondary)
+                HStack {
+                    Button("Check Again") { permissions.refresh() }
+                    Spacer()
+                    Button("Open Settings") {
+                        permissions.openSystemSettings(for: permission)
+                    }
+                    .buttonStyle(.borderedProminent)
+                }
+            }
+        } else {
+            HStack {
+                Text("macOS will ask you to approve this next.")
+                    .font(.caption)
+                    .foregroundStyle(.secondary)
+                Spacer()
+                Button("Allow \(permission.label)") {
+                    permissions.request(permission)
+                }
+                .buttonStyle(.borderedProminent)
+            }
+        }
+    }
+
+    private func relaunchExplanation(for permission: AppPermission) -> String {
+        if permission == .accessibility,
+           permissions.accessibilityControlGranted,
+           !permissions.keyboardEventPostingGranted {
+            return "macOS has enabled Accessibility, but Natter must restart before it can type into other apps."
+        }
+        return "After enabling this macOS permission, Natter must restart before it can verify and use it."
     }
 }
 
 @MainActor
-private enum AppRelauncher {
+enum AppRelauncher {
     static func relaunch() {
         let configuration = NSWorkspace.OpenConfiguration()
         configuration.createsNewApplicationInstance = true

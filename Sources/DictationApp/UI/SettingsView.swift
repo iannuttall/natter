@@ -509,6 +509,10 @@ struct SettingsView: View {
                         Image(systemName: "checkmark.circle.fill")
                             .foregroundStyle(.green)
                             .accessibilityLabel("Granted")
+                    } else if permissions.requiresRelaunch(permission) {
+                        Button("Restart Natter") {
+                            AppRelauncher.relaunch()
+                        }
                     } else if permissions.wasRequested(permission) {
                         Button("Open Settings") {
                             permissions.openSystemSettings(for: permission)
