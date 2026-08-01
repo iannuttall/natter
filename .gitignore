@@ -9,3 +9,9 @@ Models/
 dist/
 ProductCorpus/*.json.tmp
 ProductCorpus/Results/*.json
+*private*key*
+*.p8
+*.p12
+*.pem
+*.mobileprovision
+.release.env

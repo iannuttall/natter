@@ -6,11 +6,11 @@ repo_dir="${0:A:h:h}"
 version="${VERSION:-}"
 build_number="${BUILD_NUMBER:-}"
 notary_profile="${NOTARY_PROFILE:-}"
-sign_identity="${SIGN_IDENTITY:-Developer ID Application: Iancredible Ltd (JXNCT3BEVQ)}"
+sign_identity="${SIGN_IDENTITY:-}"
 app_name="${APP_NAME:-Natter}"
 
-if [[ -z "$version" || -z "$build_number" ]]; then
-    echo "Usage: VERSION=1.0.0 BUILD_NUMBER=1 [NOTARY_PROFILE=name] ./scripts/release-app.sh" >&2
+if [[ -z "$version" || -z "$build_number" || -z "$sign_identity" ]]; then
+    echo "Usage: VERSION=1.0.0 BUILD_NUMBER=1 SIGN_IDENTITY='Developer ID Application: Name (TEAMID)' [NOTARY_PROFILE=name] ./scripts/release-app.sh" >&2
     exit 64
 fi
 

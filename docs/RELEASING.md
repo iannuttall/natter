@@ -5,18 +5,20 @@ currently supports Apple silicon and macOS 15 or later.
 
 ## One-time setup
 
-The release Mac needs the `Developer ID Application: Iancredible Ltd
-(JXNCT3BEVQ)` certificate and an App Store Connect app-specific password stored
-for `notarytool`:
+The release Mac needs a `Developer ID Application` certificate in Keychain and
+an App Store Connect app-specific password stored for `notarytool`:
 
 ```sh
-xcrun notarytool store-credentials dictation-notary \
+xcrun notarytool store-credentials natter-notary \
   --apple-id "APPLE_ID" \
-  --team-id JXNCT3BEVQ \
+  --team-id TEAMID \
   --password "APP_SPECIFIC_PASSWORD"
 ```
 
 Do not commit credentials or export the signing certificate into the repository.
+`SIGN_IDENTITY` must be the full certificate name printed by
+`security find-identity -v -p codesigning`. The certificate and private key stay
+in Keychain; only the value is passed to the release process.
 
 ## Build, sign and notarize
 
@@ -29,7 +31,8 @@ node --test ProductCorpus/tests/scenarios.test.mjs
 
 VERSION=0.1.0 \
 BUILD_NUMBER=1 \
-NOTARY_PROFILE=dictation-notary \
+SIGN_IDENTITY="Developer ID Application: Name (TEAMID)" \
+NOTARY_PROFILE=natter-notary \
 ./scripts/release-app.sh
 ```
 
