@@ -30,6 +30,12 @@ public enum SpokenTechnicalTextNormalizer {
         "uk", "yaml", "yml", "zsh"
     ].joined(separator: "|")
 
+    private static let flagBoundaryWords: Set<String> = [
+        "and", "as", "at", "before", "but", "by", "every", "for", "from",
+        "if", "in", "into", "of", "on", "or", "so", "than", "that", "the",
+        "then", "to", "when", "while", "with"
+    ]
+
     public static func normalize(
         _ transcript: String,
         context: SpokenFormattingContext = .prose
@@ -65,8 +71,8 @@ public enum SpokenTechnicalTextNormalizer {
             )
             result = replaceMatches(
                 in: result,
-                pattern: #"(?i)\b(?:dash\s+dash|double\s+dash|hyphen\s+hyphen|two\s+(?:dashes|hyphens))\s+([\p{L}\p{N}][\p{L}\p{N}-]*)"#,
-                withTemplate: "--$1"
+                pattern: #"(?i)\b(?:dash\s+dash|double\s+dash|hyphen\s+hyphen|two\s+(?:dashes|hyphens))(?:\s+[\p{L}\p{N}][\p{L}\p{N}-]*)?"#,
+                with: doubleDash
             )
             result = replaceMatches(
                 in: result,
@@ -102,6 +108,17 @@ public enum SpokenTechnicalTextNormalizer {
             pattern: #"(?i)\s+at\s+"#,
             with: { _ in "@" }
         ).lowercased()
+    }
+
+    private static func doubleDash(_ match: String) -> String {
+        let words = match.split(whereSeparator: \.isWhitespace)
+        guard words.count > 2 else { return "--" }
+
+        let candidate = String(words.last!)
+        if flagBoundaryWords.contains(candidate.lowercased()) {
+            return "-- " + candidate
+        }
+        return "--" + candidate
     }
 
     private static func replaceDigitSequences(in text: String) -> String {

@@ -312,6 +312,13 @@ import Testing
     }
 }
 
+@Test func standaloneDoubleDashDoesNotConsumeFollowingProse() {
+    #expect(SpokenTechnicalTextNormalizer.normalize(
+        "Use dash dash and make it double dash every time",
+        context: .technical
+    ) == "Use -- and make it -- every time")
+}
+
 @Test func spokenDomainsHiddenFilesFlagsAndExtensionsBecomeLiteral() {
     let transcript = """
     Open en dot is but leave open dot island unchanged, edit dot context, save output dot \
