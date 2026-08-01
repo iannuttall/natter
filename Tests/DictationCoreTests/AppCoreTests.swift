@@ -268,6 +268,17 @@ import Testing
     #expect(SpokenTechnicalTextNormalizer.normalize(transcript) == transcript)
 }
 
+@Test func technicalFormattingHandlesHiddenFilesPathsAndFlags() {
+    let transcript = """
+    Open dot context, inspect tilde slash Documents slash Research slash notes dot txt, and \
+    run tool dash dash verbose.
+    """
+
+    #expect(SpokenTechnicalTextNormalizer.normalize(transcript, context: .technical) == """
+    Open .context, inspect ~/Documents/Research/notes.txt, and run tool --verbose.
+    """)
+}
+
 @Test func spokenDomainsHiddenFilesFlagsAndExtensionsBecomeLiteral() {
     let transcript = """
     Open en dot is but leave open dot island unchanged, edit dot context, save output dot \

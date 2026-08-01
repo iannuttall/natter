@@ -51,6 +51,18 @@
     "manualChecks": ["The destination remained easy to inspect as technical tokens arrived"]
   },
   {
+    "id": "raw-symbol-ambiguity",
+    "category": "Live delivery",
+    "mode": "Raw",
+    "title": "Ordinary symbol words stay ordinary",
+    "instruction": "Read naturally. None of these ordinary phrases should become symbols.",
+    "script": "Calculate the dot product, discuss slash fiction, and meet Ian at five before lunch.",
+    "required": ["dot product", "slash fiction", "Ian at five"],
+    "forbidden": [".product", "/fiction", "Ian@five"],
+    "minInputEvents": 1,
+    "manualChecks": []
+  },
+  {
     "id": "agent-terminal",
     "category": "Agent work",
     "mode": "Agent",
@@ -71,6 +83,18 @@
     "script": "Open Sources slash DictationApp slash AppDelegate dot swift, keep the main actor annotation, run git diff dash dash check, and never force unwrap the event.",
     "required": ["AppDelegate", "main actor", "git diff", "check", "force unwrap"],
     "forbidden": [],
+    "minInputEvents": 2,
+    "manualChecks": []
+  },
+  {
+    "id": "agent-spoken-symbols",
+    "category": "Agent work",
+    "mode": "Agent",
+    "title": "Explicit spoken symbols",
+    "instruction": "Say dot, slash and dash dash exactly where shown.",
+    "script": "Open dot context, inspect tilde slash Documents slash Research slash notes dot txt, and run tool dash dash verbose.",
+    "required": [".context", "~/Documents/Research/notes.txt", "--verbose"],
+    "forbidden": ["dot context", "tilde slash", "dash dash"],
     "minInputEvents": 2,
     "manualChecks": []
   },
