@@ -81,6 +81,29 @@ public enum WritingRules {
     }
 }
 
+public enum WritingOutputPolicy {
+    public static func enforce(_ output: String, markdownRules: String) -> String {
+        guard rulesForbidTitle(markdownRules) else { return output }
+        return removingLeadingMarkdownTitle(from: output)
+    }
+
+    private static func rulesForbidTitle(_ rules: String) -> Bool {
+        rules.range(
+            of: #"\b(?:do not|don't|never)\s+add\s+(?:a\s+)?title\b"#,
+            options: [.regularExpression, .caseInsensitive]
+        ) != nil
+    }
+
+    private static func removingLeadingMarkdownTitle(from output: String) -> String {
+        output.replacingOccurrences(
+            of: #"\A\s*#{1,6}[ \t]+[^\r\n]+(?:\r?\n){1,2}"#,
+            with: "",
+            options: .regularExpression
+        )
+        .trimmingCharacters(in: .whitespacesAndNewlines)
+    }
+}
+
 public enum DeterministicTranscriptCleaner {
     public static func clean(_ transcript: String) -> String {
         let withoutFillers = removeFillers(from: transcript)

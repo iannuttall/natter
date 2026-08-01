@@ -38,7 +38,13 @@ actor WritingEngine {
                 markdownRules: markdownRules
             )
         )
-        let output = WritingBenchmark.cleanEnvelope(response)
+        let cleanedOutput = mode == .agent
+            ? WritingBenchmark.cleanMinimalFormattingEnvelope(response)
+            : WritingBenchmark.cleanEnvelope(response)
+        let output = WritingOutputPolicy.enforce(
+            cleanedOutput,
+            markdownRules: markdownRules
+        )
         guard !output.isEmpty else { throw WritingEngineError.emptyOutput }
         guard TranscriptFactGuard.preservesFacts(from: cleanedInput, in: output) else {
             throw WritingEngineError.droppedProtectedFact

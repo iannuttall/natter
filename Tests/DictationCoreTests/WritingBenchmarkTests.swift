@@ -61,6 +61,28 @@ import Testing
     #expect(rules.contains("several distinct sections"))
 }
 
+@Test func writingOutputPolicyRemovesAForbiddenMarkdownTitle() {
+    let output = """
+    # Building Your Own Dictation App
+
+    The useful thing is being able to notice tiny delays.
+    """
+
+    #expect(WritingOutputPolicy.enforce(
+        output,
+        markdownRules: "- Do not add a title."
+    ) == "The useful thing is being able to notice tiny delays.")
+}
+
+@Test func writingOutputPolicyKeepsTitlesWhenRulesAllowThem() {
+    let output = "# A requested title\n\nThe article body."
+
+    #expect(WritingOutputPolicy.enforce(
+        output,
+        markdownRules: "- Add a useful title."
+    ) == output)
+}
+
 @Test func evaluationScoresRequirementsAndForbiddenText() {
     let fixture = makeFixture()
     let result = WritingBenchmark.evaluate(
