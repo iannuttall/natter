@@ -495,6 +495,9 @@ struct SettingsView: View {
                     onboarding: onboarding
                 )
             }
+            Button("About & Legal…") {
+                LegalWindow.shared.show()
+            }
             Button("Quit \(AppInfo.displayName)") {
                 NSApp.terminate(nil)
             }

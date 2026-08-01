@@ -139,6 +139,14 @@ final class StatusItemController: NSObject, NSMenuDelegate {
         menu.addItem(historyItem)
         menu.addItem(settings)
 
+        let legal = NSMenuItem(
+            title: "About & Legal…",
+            action: #selector(openLegal),
+            keyEquivalent: ""
+        )
+        legal.target = self
+        menu.addItem(legal)
+
         let quit = NSMenuItem(
             title: "Quit \(AppInfo.displayName)",
             action: #selector(quitApp),
@@ -179,6 +187,10 @@ final class StatusItemController: NSObject, NSMenuDelegate {
 
     @objc private func openHistory() {
         HistoryWindow.shared.show(history: history)
+    }
+
+    @objc private func openLegal() {
+        LegalWindow.shared.show()
     }
 
     @objc private func cancelDictation() {

@@ -316,6 +316,16 @@ private struct OnboardingView: View {
             }
             Link(licence, destination: licenceURL)
                 .font(.caption)
+            if pack == .speech {
+                Link(
+                    "NVIDIA Trustworthy AI terms",
+                    destination: URL(string: "https://www.nvidia.com/en-us/agreements/trustworthy-ai/terms/")!
+                )
+                .font(.caption)
+                Text("Choosing Agree & Download confirms that you accept these model terms.")
+                    .font(.caption2)
+                    .foregroundStyle(.tertiary)
+            }
         }
         .padding(16)
         .background(Theme.Colour.secondaryPanel)
@@ -336,7 +346,9 @@ private struct OnboardingView: View {
             Label("Installed", systemImage: "checkmark.circle.fill")
                 .foregroundStyle(.green)
         } else {
-            Button("Download") { modelManager.install(pack) }
+            Button(pack == .speech ? "Agree & Download" : "Download") {
+                modelManager.install(pack)
+            }
                 .buttonStyle(.borderedProminent)
         }
     }
