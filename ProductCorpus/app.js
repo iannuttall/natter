@@ -1,6 +1,8 @@
 const storageKey = "dictation-product-corpus-v2";
 const allScenarios = await fetch("scenarios.json", { cache: "no-store" }).then((response) => response.json());
-const requestedScenarioIds = new URLSearchParams(window.location.search)
+const presets = await fetch("presets.json", { cache: "no-store" }).then((response) => response.json());
+const routePreset = window.location.pathname.split("/").filter(Boolean).at(-1);
+const requestedScenarioIds = presets[routePreset] || new URLSearchParams(window.location.search)
   .get("only")
   ?.split(",")
   .map((value) => value.trim())

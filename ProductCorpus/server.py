@@ -46,6 +46,8 @@ class CorpusHandler(SimpleHTTPRequestHandler):
                 timeout=2,
             )
             return self.send_json({"text": completed.stdout})
+        if path == "/regression":
+            self.path = "/index.html"
         return super().do_GET()
 
     def do_POST(self):

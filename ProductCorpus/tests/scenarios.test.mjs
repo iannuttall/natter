@@ -5,6 +5,9 @@ import test from "node:test";
 const scenarios = JSON.parse(
   await readFile(new URL("../scenarios.json", import.meta.url), "utf8"),
 );
+const presets = JSON.parse(
+  await readFile(new URL("../presets.json", import.meta.url), "utf8"),
+);
 
 test("scenario ids are unique and every scenario is actionable", () => {
   assert.ok(scenarios.length >= 20);
@@ -33,4 +36,11 @@ test("feature corpus covers every app mode and failure-sensitive workflow", () =
   assert.ok(scenarios.some((scenario) => scenario.expectEmpty));
   assert.ok(scenarios.some((scenario) => scenario.spokenUntil));
   assert.ok(scenarios.filter((scenario) => scenario.terminalPunctuation).length >= 2);
+});
+
+test("named regression preset stays short and references valid scenarios", () => {
+  const scenarioIds = new Set(scenarios.map((scenario) => scenario.id));
+
+  assert.equal(presets.regression.length, 5);
+  assert.ok(presets.regression.every((id) => scenarioIds.has(id)));
 });

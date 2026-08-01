@@ -1,0 +1,9 @@
+{
+  "regression": [
+    "raw-incremental",
+    "raw-protected-facts",
+    "agent-code-shapes",
+    "agent-spoken-symbols",
+    "correction-command"
+  ]
+}
