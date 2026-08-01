@@ -10,6 +10,7 @@ struct SettingsView: View {
     @Bindable var history: HistoryManager
     @Bindable var onboarding: OnboardingManager
     @State private var launchAtLogin = LaunchAtLoginManager()
+    @State private var audioInputs = AudioInputDeviceManager.shared
 
     var body: some View {
         ScrollView {
@@ -17,6 +18,7 @@ struct SettingsView: View {
                 header
                 appPreferences
                 permissionRows
+                microphonePicker
                 hotKeyPicker
                 terminalDelivery
                 agentDelivery
@@ -37,6 +39,7 @@ struct SettingsView: View {
             permissions.refresh()
             profiles.refreshInstalledApplications()
             launchAtLogin.refresh()
+            audioInputs.refresh()
         }
         .task {
             while !Task.isCancelled {
@@ -48,6 +51,39 @@ struct SettingsView: View {
                 }
             }
         }
+    }
+
+    private var microphonePicker: some View {
+        VStack(alignment: .leading, spacing: Theme.Space.regular) {
+            HStack(spacing: Theme.Space.regular) {
+                VStack(alignment: .leading, spacing: 2) {
+                    Text("Microphone")
+                        .font(.headline)
+                    Text("Use the system default or remember a specific input device.")
+                        .font(.callout)
+                        .foregroundStyle(.secondary)
+                }
+                Spacer()
+                Picker("Microphone", selection: $audioInputs.selectedDeviceUID) {
+                    Text("System Default").tag("")
+                    ForEach(audioInputs.devices) { device in
+                        Text(device.name).tag(device.id)
+                    }
+                }
+                .labelsHidden()
+                .frame(width: 230)
+                .disabled(store.phase.isBusy)
+            }
+
+            if audioInputs.selectedDeviceIsUnavailable {
+                Text("The selected microphone is disconnected. Natter will use the system default until it returns.")
+                    .font(.caption)
+                    .foregroundStyle(.secondary)
+            }
+        }
+        .padding(Theme.Space.regular)
+        .background(Theme.Colour.secondaryPanel)
+        .clipShape(RoundedRectangle(cornerRadius: Theme.Radius.card))
     }
 
     private var appPreferences: some View {

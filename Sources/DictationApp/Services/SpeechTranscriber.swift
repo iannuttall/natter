@@ -6,11 +6,25 @@ import Foundation
 actor SpeechTranscriber {
     private let manager = StreamingNemotronAsrManager(requestedChunkSize: .ms560)
     private var loadedDirectory: URL?
+    private var preparationTask: Task<Void, Error>?
 
     func prepare(modelDirectory: URL) async throws {
         guard loadedDirectory != modelDirectory else { return }
-        try await manager.loadModels(from: modelDirectory)
-        loadedDirectory = modelDirectory
+        if let preparationTask {
+            try await preparationTask.value
+            return
+        }
+
+        let task = Task { try await manager.loadModels(from: modelDirectory) }
+        preparationTask = task
+        do {
+            try await task.value
+            loadedDirectory = modelDirectory
+            preparationTask = nil
+        } catch {
+            preparationTask = nil
+            throw error
+        }
     }
 
     func install(
@@ -28,6 +42,8 @@ actor SpeechTranscriber {
     }
 
     func unload() async {
+        preparationTask?.cancel()
+        preparationTask = nil
         await manager.cleanup()
         loadedDirectory = nil
     }

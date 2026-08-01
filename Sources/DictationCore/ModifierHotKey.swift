@@ -22,6 +22,7 @@ public enum ModifierHotKey: String, CaseIterable, Codable, Identifiable, Sendabl
 }
 
 public enum ModifierHotKeyAction: Equatable, Sendable {
+    case arm
     case start
     case stop
     case cycleMode
@@ -138,13 +139,13 @@ public struct ModifierTapDetector: Sendable {
 
         guard let firstTapTime else {
             self.firstTapTime = time
-            return nil
+            return .arm
         }
 
         let elapsed = time - firstTapTime
         guard elapsed >= 0, elapsed <= doubleTapInterval else {
             self.firstTapTime = time
-            return nil
+            return .arm
         }
 
         self.firstTapTime = nil

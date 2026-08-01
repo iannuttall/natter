@@ -58,11 +58,21 @@ final class AppDelegate: NSObject, NSApplicationDelegate {
             onboarding: onboarding,
             cancelHandler: { [weak coordinator] in coordinator?.cancel() }
         )
-        let hotKeyMonitor = ModifierHotKeyMonitor(store: store) { [weak coordinator] action in
-            coordinator?.handle(action)
-        }
+        let hotKeyMonitor = ModifierHotKeyMonitor(
+            store: store,
+            eventObservationHandler: { [weak permissions] in
+                permissions?.noteInputMonitoringEventReceived()
+            },
+            actionHandler: { [weak coordinator] action in
+                coordinator?.handle(action)
+            }
+        )
         self.hotKeyMonitor = hotKeyMonitor
         hotKeyMonitor.start()
+        Task { @MainActor [weak modelManager] in
+            try? await Task.sleep(for: .milliseconds(350))
+            modelManager?.warmSpeechModelIfInstalled()
+        }
         observeInputMonitoringPermission()
         activationObserver = NotificationCenter.default.addObserver(
             forName: NSApplication.didBecomeActiveNotification,

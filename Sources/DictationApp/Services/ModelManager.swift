@@ -10,6 +10,7 @@ final class ModelManager {
     private let speechTranscriber: SpeechTranscriber
     private let writingInstaller = WritingModelInstaller()
     private var installationTask: Task<Void, Never>?
+    private var speechWarmupTask: Task<Void, Never>?
 
     private(set) var speechInstalled = false
     private(set) var writingInstalled = false
@@ -75,6 +76,28 @@ final class ModelManager {
         status = "Stopping download…"
     }
 
+    func warmSpeechModelIfInstalled() {
+        guard speechInstalled, speechWarmupTask == nil else { return }
+        let directory = SpeechModelLocation.installedDirectory(in: paths)
+        speechWarmupTask = Task {
+            let startedAt = ProcessInfo.processInfo.systemUptime
+            do {
+                try await speechTranscriber.prepare(modelDirectory: directory)
+                let milliseconds = (ProcessInfo.processInfo.systemUptime - startedAt) * 1_000
+                NatterLog.model.notice(
+                    "speech model warm elapsed_ms=\(String(format: "%.1f", milliseconds), privacy: .public)"
+                )
+            } catch is CancellationError {
+                NatterLog.model.debug("speech model warm-up cancelled")
+            } catch {
+                NatterLog.model.error(
+                    "speech model warm-up failed error=\(error.localizedDescription, privacy: .public)"
+                )
+            }
+            speechWarmupTask = nil
+        }
+    }
+
     func remove(_ pack: ModelPack) {
         guard installing == nil else { return }
         errorMessage = nil
@@ -82,6 +105,8 @@ final class ModelManager {
         do {
             switch pack {
             case .speech:
+                speechWarmupTask?.cancel()
+                speechWarmupTask = nil
                 try removeIfPresent(SpeechModelLocation.installedDirectory(in: paths))
                 Task { await speechTranscriber.unload() }
             case .writing:

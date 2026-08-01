@@ -129,6 +129,11 @@ final class PermissionController {
         }
     }
 
+    func noteInputMonitoringEventReceived() {
+        inputMonitoringGranted = true
+        permissionsAwaitingRelaunch.remove(.inputMonitoring)
+    }
+
     func requiresRelaunch(_ permission: AppPermission) -> Bool {
         !isGranted(permission) && permissionsAwaitingRelaunch.contains(permission)
     }

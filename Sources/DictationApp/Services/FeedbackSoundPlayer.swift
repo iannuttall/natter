@@ -3,30 +3,47 @@ import Foundation
 
 @MainActor
 final class FeedbackSoundPlayer {
-    enum Signal {
+    enum Signal: CaseIterable, Hashable {
         case started
         case stopped
     }
 
+    private let sounds: [Signal: NSSound]
     private var activeSound: NSSound?
 
-    func play(_ signal: Signal) {
-        let frequencies: [Double]
-        switch signal {
-        case .started:
-            frequencies = [660, 990]
-        case .stopped:
-            frequencies = [880, 550]
+    init() {
+        var loaded: [Signal: NSSound] = [:]
+        for signal in Signal.allCases {
+            guard let sound = NSSound(
+                data: Self.waveData(frequencies: signal.frequencies)
+            ) else { continue }
+            sound.volume = 0.22
+            loaded[signal] = sound
         }
-
-        guard let sound = NSSound(data: Self.waveData(frequencies: frequencies)) else {
-            return
-        }
-        activeSound = sound
-        sound.volume = 0.22
-        sound.play()
+        sounds = loaded
     }
 
+    func play(_ signal: Signal) {
+        guard let sound = sounds[signal] else { return }
+        activeSound?.stop()
+        activeSound = sound
+        sound.currentTime = 0
+        sound.play()
+    }
+}
+
+private extension FeedbackSoundPlayer.Signal {
+    var frequencies: [Double] {
+        switch self {
+        case .started:
+            [660, 990]
+        case .stopped:
+            [880, 550]
+        }
+    }
+}
+
+private extension FeedbackSoundPlayer {
     private static func waveData(frequencies: [Double]) -> Data {
         let sampleRate = 44_100
         let noteFrames = Int(Double(sampleRate) * 0.055)

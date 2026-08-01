@@ -160,9 +160,39 @@ import Testing
 @Test func modifierDoubleTapStartsAndActiveTapStops() {
     var detector = ModifierTapDetector(doubleTapInterval: 0.42)
 
-    #expect(detector.keyDown(at: 10, sessionIsActive: false) == nil)
+    #expect(detector.keyDown(at: 10, sessionIsActive: false) == .arm)
     #expect(detector.keyDown(at: 10.4, sessionIsActive: false) == .start)
     #expect(detector.keyDown(at: 11, sessionIsActive: true) == .stop)
+}
+
+@Test func firstModifierTapArmsPreRollWithoutStartingDictation() {
+    var detector = ModifierTapDetector(doubleTapInterval: 0.42)
+
+    #expect(detector.keyDown(at: 10, sessionIsActive: false) == .arm)
+    #expect(detector.keyDown(at: 10.43, sessionIsActive: false) == .arm)
+    #expect(detector.keyDown(at: 10.7, sessionIsActive: false) == .start)
+}
+
+@Test func adaptiveStopTimingUsesMeasuredCadenceWithinSafeBounds() {
+    var estimator = AdaptiveStopTimingEstimator()
+    #expect(estimator.gracePeriod == 0.05)
+
+    estimator.observe(callbackAt: 1, bufferDuration: 0.021)
+    estimator.observe(callbackAt: 1.022, bufferDuration: 0.021)
+    #expect(abs(estimator.gracePeriod - 0.03) < 0.000_001)
+
+    estimator.observe(callbackAt: 1.2, bufferDuration: 0.2)
+    #expect(estimator.gracePeriod == 0.08)
+}
+
+@Test func preRollKeepsOnlyTheNewestBoundedAudio() {
+    var buffer = TimedPreRollBuffer<String>(maximumDuration: 0.45)
+    buffer.append("old", duration: 0.2)
+    buffer.append("middle", duration: 0.2)
+    buffer.append("new", duration: 0.2)
+
+    #expect(buffer.drain() == ["middle", "new"])
+    #expect(buffer.duration == 0)
 }
 
 @Test func modifierEdgeTrackerCountsPressesNotReleases() {
@@ -185,8 +215,8 @@ import Testing
 @Test func modifierTapOutsideWindowStartsANewPair() {
     var detector = ModifierTapDetector(doubleTapInterval: 0.42)
 
-    #expect(detector.keyDown(at: 10, sessionIsActive: false) == nil)
-    #expect(detector.keyDown(at: 10.5, sessionIsActive: false) == nil)
+    #expect(detector.keyDown(at: 10, sessionIsActive: false) == .arm)
+    #expect(detector.keyDown(at: 10.5, sessionIsActive: false) == .arm)
     #expect(detector.keyDown(at: 10.8, sessionIsActive: false) == .start)
 }
 

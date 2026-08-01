@@ -14,6 +14,7 @@ final class DictationCoordinator {
     private let recovery = TranscriptRecovery()
     private let feedback = FeedbackSoundPlayer()
     private let overlay: OverlayPanelController
+    private var armExpiryTask: Task<Void, Never>?
     private var streamTask: Task<Void, Never>?
     private var sessionTask: Task<Void, Never>?
     private var focusTarget: FocusedTextTarget?
@@ -26,6 +27,7 @@ final class DictationCoordinator {
     private var recordingStartedAt: Date?
     private var recordingStoppedAt: Date?
     private var historyWasRecorded = false
+    private var performanceTrace: DictationPerformanceTrace?
 
     init(
         store: DictationStore,
@@ -45,6 +47,7 @@ final class DictationCoordinator {
 
     func handle(_ action: ModifierHotKeyAction) {
         switch action {
+        case .arm: arm()
         case .start: start()
         case .stop: stop()
         case .cycleMode: cycleMode()
@@ -54,9 +57,11 @@ final class DictationCoordinator {
 
     func cancel() {
         guard store.phase == .preparing || store.phase == .listening else { return }
-        feedback.play(.stopped)
+        armExpiryTask?.cancel()
+        armExpiryTask = nil
         recordingStoppedAt = Date()
-        microphone.stop()
+        microphone.stopImmediately()
+        feedback.play(.stopped)
         streamTask?.cancel()
         streamTask = nil
         sessionTask?.cancel()
@@ -200,8 +205,30 @@ final class DictationCoordinator {
 
     private func start() {
         guard store.canStart else { return }
+        armExpiryTask?.cancel()
+        armExpiryTask = nil
+        performanceTrace = DictationPerformanceTrace()
         sessionTask?.cancel()
         sessionTask = Task { await beginSession() }
+    }
+
+    private func arm() {
+        guard store.canStart else { return }
+        armExpiryTask?.cancel()
+        do {
+            try microphone.arm()
+            NatterLog.audio.debug("capture primed on first modifier tap")
+        } catch {
+            NatterLog.audio.error(
+                "capture pre-roll unavailable error=\(error.localizedDescription, privacy: .public)"
+            )
+            return
+        }
+        armExpiryTask = Task { [weak self] in
+            try? await Task.sleep(for: .milliseconds(500))
+            guard !Task.isCancelled else { return }
+            self?.microphone.disarmIfIdle()
+        }
     }
 
     private func beginSession() async {
@@ -225,16 +252,23 @@ final class DictationCoordinator {
         store.phase = .preparing
         store.statusMessage = "Loading local speech model…"
         overlay.show()
+        performanceTrace?.mark(.overlayVisible)
 
         do {
             try validateSelectedMode()
             try await prepareTranscriber()
+            performanceTrace?.mark(.modelReady)
             guard !Task.isCancelled else { return }
             await transcriber.reset()
 
-            let stream = try microphone.start { [weak store] level in
-                store?.audioLevel = level
-            }
+            let stream = try microphone.start(
+                levelHandler: { [weak store] level in store?.audioLevel = level },
+                firstBufferHandler: { [weak self] in
+                    self?.performanceTrace?.mark(.firstAudioBuffer)
+                },
+                routeFailureHandler: { [weak self] error in self?.fail(error) }
+            )
+            performanceTrace?.mark(.captureStarted)
             store.phase = .listening
             recordingStartedAt = Date()
             store.statusMessage = deliveryIssue == nil
@@ -248,6 +282,7 @@ final class DictationCoordinator {
                     do {
                         let rawPartial = try await self?.transcriber.consume(chunk) ?? ""
                         guard !rawPartial.isEmpty else { continue }
+                        self?.performanceTrace?.mark(.firstPartial)
                         self?.store.rawTranscript = rawPartial
                         await self?.handlePartial(rawPartial)
                     } catch {
@@ -265,17 +300,19 @@ final class DictationCoordinator {
         guard store.phase == .preparing || store.phase == .listening else { return }
 
         if store.phase == .preparing {
-            feedback.play(.stopped)
+            armExpiryTask?.cancel()
+            armExpiryTask = nil
             sessionTask?.cancel()
             sessionTask = nil
+            microphone.stopImmediately()
+            feedback.play(.stopped)
             store.resetSession()
             overlay.hide()
             return
         }
 
-        feedback.play(.stopped)
         recordingStoppedAt = Date()
-        microphone.stop()
+        performanceTrace?.mark(.stopRequested)
         let drainingStreamTask = streamTask
         streamTask = nil
         store.audioLevel = 0
@@ -283,12 +320,16 @@ final class DictationCoordinator {
         store.statusMessage = "Finishing locally…"
 
         sessionTask = Task {
+            await microphone.stopDrainingTail()
+            performanceTrace?.mark(.captureStopped)
+            feedback.play(.stopped)
             await drainingStreamTask?.value
             guard store.phase == .finalizing else { return }
 
             do {
                 let rawTranscript = try await transcriber.finish()
                     .trimmingCharacters(in: .whitespacesAndNewlines)
+                performanceTrace?.mark(.finalTranscript)
                 store.rawTranscript = rawTranscript
 
                 if handleCorrectionCommand(rawTranscript) {
@@ -539,6 +580,7 @@ final class DictationCoordinator {
                 markdownRules: rules.markdown(for: store.selectedMode),
                 modelDirectory: modelDirectory
             )
+            performanceTrace?.mark(.transformFinished)
             store.liveTranscript = output
             store.finalTranscript = output
             if !emitter.delivered.isEmpty, let focusTarget {
@@ -563,6 +605,7 @@ final class DictationCoordinator {
     }
 
     private func finishDelivery(of transcript: String) {
+        performanceTrace?.mark(.deliveryFinished)
         if let deliveryIssue {
             recoverTranscript(transcript, reason: deliveryIssue)
         } else {
@@ -639,7 +682,9 @@ final class DictationCoordinator {
     }
 
     private func fail(_ error: Error) {
-        microphone.stop()
+        armExpiryTask?.cancel()
+        armExpiryTask = nil
+        microphone.stopImmediately()
         streamTask?.cancel()
         streamTask = nil
         store.audioLevel = 0
