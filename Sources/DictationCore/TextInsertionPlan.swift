@@ -14,11 +14,11 @@ public enum TextInsertionPlan {
             .replacingOccurrences(of: "\r", with: "\n")
 
         if destination == .terminal {
-            let flattened = normalized
-                .split(separator: "\n", omittingEmptySubsequences: false)
-                .map { $0.trimmingCharacters(in: .whitespaces) }
-                .filter { !$0.isEmpty }
-                .joined(separator: " ")
+            let flattened = normalized.replacingOccurrences(
+                of: #"[ \t]*\n+[ \t]*"#,
+                with: " ",
+                options: .regularExpression
+            )
             return flattened.isEmpty ? [] : [.text(flattened)]
         }
 

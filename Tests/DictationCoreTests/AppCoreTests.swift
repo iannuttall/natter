@@ -203,6 +203,17 @@ import Testing
     ) == [.text("First line Second line")])
 }
 
+@Test func textInsertionPlanPreservesStreamingBoundarySpacesInTerminals() {
+    #expect(TextInsertionPlan.segments(
+        for: " left the room ",
+        destination: .terminal
+    ) == [.text(" left the room ")])
+    #expect(TextInsertionPlan.segments(
+        for: "\nNext paragraph",
+        destination: .terminal
+    ) == [.text(" Next paragraph")])
+}
+
 @Test func recoveryRecordRoundTrips() throws {
     let record = RecoveryRecord(
         createdAt: Date(timeIntervalSince1970: 123),
