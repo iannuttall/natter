@@ -54,6 +54,35 @@ for resource_bundle in "$products_dir"/*.bundle(N/); do
     ditto "$resource_bundle" "$contents_dir/Resources/$(basename "$resource_bundle")"
 done
 
+icon_source="$repo_dir/Resources/AppIcon.icon"
+icon_output="$repo_dir/.xcode-build/NatterIcon"
+case "$icon_output" in
+    "$repo_dir/.xcode-build/"*) rm -rf "$icon_output" ;;
+    *)
+        echo "refusing to replace unexpected icon output path: $icon_output" >&2
+        exit 70
+        ;;
+esac
+mkdir -p "$icon_output"
+if ! xcrun actool "$icon_source" \
+    --compile "$icon_output" \
+    --platform macosx \
+    --minimum-deployment-target 15.0 \
+    --app-icon AppIcon \
+    --output-partial-info-plist "$icon_output/partial.plist" \
+    --errors --warnings > "$icon_output/actool.log" 2>&1; then
+    cat "$icon_output/actool.log" >&2
+    echo "failed to compile the Natter app icon" >&2
+    exit 65
+fi
+for icon_resource in Assets.car AppIcon.icns; do
+    if [[ ! -f "$icon_output/$icon_resource" ]]; then
+        echo "actool did not produce $icon_resource" >&2
+        exit 65
+    fi
+    cp "$icon_output/$icon_resource" "$contents_dir/Resources/$icon_resource"
+done
+
 legal_dir="$contents_dir/Resources/Legal"
 dependency_legal_dir="$legal_dir/Dependencies"
 mkdir -p "$dependency_legal_dir"
@@ -78,6 +107,8 @@ done
 /usr/libexec/PlistBuddy -c "Add :CFBundleExecutable string $executable_name" "$contents_dir/Info.plist"
 /usr/libexec/PlistBuddy -c "Add :CFBundleIdentifier string $bundle_id" "$contents_dir/Info.plist"
 /usr/libexec/PlistBuddy -c "Add :CFBundleInfoDictionaryVersion string 6.0" "$contents_dir/Info.plist"
+/usr/libexec/PlistBuddy -c "Add :CFBundleIconFile string AppIcon" "$contents_dir/Info.plist"
+/usr/libexec/PlistBuddy -c "Add :CFBundleIconName string AppIcon" "$contents_dir/Info.plist"
 /usr/libexec/PlistBuddy -c "Add :CFBundleName string $app_name" "$contents_dir/Info.plist"
 /usr/libexec/PlistBuddy -c "Add :CFBundlePackageType string APPL" "$contents_dir/Info.plist"
 /usr/libexec/PlistBuddy -c "Add :CFBundleShortVersionString string $version" "$contents_dir/Info.plist"
@@ -93,6 +124,25 @@ done
 /usr/libexec/PlistBuddy -c "Add :CFBundleURLTypes:0:CFBundleURLSchemes array" "$contents_dir/Info.plist"
 /usr/libexec/PlistBuddy -c "Add :CFBundleURLTypes:0:CFBundleURLSchemes:0 string natter" "$contents_dir/Info.plist"
 /usr/libexec/PlistBuddy -c "Add :CFBundleURLTypes:0:CFBundleURLSchemes:1 string ian-dictation" "$contents_dir/Info.plist"
+
+# actool's fallback ICNS stops at 256px. Render the vector-backed icon from the
+# finished bundle and merge larger renditions for macOS 15 Finder and Get Info.
+render_tool="$repo_dir/.xcode-build/Tools/render-natter-icon"
+render_source="$repo_dir/scripts/icon/render-icon.swift"
+if [[ ! -x "$render_tool" || "$render_source" -nt "$render_tool" ]]; then
+    mkdir -p "${render_tool:h}"
+    swiftc -swift-version 6 -O "$render_source" -o "$render_tool"
+fi
+
+icon_work="$(mktemp -d)"
+iconset="$icon_work/AppIcon.iconset"
+if iconutil -c iconset "$contents_dir/Resources/AppIcon.icns" -o "$iconset"; then
+    "$render_tool" "$app_dir" 256 "$iconset/icon_256x256.png"
+    "$render_tool" "$app_dir" 512 "$iconset/icon_512x512.png"
+    "$render_tool" "$app_dir" 1024 "$iconset/icon_512x512@2x.png"
+    iconutil -c icns "$iconset" -o "$contents_dir/Resources/AppIcon.icns"
+fi
+rm -rf "$icon_work"
 
 if [[ -z "$sign_identity" ]]; then
     if [[ -f "$signing_identity_file" ]]; then

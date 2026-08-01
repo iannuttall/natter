@@ -1,3 +1,7 @@
+<p align="center">
+  <img src="docs/assets/n-wave-cyan.svg" width="180" alt="Natter">
+</p>
+
 # Natter
 
 Just Natter your thoughts and the app will clean them up for you. Native, local

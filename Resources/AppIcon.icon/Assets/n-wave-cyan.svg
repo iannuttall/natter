@@ -1,0 +1,19 @@
+<svg xmlns="http://www.w3.org/2000/svg" viewBox="0 0 1500 1125" width="1500" height="1125">
+<defs>
+<linearGradient id="_g0" gradientUnits="userSpaceOnUse" x1="546.88" y1="675.24" x2="605.63" y2="548.11">
+  <stop offset="0" stop-color="#22d3ee"/>
+  <stop offset="0.333" stop-color="#17b6d4"/>
+  <stop offset="0.667" stop-color="#2568c7"/>
+  <stop offset="1" stop-color="#24307d"/>
+</linearGradient>
+<linearGradient id="_g1" gradientUnits="userSpaceOnUse" x1="954.27" y1="450.73" x2="895.53" y2="577.85">
+  <stop offset="0" stop-color="#22d3ee"/>
+  <stop offset="0.333" stop-color="#17b6d4"/>
+  <stop offset="0.667" stop-color="#2568c7"/>
+  <stop offset="1" stop-color="#24307d"/>
+</linearGradient>
+</defs>
+<path id="body" d="M422.32 737.06 L466.52 658.29 C490.17 616.14 572.68 469.12 585.76 445.62 C603.99 412.85 635.31 388.91 681.49 388.91 C741.91 388.91 760.92 422.29 800.34 491.81 L820.88 528.03 L898.95 388.91 L1078.84 388.91 L1034.64 467.68 C1010.98 509.83 928.47 656.85 915.4 680.35 C897.16 713.12 865.84 737.06 819.67 737.06 C759.24 737.06 740.24 703.68 700.82 634.16 L680.27 597.94 L602.2 737.06 Z" fill="#22d3ee"/>
+<path id="pocket-left" d="M488.51 619.1 C560.35 491.07 663.24 567.92 680.27 597.94 L602.2 737.06 L422.32 737.06 L466.52 658.29 C471.58 649.28 479.33 635.47 488.51 619.1 Z" fill="url(#_g0)"/>
+<path id="pocket-right" d="M1012.64 506.87 C940.8 634.9 837.91 558.05 820.88 528.03 L898.95 388.91 L1078.84 388.91 L1034.64 467.68 C1029.58 476.69 1021.83 490.5 1012.64 506.87 Z" fill="url(#_g1)"/>
+</svg>
