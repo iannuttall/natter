@@ -9,11 +9,13 @@ struct SettingsView: View {
     @Bindable var profiles: ApplicationProfileManager
     @Bindable var history: HistoryManager
     @Bindable var onboarding: OnboardingManager
+    @State private var launchAtLogin = LaunchAtLoginManager()
 
     var body: some View {
         ScrollView {
             VStack(alignment: .leading, spacing: Theme.Space.section) {
                 header
+                appPreferences
                 permissionRows
                 hotKeyPicker
                 terminalDelivery
@@ -34,6 +36,7 @@ struct SettingsView: View {
             modelManager.refresh()
             permissions.refresh()
             profiles.refreshInstalledApplications()
+            launchAtLogin.refresh()
         }
         .task {
             while !Task.isCancelled {
@@ -45,6 +48,46 @@ struct SettingsView: View {
                 }
             }
         }
+    }
+
+    private var appPreferences: some View {
+        VStack(alignment: .leading, spacing: Theme.Space.regular) {
+            Text("App")
+                .font(.headline)
+            Toggle(
+                "Open at login",
+                isOn: Binding(
+                    get: { launchAtLogin.isEnabled },
+                    set: { launchAtLogin.setEnabled($0) }
+                )
+            )
+            Text("Start the menu-bar app when you sign in. Off until you choose otherwise.")
+                .font(.caption)
+                .foregroundStyle(.secondary)
+
+            if launchAtLogin.requiresApproval {
+                HStack {
+                    Text("macOS needs you to allow Dictation in Login Items.")
+                        .font(.caption)
+                        .foregroundStyle(.secondary)
+                    Spacer()
+                    Button("Open Login Items") {
+                        launchAtLogin.openSystemSettings()
+                    }
+                    .controlSize(.small)
+                }
+            }
+
+            if let errorMessage = launchAtLogin.errorMessage {
+                Text(errorMessage)
+                    .font(.caption)
+                    .foregroundStyle(.red)
+                    .textSelection(.enabled)
+            }
+        }
+        .padding(Theme.Space.regular)
+        .background(Theme.Colour.secondaryPanel)
+        .clipShape(RoundedRectangle(cornerRadius: Theme.Radius.card))
     }
 
     private var agentDelivery: some View {
