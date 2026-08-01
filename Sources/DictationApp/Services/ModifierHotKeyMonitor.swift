@@ -6,6 +6,7 @@ final class ModifierHotKeyMonitor {
     private let store: DictationStore
     private let actionHandler: (ModifierHotKeyAction) -> Void
     private var detector = ModifierTapDetector()
+    private var holdDetector = ModifierHoldDetector()
     private var edgeTracker = ModifierKeyEdgeTracker()
     private var globalMonitor: Any?
     private var localMonitor: Any?
@@ -39,6 +40,7 @@ final class ModifierHotKeyMonitor {
         localMonitor = nil
         edgeTracker.reset()
         detector.reset()
+        holdDetector.reset()
     }
 
     private func handle(_ event: NSEvent) {
@@ -48,9 +50,22 @@ final class ModifierHotKeyMonitor {
         }
 
         let modifierIsActive = event.modifierFlags.contains(hotKey.modifierFlag)
-        guard edgeTracker.observe(isActive: modifierIsActive) else { return }
-
+        let pressed = edgeTracker.observe(isActive: modifierIsActive)
         let sessionIsActive = store.phase == .preparing || store.phase == .listening
+
+        if !modifierIsActive {
+            if holdDetector.keyUp(
+                at: event.timestamp,
+                sessionIsActive: sessionIsActive
+            ) {
+                detector.reset()
+                actionHandler(.cycleMode)
+            }
+            return
+        }
+        guard pressed else { return }
+
+        holdDetector.keyDown(at: event.timestamp, sessionIsActive: sessionIsActive)
         if let action = detector.keyDown(
             at: event.timestamp,
             sessionIsActive: sessionIsActive
@@ -58,7 +73,6 @@ final class ModifierHotKeyMonitor {
             actionHandler(action)
         }
     }
-
 }
 
 private extension ModifierHotKey {

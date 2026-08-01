@@ -64,6 +64,11 @@ final class DictationStore {
         selectedMode = mode
     }
 
+    func selectNextMode() {
+        guard !phase.isBusy else { return }
+        selectedMode = selectedMode.next
+    }
+
     func select(_ hotKey: ModifierHotKey) {
         guard !phase.isBusy else { return }
         selectedHotKey = hotKey

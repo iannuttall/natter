@@ -47,6 +47,12 @@ public enum DictationMode: String, Codable, CaseIterable, Identifiable, Sendable
         case .clean, .email, .article: false
         }
     }
+
+    public var next: Self {
+        let modes = Self.allCases
+        guard let index = modes.firstIndex(of: self) else { return .raw }
+        return modes[modes.index(after: index) % modes.count]
+    }
 }
 
 public enum DictationPhase: Equatable, Sendable {

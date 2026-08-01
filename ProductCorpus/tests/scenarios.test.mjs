@@ -24,6 +24,9 @@ test("scenario ids are unique and every scenario is actionable", () => {
     assert.ok(Array.isArray(scenario.required));
     assert.ok(Array.isArray(scenario.forbidden));
     assert.ok(Array.isArray(scenario.manualChecks));
+    if (scenario.requiredAny) {
+      assert.ok(scenario.requiredAny.every((group) => group.length >= 2));
+    }
   }
 });
 

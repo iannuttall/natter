@@ -32,6 +32,12 @@ import Testing
     ) == "Keep the @MainActor annotation.")
 }
 
+@Test func shortArticleRulesDoNotInviteAnInventedTitle() {
+    let rules = WritingRules.defaultMarkdown(for: .article)
+    #expect(rules.contains("Do not add a title"))
+    #expect(rules.contains("several distinct sections"))
+}
+
 @Test func evaluationScoresRequirementsAndForbiddenText() {
     let fixture = makeFixture()
     let result = WritingBenchmark.evaluate(

@@ -1,6 +1,16 @@
 import Foundation
 
 public enum WritingRules {
+    public static let legacyArticleMarkdownV1 = """
+    # Article mode
+
+    - Restructure the transcript into clear prose in the speaker's voice.
+    - Remove filler and false starts.
+    - Preserve every fact, example, qualification and opinion.
+    - Add headings only when they materially improve a longer piece.
+    - Never invent evidence, transitions or conclusions.
+    """
+
     public static func defaultMarkdown(for mode: DictationMode) -> String {
         switch mode {
         case .clean:
@@ -29,7 +39,8 @@ public enum WritingRules {
             - Restructure the transcript into clear prose in the speaker's voice.
             - Remove filler and false starts.
             - Preserve every fact, example, qualification and opinion.
-            - Add headings only when they materially improve a longer piece.
+            - Do not add a title.
+            - Use headings only when the transcript contains several distinct sections that need them.
             - Never invent evidence, transitions or conclusions.
             """
         case .raw, .agent:

@@ -254,6 +254,7 @@
     "script": "Erm, the current dialog is fucking annoying because it steals focus every time, and I want that fixed without redesigning the whole app.",
     "required": ["fucking annoying", "steals focus", "without redesigning"],
     "forbidden": ["erm", "frustrating", "inconvenient"],
+    "capitalizedInitial": true,
     "minInputEvents": 1,
     "manualChecks": ["The result still sounded like the speaker"]
   },
@@ -264,7 +265,8 @@
     "title": "Direct email without invented ceremony",
     "instruction": "The model should format this as an email body but invent no recipient, greeting or sign-off.",
     "script": "Um, can you send the revised figures by Thursday afternoon? I need them before the finance call at half past three, and please flag anything that changed since Monday.",
-    "required": ["Thursday afternoon", "finance call", "half past three", "changed since Monday"],
+    "required": ["Thursday afternoon", "finance call", "changed since Monday"],
+    "requiredAny": [["half past three", "3:30", "3.30"]],
     "forbidden": ["Dear", "Hi ", "Kind regards", "Best regards", "I hope this email finds you well", "um"],
     "minInputEvents": 1,
     "manualChecks": ["Paragraph breaks helped without making the message corporate"]
@@ -288,8 +290,10 @@
     "title": "Structure a rough article thought",
     "instruction": "Speak the rough thought as one stream. Judge the result as prose, not verbatim dictation.",
     "script": "The useful thing about building your own dictation app is not having another product to maintain, it is being able to notice the tiny delays and awkward behaviours that commercial tools accept, like pasting one huge block into a terminal or hiding the transcript when you stop too early. Once those are measurable you can make the boring path feel instant, and that matters more to me than adding a long list of clever modes.",
-    "required": ["tiny delays", "one huge block", "stop too early", "measurable", "clever modes"],
+    "required": ["tiny delays", "one huge block", "measurable", "clever modes"],
+    "requiredAny": [["stop too early", "stops speaking too early", "stopping too early"]],
     "forbidden": ["In conclusion", "delve", "seamless", "game-changer"],
+    "forbidHeading": true,
     "minInputEvents": 1,
     "manualChecks": ["The structure improved the thought without inventing a conclusion", "The voice still felt direct and personal"]
   },

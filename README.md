@@ -20,7 +20,8 @@ account, cloud inference, telemetry, Ollama dependency or background server.
    5.95 GB **Writing tools** model only if you want Email or Article.
 4. Quit Monologue while testing because it uses the same global shortcut.
 5. Focus an editable field, double-tap Right Option to start, then tap Right
-   Option once to stop. Right Control can be selected in Settings instead.
+   Option once to stop. Hold Right Option while idle to cycle modes and show the
+   selected mode. Right Control can be selected in Settings instead.
 
 The menu-bar menu changes mode and can copy the last completed transcript.
 Settings opens automatically whenever a required permission or the speech model
@@ -70,7 +71,7 @@ to the same reversible Markdown file.
 
 ## Product corpus
 
-The local browser harness covers 21 delivery, recovery, correction, writing and
+The local browser harness covers 25 delivery, recovery, correction, writing and
 stress scenarios. It switches modes, captures and grades output, saves results
 to disk and advances automatically. It deliberately does not repeat accent/model
 selection; the recorded benchmark already tested Ian's British accent.

@@ -63,7 +63,8 @@ final class RulesManager {
             )
             articleMarkdown = try loadOrCreate(
                 at: modeURL(.article),
-                defaultContents: WritingRules.defaultMarkdown(for: .article)
+                defaultContents: WritingRules.defaultMarkdown(for: .article),
+                replacingLegacyDefault: WritingRules.legacyArticleMarkdownV1
             )
             status = ""
             errorMessage = nil
@@ -94,9 +95,21 @@ final class RulesManager {
         paths.rules.appendingPathComponent("\(mode.rawValue).md")
     }
 
-    private func loadOrCreate(at url: URL, defaultContents: String) throws -> String {
+    private func loadOrCreate(
+        at url: URL,
+        defaultContents: String,
+        replacingLegacyDefault legacyDefault: String? = nil
+    ) throws -> String {
         if FileManager.default.fileExists(atPath: url.path) {
-            return try String(contentsOf: url, encoding: .utf8)
+            let existing = try String(contentsOf: url, encoding: .utf8)
+            if let legacyDefault,
+               existing.trimmingCharacters(in: .whitespacesAndNewlines)
+                == legacyDefault.trimmingCharacters(in: .whitespacesAndNewlines) {
+                let migrated = defaultContents + "\n"
+                try Data(migrated.utf8).write(to: url, options: .atomic)
+                return migrated
+            }
+            return existing
         }
         try Data((defaultContents + "\n").utf8).write(to: url, options: .atomic)
         return defaultContents + "\n"

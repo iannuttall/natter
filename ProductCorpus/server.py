@@ -40,7 +40,21 @@ class CorpusHandler(SimpleHTTPRequestHandler):
                 all((WRITING_MODEL / name).exists() for name in required)
                 and any(WRITING_MODEL.glob("*.safetensors"))
             )
-            return self.send_json({"writingInstalled": writing_installed})
+            selected_mode = None
+            completed = subprocess.run(
+                ["/usr/bin/defaults", "read", "is.ian.dictation", "selectedMode"],
+                check=False,
+                capture_output=True,
+                text=True,
+                timeout=2,
+            )
+            candidate = completed.stdout.strip().lower()
+            if candidate in ALLOWED_MODES:
+                selected_mode = candidate
+            return self.send_json({
+                "writingInstalled": writing_installed,
+                "selectedMode": selected_mode,
+            })
         if path == "/api/clipboard":
             completed = subprocess.run(
                 ["/usr/bin/pbpaste"],

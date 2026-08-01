@@ -97,6 +97,29 @@ import Testing
     #expect(detector.keyDown(at: 10.8, sessionIsActive: false) == .start)
 }
 
+@Test func holdingTheDictationModifierCyclesModeOnlyWhileIdle() {
+    var detector = ModifierHoldDetector(holdInterval: 0.6)
+
+    detector.keyDown(at: 10, sessionIsActive: false)
+    let shortPress = detector.keyUp(at: 10.4, sessionIsActive: false)
+    detector.keyDown(at: 11, sessionIsActive: false)
+    let longPress = detector.keyUp(at: 11.7, sessionIsActive: false)
+    detector.keyDown(at: 12, sessionIsActive: true)
+    let activePress = detector.keyUp(at: 13, sessionIsActive: false)
+
+    #expect(!shortPress)
+    #expect(longPress)
+    #expect(!activePress)
+}
+
+@Test func dictationModesCycleInDisplayedOrder() {
+    #expect(DictationMode.raw.next == .agent)
+    #expect(DictationMode.agent.next == .clean)
+    #expect(DictationMode.clean.next == .email)
+    #expect(DictationMode.email.next == .article)
+    #expect(DictationMode.article.next == .raw)
+}
+
 @Test func speechModelRequiresEveryRuntimeFile() throws {
     let directory = FileManager.default.temporaryDirectory
         .appendingPathComponent(UUID().uuidString, isDirectory: true)
@@ -145,15 +168,39 @@ import Testing
 
 @Test func rawPunctuationFinishesProseButNotTechnicalTokens() {
     #expect(FinalTranscriptFormatter.punctuateRawProse("this is a sentence")
-        == "this is a sentence.")
+        == "This is a sentence.")
     #expect(FinalTranscriptFormatter.punctuateRawProse("is this complete?")
-        == "is this complete?")
-    #expect(FinalTranscriptFormatter.punctuateRawProse("run git diff --check")
+        == "Is this complete?")
+    #expect(FinalTranscriptFormatter.punctuateRawProse(
+        "run git diff --check",
+        capitalizesInitial: false
+    )
         == "run git diff --check")
     #expect(FinalTranscriptFormatter.punctuateRawProse("save to ~/output.json")
-        == "save to ~/output.json")
+        == "Save to ~/output.json")
     #expect(FinalTranscriptFormatter.punctuateRawProse("email ian@example.com")
-        == "email ian@example.com")
+        == "Email ian@example.com")
+    #expect(FinalTranscriptFormatter.punctuateRawProse("ian.is is the site")
+        == "ian.is is the site.")
+}
+
+@Test func textInsertionPlanPreservesStandardLineBreaks() {
+    #expect(TextInsertionPlan.segments(
+        for: "# Heading\n\nThe first paragraph.",
+        destination: .standard
+    ) == [
+        .text("# Heading"),
+        .lineBreak,
+        .lineBreak,
+        .text("The first paragraph.")
+    ])
+}
+
+@Test func textInsertionPlanFlattensTerminalLineBreaksWithoutJoiningWords() {
+    #expect(TextInsertionPlan.segments(
+        for: "First line\n\nSecond line",
+        destination: .terminal
+    ) == [.text("First line Second line")])
 }
 
 @Test func recoveryRecordRoundTrips() throws {

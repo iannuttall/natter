@@ -37,6 +37,22 @@ final class DictationCoordinator {
         switch action {
         case .start: start()
         case .stop: stop()
+        case .cycleMode: cycleMode()
+        }
+    }
+
+    private func cycleMode() {
+        guard store.canStart else { return }
+        sessionTask?.cancel()
+        store.selectNextMode()
+        store.liveTranscript = ""
+        store.statusMessage = "\(store.selectedMode.label) mode selected"
+        overlay.show()
+        sessionTask = Task {
+            try? await Task.sleep(for: .milliseconds(900))
+            guard store.phase == .idle else { return }
+            overlay.hide()
+            store.statusMessage = nil
         }
     }
 
@@ -179,10 +195,14 @@ final class DictationCoordinator {
                 let transcript: String
                 switch store.selectedMode {
                 case .raw:
-                    transcript = FinalTranscriptFormatter.punctuateRawProse(correctedTranscript)
+                    transcript = FinalTranscriptFormatter.punctuateRawProse(
+                        correctedTranscript,
+                        capitalizesInitial: spokenFormattingContext == .prose
+                    )
                 case .clean:
                     transcript = FinalTranscriptFormatter.punctuateRawProse(
-                        DeterministicTranscriptCleaner.clean(correctedTranscript)
+                        DeterministicTranscriptCleaner.clean(correctedTranscript),
+                        capitalizesInitial: spokenFormattingContext == .prose
                     )
                 case .agent, .email, .article:
                     transcript = correctedTranscript

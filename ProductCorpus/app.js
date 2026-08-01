@@ -30,6 +30,7 @@ let hotkeyFirstTapAt = 0;
 let settlingTask = null;
 let attempt = 1;
 let attemptOutputs = [];
+let initialMode = null;
 
 if (waitsForWritingModel) {
   document.title = "Dictation Formatting and Writing Run";
@@ -81,6 +82,7 @@ function renderScenario() {
   elements.secondaryTarget.hidden = true;
   elements.resultPanel.hidden = true;
   elements.retryButton.hidden = true;
+  elements.retryButton.textContent = "Retry this test";
   elements.eventCount.textContent = "0 events";
   elements.saveState.textContent = runId ? "Syncing mode…" : "Not started";
   updateProgress();
@@ -105,6 +107,13 @@ async function startRun() {
   if (phase === "complete") {
     currentIndex = 0;
     results = {};
+  }
+  try {
+    const status = await fetch("/api/status", { cache: "no-store" })
+      .then((response) => response.json());
+    initialMode = status.selectedMode || null;
+  } catch {
+    initialMode = null;
   }
   runId = makeRunId();
   runStartedAt = new Date().toISOString();
@@ -191,12 +200,7 @@ function skipMissingWritingModel() {
   elements.runState.textContent = "Skipped · install Writing tools in Dictation Settings to test this mode";
   saveResults().finally(() => {
     if (currentIndex === scenarios.length - 1) {
-      phase = "complete";
-      elements.runState.textContent = "Run complete · every available result is saved locally";
-      elements.saveState.textContent = "Complete";
-      elements.startButton.hidden = false;
-      elements.startButton.textContent = "Start another run";
-      elements.pauseButton.hidden = true;
+      finishRun();
       return;
     }
     settlingTask = window.setTimeout(() => {
@@ -321,12 +325,7 @@ function completeAttempt({ timedOut = false } = {}) {
   showResult(result);
   saveResults().finally(() => {
     if (currentIndex === scenarios.length - 1) {
-      phase = "complete";
-      elements.runState.textContent = "Run complete · every result is saved locally";
-      elements.saveState.textContent = "Complete";
-      elements.startButton.hidden = false;
-      elements.startButton.textContent = "Start another run";
-      elements.pauseButton.hidden = true;
+      finishRun();
       return;
     }
     settlingTask = window.setTimeout(() => {
@@ -346,6 +345,21 @@ function evaluateChecks(item, output, timedOut) {
   }
   for (const value of item.forbidden || []) {
     checks.push({ label: `Omits “${value}”`, passed: !lowered.includes(value.toLocaleLowerCase()) });
+  }
+  for (const alternatives of item.requiredAny || []) {
+    checks.push({
+      label: `Contains ${alternatives.map((value) => `“${value}”`).join(" or ")}`,
+      passed: alternatives.some((value) => lowered.includes(value.toLocaleLowerCase())),
+    });
+  }
+  if (item.capitalizedInitial) {
+    checks.push({ label: "Starts with a capital letter", passed: /^\s*[A-Z]/.test(output) });
+  }
+  if (item.forbidHeading) {
+    checks.push({
+      label: "Adds no heading to a short passage",
+      passed: !/^\s*#{1,6}\s/m.test(output),
+    });
   }
   if (item.terminalPunctuation) {
     checks.push({ label: "Ends with sentence punctuation", passed: /[.!?]["')\]]?$/.test(output) });
@@ -438,12 +452,57 @@ function pauseRun() {
   elements.startButton.hidden = false;
   elements.startButton.textContent = "Resume";
   elements.pauseButton.hidden = true;
+  restoreInitialMode();
 }
 
 function retryScenario() {
   clearTimeout(settlingTask);
+  if (phase === "complete") {
+    const failedIds = Object.values(results)
+      .filter((result) => !result.passed && !result.skipped)
+      .map((result) => result.scenarioId);
+    if (failedIds.length) {
+      window.location.assign(`/?only=${encodeURIComponent(failedIds.join(","))}`);
+    }
+    return;
+  }
   delete results[scenario().id];
   prepareCurrentScenario();
+}
+
+async function restoreInitialMode() {
+  if (!initialMode) return;
+  try {
+    await fetch("/api/mode", {
+      method: "POST",
+      headers: { "Content-Type": "application/json" },
+      body: JSON.stringify({ mode: initialMode }),
+    });
+  } catch {
+    // The completed run remains valid if the native app has quit.
+  }
+}
+
+async function finishRun() {
+  phase = "restoring";
+  elements.runState.textContent = "Run complete · restoring your previous mode…";
+  await restoreInitialMode();
+  phase = "complete";
+  elements.runState.textContent = "Run complete · every result is saved locally";
+  elements.saveState.textContent = initialMode
+    ? `${initialMode[0].toUpperCase()}${initialMode.slice(1)} restored`
+    : "Complete";
+  elements.startButton.hidden = false;
+  elements.startButton.textContent = "Start another run";
+  elements.pauseButton.hidden = true;
+
+  const failedCount = Object.values(results).filter(
+    (result) => !result.passed && !result.skipped,
+  ).length;
+  elements.retryButton.hidden = failedCount === 0;
+  elements.retryButton.textContent = failedCount === 1
+    ? "Retry failed test"
+    : `Retry ${failedCount} failed tests`;
 }
 
 document.addEventListener("keydown", handleModifierPress, { capture: true });

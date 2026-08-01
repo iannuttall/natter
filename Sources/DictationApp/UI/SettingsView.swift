@@ -57,7 +57,7 @@ struct SettingsView: View {
             VStack(alignment: .leading, spacing: 2) {
                 Text("Dictation key")
                     .font(.headline)
-                Text("Double tap to start. Tap once to stop.")
+                Text("Double tap to start. Hold to switch mode. Tap once to stop.")
                     .font(.callout)
                     .foregroundStyle(.secondary)
             }
