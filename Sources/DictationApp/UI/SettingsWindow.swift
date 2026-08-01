@@ -116,17 +116,20 @@ private struct NatterAppView: View {
     @Bindable var selection: NatterAppSelection
 
     var body: some View {
-        NavigationSplitView {
+        HStack(spacing: 0) {
             List(selection: $selection.section) {
                 ForEach(NatterAppSection.allCases) { section in
                     Label(section.label, systemImage: section.symbol)
                         .tag(section)
                 }
             }
-            .navigationSplitViewColumnWidth(min: 170, ideal: 190, max: 220)
-        } detail: {
+            .listStyle(.sidebar)
+            .frame(width: 190)
+
+            Divider()
+
             detail
-                .navigationTitle(selection.section.label)
+                .frame(maxWidth: .infinity, maxHeight: .infinity)
         }
         .background(Theme.Colour.panel)
     }

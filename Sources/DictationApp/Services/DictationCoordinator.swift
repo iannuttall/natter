@@ -1,3 +1,4 @@
+import AppKit
 import DictationCore
 import Foundation
 
@@ -18,6 +19,8 @@ final class DictationCoordinator {
     private var streamTask: Task<Void, Never>?
     private var sessionTask: Task<Void, Never>?
     private var focusTarget: FocusedTextTarget?
+    private var sourceBundleIdentifier: String?
+    private var sourceApplicationName: String?
     private var emitter = StableTranscriptEmitter()
     private var stabilizer = StableTranscriptStabilizer(trailingTokenCount: 1)
     private var deliveryIssue: String?
@@ -76,7 +79,7 @@ final class DictationCoordinator {
             let record = RecoveryRecord(
                 transcript: draft,
                 deliveredPrefix: emitter.delivered,
-                targetBundleIdentifier: focusTarget?.bundleIdentifier,
+                targetBundleIdentifier: sourceBundleIdentifier,
                 reason: "Cancelled by user"
             )
             store.latestRecoveryURL = try? recovery.saveAndCopy(
@@ -241,13 +244,14 @@ final class DictationCoordinator {
         recordingStartedAt = nil
         recordingStoppedAt = nil
         historyWasRecorded = false
+        captureSourceApplication()
         captureFocusTarget()
         let resolution = profiles.resolution(
-            bundleIdentifier: focusTarget?.bundleIdentifier,
+            bundleIdentifier: sourceBundleIdentifier,
             defaultMode: store.defaultMode
         )
         store.prepareSessionMode(resolution)
-        store.activeApplicationName = focusTarget?.applicationName
+        store.activeApplicationName = sourceApplicationName
         stabilizer = StableTranscriptStabilizer(trailingTokenCount: 3)
         store.phase = .preparing
         store.statusMessage = "Loading local speech model…"
@@ -397,11 +401,20 @@ final class DictationCoordinator {
 
     private func captureFocusTarget() {
         do {
-            focusTarget = try textInserter.captureTarget()
+            let target = try textInserter.captureTarget()
+            focusTarget = target
+            sourceBundleIdentifier = target.bundleIdentifier ?? sourceBundleIdentifier
+            sourceApplicationName = target.applicationName ?? sourceApplicationName
         } catch {
             focusTarget = nil
             deliveryIssue = error.localizedDescription
         }
+    }
+
+    private func captureSourceApplication() {
+        let application = NSWorkspace.shared.frontmostApplication
+        sourceBundleIdentifier = application?.bundleIdentifier
+        sourceApplicationName = application?.localizedName
     }
 
     private func deliverStablePartial(_ transcript: String) async {
@@ -513,7 +526,7 @@ final class DictationCoordinator {
         let record = RecoveryRecord(
             transcript: transcript,
             deliveredPrefix: emitter.delivered,
-            targetBundleIdentifier: focusTarget?.bundleIdentifier,
+            targetBundleIdentifier: sourceBundleIdentifier,
             reason: reason
         )
 
@@ -627,8 +640,8 @@ final class DictationCoordinator {
             rawTranscript: store.rawTranscript,
             durationSeconds: duration,
             mode: store.selectedMode,
-            sourceBundleIdentifier: focusTarget?.bundleIdentifier,
-            sourceApplicationName: focusTarget?.applicationName,
+            sourceBundleIdentifier: sourceBundleIdentifier,
+            sourceApplicationName: sourceApplicationName,
             outcome: outcome
         )
         historyWasRecorded = true
@@ -639,7 +652,7 @@ final class DictationCoordinator {
         if store.phase == .idle || store.isRecoverable { overlay.hide() }
         if store.phase == .idle {
             store.restoreIdleMode(profiles.resolution(
-                bundleIdentifier: focusTarget?.bundleIdentifier,
+                bundleIdentifier: sourceBundleIdentifier,
                 defaultMode: store.defaultMode
             ))
         }
@@ -670,7 +683,7 @@ final class DictationCoordinator {
     private var spokenFormattingContext: SpokenFormattingContext {
         if store.selectedMode == .agent
             || DestinationApplicationKind.classify(
-                bundleIdentifier: focusTarget?.bundleIdentifier
+                bundleIdentifier: sourceBundleIdentifier
             ) == .terminal {
             return .technical
         }
