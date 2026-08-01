@@ -16,7 +16,7 @@ public enum PersonalCorrections {
 
     Add one correction per line. Matching ignores case; replacements keep the spelling below.
 
-    - "en.is" → "ian.is"
+    <!-- Example: - "port man" → "Portman" -->
     """
 
     public static func parse(_ markdown: String) -> [PersonalCorrection] {

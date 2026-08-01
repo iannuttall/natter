@@ -44,8 +44,8 @@
     "mode": "Raw",
     "title": "Paths, addresses and numbers",
     "instruction": "Say the symbols as you normally would when dictating technical work.",
-    "script": "Send the result to ian@example.com, keep the threshold at 70%, and save the report under ~/dev/native/dictation/results before build 402.",
-    "required": ["ian@example.com", "70%", "~/dev/native/dictation", "402"],
+    "script": "Send the result to hello@example.com, keep the threshold at 70%, and save the report under ~/dev/native/dictation/results before build 402.",
+    "required": ["hello@example.com", "70%", "~/dev/native/dictation", "402"],
     "forbidden": [],
     "minInputEvents": 2,
     "manualChecks": ["The destination remained easy to inspect as technical tokens arrived"]
