@@ -4,11 +4,11 @@ enum AppInfo {
     static var displayName: String {
         Bundle.main.object(forInfoDictionaryKey: "CFBundleDisplayName") as? String
             ?? Bundle.main.object(forInfoDictionaryKey: "CFBundleName") as? String
-            ?? "Dictation"
+            ?? "Natter"
     }
 
     static var bundleIdentifier: String {
-        Bundle.main.bundleIdentifier ?? "is.ian.dictation"
+        Bundle.main.bundleIdentifier ?? "is.ian.natter"
     }
 
     static var version: String {
@@ -16,4 +16,3 @@ enum AppInfo {
             ?? "development"
     }
 }
-

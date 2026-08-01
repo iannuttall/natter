@@ -8,7 +8,7 @@ Run it from the repository root:
 ./scripts/serve-product-corpus.sh
 ```
 
-Open `http://127.0.0.1:4173`, launch the native Dictation app, and press **Start run** once. The runner selects each mode through a local app URL, focuses the field, recognises the Right Option or Right Control start/stop sequence, captures input timing, grades the settled result and advances automatically.
+Open `http://127.0.0.1:4173`, launch the native Natter app, and press **Start run** once. The runner selects each mode through a local app URL, focuses the field, recognises the Right Option or Right Control start/stop sequence, captures input timing, grades the settled result and advances automatically.
 
 Quit Monologue before a run because it uses the same double Right Option shortcut. After starting, only use the native hotkey and read the displayed script exactly. There are no checkboxes, notes or export step.
 

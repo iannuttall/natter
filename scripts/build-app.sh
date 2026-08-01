@@ -4,15 +4,16 @@ set -euo pipefail
 
 repo_dir="${0:A:h:h}"
 configuration="${CONFIGURATION:-release}"
-app_name="${APP_NAME:-Dictation}"
+app_name="${APP_NAME:-Natter}"
 executable_name="${EXECUTABLE_NAME:-dictation}"
-bundle_id="${BUNDLE_ID:-is.ian.dictation}"
+bundle_id="${BUNDLE_ID:-is.ian.natter}"
 version="${VERSION:-0.1.0}"
 build_number="${BUILD_NUMBER:-1}"
 sign_identity="${SIGN_IDENTITY:-}"
 dist_dir="$repo_dir/dist"
 app_dir="$dist_dir/$app_name.app"
 contents_dir="$app_dir/Contents"
+entitlements="$repo_dir/Config/Natter.entitlements"
 
 cd "$repo_dir"
 
@@ -79,12 +80,13 @@ done
 /usr/libexec/PlistBuddy -c "Add :LSMinimumSystemVersion string 15.0" "$contents_dir/Info.plist"
 /usr/libexec/PlistBuddy -c "Add :LSUIElement bool true" "$contents_dir/Info.plist"
 /usr/libexec/PlistBuddy -c "Add :NSHighResolutionCapable bool true" "$contents_dir/Info.plist"
-/usr/libexec/PlistBuddy -c "Add :NSMicrophoneUsageDescription string Dictation uses the microphone only while you are speaking." "$contents_dir/Info.plist"
+/usr/libexec/PlistBuddy -c "Add :NSMicrophoneUsageDescription string $app_name uses the microphone only while you are speaking." "$contents_dir/Info.plist"
 /usr/libexec/PlistBuddy -c "Add :CFBundleURLTypes array" "$contents_dir/Info.plist"
 /usr/libexec/PlistBuddy -c "Add :CFBundleURLTypes:0 dict" "$contents_dir/Info.plist"
-/usr/libexec/PlistBuddy -c "Add :CFBundleURLTypes:0:CFBundleURLName string is.ian.dictation" "$contents_dir/Info.plist"
+/usr/libexec/PlistBuddy -c "Add :CFBundleURLTypes:0:CFBundleURLName string $bundle_id" "$contents_dir/Info.plist"
 /usr/libexec/PlistBuddy -c "Add :CFBundleURLTypes:0:CFBundleURLSchemes array" "$contents_dir/Info.plist"
-/usr/libexec/PlistBuddy -c "Add :CFBundleURLTypes:0:CFBundleURLSchemes:0 string ian-dictation" "$contents_dir/Info.plist"
+/usr/libexec/PlistBuddy -c "Add :CFBundleURLTypes:0:CFBundleURLSchemes:0 string natter" "$contents_dir/Info.plist"
+/usr/libexec/PlistBuddy -c "Add :CFBundleURLTypes:0:CFBundleURLSchemes:1 string ian-dictation" "$contents_dir/Info.plist"
 
 if [[ -z "$sign_identity" ]]; then
     sign_identity="$(
@@ -100,9 +102,10 @@ if [[ -z "$sign_identity" ]]; then
 fi
 
 if [[ "$sign_identity" == "-" ]]; then
-    codesign --force --deep --sign "$sign_identity" "$app_dir"
+    codesign --force --deep --entitlements "$entitlements" --sign "$sign_identity" "$app_dir"
 else
-    codesign --force --deep --options runtime --timestamp --sign "$sign_identity" "$app_dir"
+    codesign --force --deep --options runtime --timestamp \
+        --entitlements "$entitlements" --sign "$sign_identity" "$app_dir"
 fi
 echo "Signed with: $sign_identity"
 echo "$app_dir"

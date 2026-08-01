@@ -1,8 +1,9 @@
-# Dictation
+# Natter
 
-A native, local macOS dictation app. The working product name is temporary.
+Just Natter your thoughts and the app will clean them up for you. Native, local
+macOS dictation with no cloud bullshit.
 
-Dictation uses FluidAudio Nemotron Streaming 560 ms for live speech and an
+Natter uses FluidAudio Nemotron Streaming 560 ms for live speech and an
 optional Qwen 3.5 9B model through MLX Swift for Agent, Email and Article. It has no
 account, cloud inference, telemetry, Ollama dependency or background server.
 
@@ -16,7 +17,7 @@ downloaded separately during onboarding.
 
    ```sh
    ./scripts/build-app.sh
-   open dist/Dictation.app
+   open dist/Natter.app
    ```
 
 2. Follow the setup assistant. It installs the required 613 MB **Live speech**
@@ -56,7 +57,7 @@ otherwise the complete intended transcript is copied. The complete recovery
 record is saved under:
 
 ```text
-~/Library/Application Support/is.ian.dictation/Recovery/latest.json
+~/Library/Application Support/is.ian.natter/Recovery/latest.json
 ```
 
 ## Personal rules
@@ -64,13 +65,13 @@ record is saved under:
 Settings opens a native editor for local Markdown files under:
 
 ```text
-~/Library/Application Support/is.ian.dictation/Rules/
+~/Library/Application Support/is.ian.natter/Rules/
 ```
 
 `personal.md` stores deterministic corrections. The other files hold the Clean,
 Email and Article instructions. A correction can also be taught by voice:
 
-> Hey Dictation, you just transcribed it as port man but what I actually said
+> Hey Natter, you just transcribed it as port man but what I actually said
 > was Portman p-o-r-t-m-a-n can you add that to my rules so you remember for
 > next time.
 
@@ -96,7 +97,7 @@ every scenario to `ProductCorpus/Results/latest.json`.
 ```sh
 swift test
 ./scripts/build-app.sh
-codesign --verify --deep --strict --verbose=2 dist/Dictation.app
+codesign --verify --deep --strict --verbose=2 dist/Natter.app
 ./scripts/run-parity.sh
 node --test ProductCorpus/tests/scenarios.test.mjs
 ```

@@ -1,7 +1,7 @@
 # Agent notes
 
-Dictation is a local-only native macOS menu-bar app. It uses Swift 6, SwiftPM,
-AppKit lifecycle/panels and SwiftUI views. The working product name is temporary.
+Natter is a local-only native macOS menu-bar app. It uses Swift 6, SwiftPM,
+AppKit lifecycle/panels and SwiftUI views.
 
 ## Product rules
 

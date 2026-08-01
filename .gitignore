@@ -2,6 +2,7 @@
 .xcode-build/
 .swiftpm/
 .DS_Store
+__pycache__/
 *.profraw
 Results/*.json
 Models/

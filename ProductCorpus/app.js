@@ -403,7 +403,7 @@ async function saveResults() {
     runId,
     startedAt: runStartedAt,
     updatedAt: new Date().toISOString(),
-    app: "Dictation",
+    app: "Natter",
     completed: Object.keys(results).length,
     total: scenarios.length,
     results,

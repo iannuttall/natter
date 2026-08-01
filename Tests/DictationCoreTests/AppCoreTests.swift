@@ -91,11 +91,13 @@ import Testing
 }
 
 @Test func corpusURLCanSelectModeWithoutAcceptingOtherCommands() throws {
-    let cleanURL = try #require(URL(string: "ian-dictation://mode/clean"))
-    let unknownURL = try #require(URL(string: "ian-dictation://delete/everything"))
+    let cleanURL = try #require(URL(string: "natter://mode/clean"))
+    let legacyURL = try #require(URL(string: "ian-dictation://mode/agent"))
+    let unknownURL = try #require(URL(string: "natter://delete/everything"))
     let webURL = try #require(URL(string: "https://example.com/mode/clean"))
 
     #expect(AppCommand(url: cleanURL) == .setMode(.clean))
+    #expect(AppCommand(url: legacyURL) == .setMode(.agent))
     #expect(AppCommand(url: unknownURL) == nil)
     #expect(AppCommand(url: webURL) == nil)
 }
@@ -107,6 +109,35 @@ import Testing
     #expect(paths.models.path == "/tmp/dictation-tests/Models")
     #expect(paths.rules.path == "/tmp/dictation-tests/Rules")
     #expect(paths.recovery.path == "/tmp/dictation-tests/Recovery")
+}
+
+@Test func legacyDataMigrationMovesOnlyMissingTopLevelItems() throws {
+    let root = FileManager.default.temporaryDirectory
+        .appendingPathComponent(UUID().uuidString, isDirectory: true)
+    defer { try? FileManager.default.removeItem(at: root) }
+    let source = root.appendingPathComponent("old", isDirectory: true)
+    let destination = root.appendingPathComponent("new", isDirectory: true)
+    try FileManager.default.createDirectory(at: source, withIntermediateDirectories: true)
+    try FileManager.default.createDirectory(at: destination, withIntermediateDirectories: true)
+    try Data("model".utf8).write(to: source.appendingPathComponent("Models"))
+    try Data("old rules".utf8).write(to: source.appendingPathComponent("Rules"))
+    try Data("new rules".utf8).write(to: destination.appendingPathComponent("Rules"))
+
+    try LegacyApplicationDataMigration.moveMissingItems(
+        from: source,
+        to: destination
+    )
+
+    #expect(try String(
+        contentsOf: destination.appendingPathComponent("Models"),
+        encoding: .utf8
+    ) == "model")
+    #expect(try String(
+        contentsOf: destination.appendingPathComponent("Rules"),
+        encoding: .utf8
+    ) == "new rules")
+    #expect(FileManager.default.fileExists(atPath: source.appendingPathComponent("Rules").path))
+    #expect(!FileManager.default.fileExists(atPath: source.appendingPathComponent("Models").path))
 }
 
 @Test func busyPhasesAreExplicit() {
@@ -517,22 +548,22 @@ import Testing
 
 @Test func spokenCorrectionCommandExtractsRuleAndSpellingHint() {
     let transcript = """
-    Hey Dictation, you just transcribed it as en.is but what I actually said was ian.is \
+    Hey Natter, you just transcribed it as en.is but what I actually said was ian.is \
     i-a-n can you add that to my rules so you remember for next time
     """
-    let correction = SpokenCorrectionParser.parse(transcript, appNames: ["Dictation"])
+    let correction = SpokenCorrectionParser.parse(transcript, appNames: ["Natter"])
 
     #expect(correction == PersonalCorrection(heard: "en.is", replacement: "ian.is"))
-    #expect(SpokenCorrectionParser.couldBeCommand("hey dicta", appNames: ["Dictation"]))
-    #expect(!SpokenCorrectionParser.couldBeCommand("here is the build", appNames: ["Dictation"]))
+    #expect(SpokenCorrectionParser.couldBeCommand("hey natt", appNames: ["Natter"]))
+    #expect(!SpokenCorrectionParser.couldBeCommand("here is the build", appNames: ["Natter"]))
 }
 
 @Test func spokenCorrectionCommandCleansObservedPunctuationAndRepeatedSpelling() {
     let transcript = """
-    Hey Dictation, you just transcribed it as Port Man, but what I actually said was \
+    Hey Natter, you just transcribed it as Port Man, but what I actually said was \
     Portman Portman. Can you add that to my rules so you remember for next time.
     """
-    let correction = SpokenCorrectionParser.parse(transcript, appNames: ["Dictation"])
+    let correction = SpokenCorrectionParser.parse(transcript, appNames: ["Natter"])
 
     #expect(correction == PersonalCorrection(heard: "Port Man", replacement: "Portman"))
 }

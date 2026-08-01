@@ -190,7 +190,7 @@
     "mode": "Raw",
     "title": "Teach a correction by voice",
     "instruction": "Speak the whole command. The destination should stay empty because this is an app command.",
-    "script": "Hey Dictation, you just transcribed it as port man but what I actually said was Portman p-o-r-t-m-a-n can you add that to my rules so you remember for next time.",
+    "script": "Hey Natter, you just transcribed it as port man but what I actually said was Portman p-o-r-t-m-a-n can you add that to my rules so you remember for next time.",
     "required": [],
     "forbidden": [],
     "expectEmpty": true,

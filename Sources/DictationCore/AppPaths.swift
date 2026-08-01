@@ -9,7 +9,7 @@ public struct AppPaths: Sendable {
 
     public static func live(
         fileManager: FileManager = .default,
-        bundleIdentifier: String = "is.ian.dictation"
+        bundleIdentifier: String = "is.ian.natter"
     ) -> AppPaths {
         let applicationSupport = fileManager.urls(
             for: .applicationSupportDirectory,

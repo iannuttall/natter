@@ -118,8 +118,8 @@ private struct OnboardingView: View {
 
     private var welcome: some View {
         setupPage(
-            title: "Dictation without the cloud",
-            detail: "Speech, corrections and optional writing cleanup stay on this Mac. Models download once and live in Application Support.",
+            title: "Natter your thoughts",
+            detail: "Speak naturally and Natter will clean it up for you. Speech, corrections and optional writing cleanup stay on this Mac.",
             symbol: "lock.laptopcomputer"
         ) {
             VStack(alignment: .leading, spacing: 12) {

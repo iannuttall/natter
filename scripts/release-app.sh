@@ -7,6 +7,7 @@ version="${VERSION:-}"
 build_number="${BUILD_NUMBER:-}"
 notary_profile="${NOTARY_PROFILE:-}"
 sign_identity="${SIGN_IDENTITY:-Developer ID Application: Iancredible Ltd (JXNCT3BEVQ)}"
+app_name="${APP_NAME:-Natter}"
 
 if [[ -z "$version" || -z "$build_number" ]]; then
     echo "Usage: VERSION=1.0.0 BUILD_NUMBER=1 [NOTARY_PROFILE=name] ./scripts/release-app.sh" >&2
@@ -18,10 +19,11 @@ cd "$repo_dir"
 VERSION="$version" \
 BUILD_NUMBER="$build_number" \
 SIGN_IDENTITY="$sign_identity" \
+APP_NAME="$app_name" \
 ./scripts/build-app.sh
 
-app_path="$repo_dir/dist/Dictation.app"
-archive_path="$repo_dir/dist/Dictation-$version.zip"
+app_path="$repo_dir/dist/$app_name.app"
+archive_path="$repo_dir/dist/$app_name-$version.zip"
 
 codesign --verify --deep --strict --verbose=2 "$app_path"
 rm -f "$archive_path"

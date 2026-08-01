@@ -1,6 +1,6 @@
 # Third-party notices
 
-Dictation is licensed under Apache License 2.0. The complete application licence and dependency licence files are included in the signed app under `Contents/Resources/Legal`.
+Natter is licensed under Apache License 2.0. The complete application licence and dependency licence files are included in the signed app under `Contents/Resources/Legal`.
 
 ## Runtime packages
 
@@ -35,7 +35,7 @@ Their complete MIT licence texts are reproduced in the app bundle.
 
 ## Downloaded model weights
 
-Model weights are not bundled in Dictation.app. The app downloads them on the user's explicit request and stores them under the app's Application Support directory.
+Model weights are not bundled in Natter.app. The app downloads them on the user's explicit request and stores them under the app's Application Support directory.
 
 ### Nemotron Speech Streaming 0.6B Core ML
 
@@ -55,4 +55,4 @@ Licensed by NVIDIA Corporation under the NVIDIA Open Model License
 
 ## Privacy
 
-Dictation has no account, analytics endpoint or cloud inference. Audio, transcripts, rules, app profiles, history and models stay on the user's Mac unless the user explicitly copies or exports them.
+Natter has no account, analytics endpoint or cloud inference. Audio, transcripts, rules, app profiles, history and models stay on the user's Mac unless the user explicitly copies or exports them.

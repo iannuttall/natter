@@ -4,7 +4,7 @@ import Observation
 
 @MainActor
 final class AppDelegate: NSObject, NSApplicationDelegate {
-    private let store = DictationStore.shared
+    private var store: DictationStore!
     private var statusItemController: StatusItemController?
     private var coordinator: DictationCoordinator?
     private var hotKeyMonitor: ModifierHotKeyMonitor?
@@ -18,6 +18,15 @@ final class AppDelegate: NSObject, NSApplicationDelegate {
 
     func applicationDidFinishLaunching(_ notification: Notification) {
         NSApp.setActivationPolicy(.accessory)
+        do {
+            try LegacyDataMigrator.migrateIfNeeded(to: AppInfo.bundleIdentifier)
+        } catch {
+            FileHandle.standardError.write(Data(
+                "Natter data migration failed: \(error.localizedDescription)\n".utf8
+            ))
+        }
+        let store = DictationStore.shared
+        self.store = store
         let speechTranscriber = SpeechTranscriber()
         let modelManager = ModelManager(speechTranscriber: speechTranscriber)
         let permissions = PermissionController()

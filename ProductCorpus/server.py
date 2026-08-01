@@ -18,7 +18,7 @@ ALLOWED_ORIGINS = {
 }
 WRITING_MODEL = (
     Path.home()
-    / "Library/Application Support/is.ian.dictation/Models/writing/models/mlx-community/Qwen3.5-9B-MLX-4bit"
+    / "Library/Application Support/is.ian.natter/Models/writing/models/mlx-community/Qwen3.5-9B-MLX-4bit"
 )
 
 
@@ -42,7 +42,7 @@ class CorpusHandler(SimpleHTTPRequestHandler):
             )
             selected_mode = None
             completed = subprocess.run(
-                ["/usr/bin/defaults", "read", "is.ian.dictation", "selectedMode"],
+                ["/usr/bin/defaults", "read", "is.ian.natter", "defaultMode"],
                 check=False,
                 capture_output=True,
                 text=True,
@@ -98,7 +98,7 @@ class CorpusHandler(SimpleHTTPRequestHandler):
         if mode not in ALLOWED_MODES:
             raise ValueError("unknown mode")
         subprocess.run(
-            ["/usr/bin/open", "-g", f"ian-dictation://mode/{mode}"],
+            ["/usr/bin/open", "-g", f"natter://mode/{mode}"],
             check=True,
             timeout=5,
         )
