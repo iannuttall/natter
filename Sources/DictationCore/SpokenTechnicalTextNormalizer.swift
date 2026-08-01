@@ -44,6 +44,11 @@ public enum SpokenTechnicalTextNormalizer {
         if context == .technical {
             result = replaceMatches(
                 in: result,
+                pattern: #"(?i)\b(?:et\s+cetera|etcetera)\b"#,
+                with: { _ in "etc." }
+            )
+            result = replaceMatches(
+                in: result,
                 pattern: spokenVersionPattern,
                 with: spokenVersion
             )

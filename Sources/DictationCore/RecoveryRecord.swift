@@ -20,4 +20,11 @@ public struct RecoveryRecord: Codable, Equatable, Sendable {
         self.targetBundleIdentifier = targetBundleIdentifier
         self.reason = reason
     }
+
+    public var clipboardTranscript: String {
+        guard !deliveredPrefix.isEmpty,
+              transcript.hasPrefix(deliveredPrefix) else { return transcript }
+        let remainder = String(transcript.dropFirst(deliveredPrefix.count))
+        return remainder.isEmpty ? transcript : remainder
+    }
 }

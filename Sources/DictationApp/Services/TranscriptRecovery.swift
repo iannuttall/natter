@@ -15,14 +15,19 @@ final class TranscriptRecovery {
     }
 
     @discardableResult
-    func saveAndCopy(_ record: RecoveryRecord) throws -> URL {
+    func saveAndCopy(
+        _ record: RecoveryRecord,
+        copyToClipboard: Bool = true
+    ) throws -> URL {
         try paths.createRequiredDirectories()
         let destination = paths.recovery.appendingPathComponent("latest.json")
         try encoder.encode(record).write(to: destination, options: .atomic)
 
-        let pasteboard = NSPasteboard.general
-        pasteboard.clearContents()
-        pasteboard.setString(record.transcript, forType: .string)
+        if copyToClipboard {
+            let pasteboard = NSPasteboard.general
+            pasteboard.clearContents()
+            pasteboard.setString(record.clipboardTranscript, forType: .string)
+        }
         return destination
     }
 }

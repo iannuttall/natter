@@ -16,6 +16,8 @@ struct FocusedTextTarget {
 struct AccessibilityFingerprint {
     let role: String?
     let subrole: String?
+    let identifier: String?
+    let description: String?
     let title: String?
     let position: CGPoint?
     let size: CGSize?
@@ -187,17 +189,8 @@ final class FocusedTextInserter {
 
         let appElement = AXUIElementCreateApplication(target.processIdentifier)
         let current = try copyFocusedElement(from: appElement)
-        let applicationKind = DestinationApplicationKind.classify(
-            bundleIdentifier: target.bundleIdentifier
-        )
-        if applicationKind == .standard {
-            guard CFEqual(current, target.element) else {
-                throw FocusedTextInsertionError.focusChanged
-            }
-            return
-        }
-
-        guard fingerprint(of: current).matches(target.elementFingerprint) else {
+        guard CFEqual(current, target.element)
+                || fingerprint(of: current).matches(target.elementFingerprint) else {
             throw FocusedTextInsertionError.focusChanged
         }
         if let targetWindow = target.window,
@@ -240,6 +233,8 @@ final class FocusedTextInserter {
         AccessibilityFingerprint(
             role: copyStringAttribute(kAXRoleAttribute, from: element),
             subrole: copyStringAttribute(kAXSubroleAttribute, from: element),
+            identifier: copyStringAttribute(kAXIdentifierAttribute, from: element),
+            description: copyStringAttribute(kAXDescriptionAttribute, from: element),
             title: copyStringAttribute(kAXTitleAttribute, from: element),
             position: copyPointAttribute(kAXPositionAttribute, from: element),
             size: copySizeAttribute(kAXSizeAttribute, from: element)
@@ -281,26 +276,30 @@ final class FocusedTextInserter {
 
 private extension AccessibilityFingerprint {
     func matches(_ other: Self) -> Bool {
-        role == other.role
-            && subrole == other.subrole
-            && compatible(title, other.title)
-            && close(position, other.position)
-            && close(size, other.size)
+        guard role == other.role, subrole == other.subrole else { return false }
+
+        if let identifier, let otherIdentifier = other.identifier,
+           !identifier.isEmpty, !otherIdentifier.isEmpty {
+            return identifier == otherIdentifier
+        }
+
+        // Rich web editors often expose their current text as the AX title or
+        // description, and their bounds grow as text arrives. App + window +
+        // role + overlapping bounds is the stable identity in that case.
+        return geometryOverlaps(other)
     }
 
-    private func compatible(_ left: String?, _ right: String?) -> Bool {
-        guard let left, let right else { return true }
-        return left == right
-    }
-
-    private func close(_ left: CGPoint?, _ right: CGPoint?) -> Bool {
-        guard let left, let right else { return true }
-        return abs(left.x - right.x) < 1 && abs(left.y - right.y) < 1
-    }
-
-    private func close(_ left: CGSize?, _ right: CGSize?) -> Bool {
-        guard let left, let right else { return true }
-        return abs(left.width - right.width) < 1 && abs(left.height - right.height) < 1
+    private func geometryOverlaps(_ other: Self) -> Bool {
+        guard let position, let size, let otherPosition = other.position,
+              let otherSize = other.size else { return true }
+        let rectangle = CGRect(origin: position, size: size)
+        let otherRectangle = CGRect(origin: otherPosition, size: otherSize)
+        guard !rectangle.isEmpty, !otherRectangle.isEmpty else { return true }
+        let intersection = rectangle.intersection(otherRectangle)
+        guard !intersection.isNull else { return false }
+        let smallerArea = min(rectangle.width * rectangle.height,
+                              otherRectangle.width * otherRectangle.height)
+        return intersection.width * intersection.height >= smallerArea * 0.45
     }
 }
 
