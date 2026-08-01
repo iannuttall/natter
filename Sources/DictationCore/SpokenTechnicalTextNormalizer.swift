@@ -65,7 +65,7 @@ public enum SpokenTechnicalTextNormalizer {
             )
             result = replaceMatches(
                 in: result,
-                pattern: #"(?i)\b(?:dash\s+dash|double\s+dash)\s+([\p{L}\p{N}][\p{L}\p{N}-]*)"#,
+                pattern: #"(?i)\b(?:dash\s+dash|double\s+dash|hyphen\s+hyphen|two\s+(?:dashes|hyphens))\s+([\p{L}\p{N}][\p{L}\p{N}-]*)"#,
                 withTemplate: "--$1"
             )
             result = replaceMatches(

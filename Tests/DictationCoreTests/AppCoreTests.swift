@@ -303,6 +303,15 @@ import Testing
         "Set scroll restoration: true, run tool --verbose, and open .unfamiliar/config.")
 }
 
+@Test func agentModeAcceptsCommonDoubleHyphenPhrases() {
+    for spoken in ["dash dash", "double dash", "hyphen hyphen", "two dashes", "two hyphens"] {
+        #expect(SpokenTechnicalTextNormalizer.normalize(
+            "Run git diff \(spoken) check",
+            context: .technical
+        ) == "Run git diff --check")
+    }
+}
+
 @Test func spokenDomainsHiddenFilesFlagsAndExtensionsBecomeLiteral() {
     let transcript = """
     Open en dot is but leave open dot island unchanged, edit dot context, save output dot \

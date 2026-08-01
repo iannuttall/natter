@@ -9,5 +9,8 @@
   "delivery": [
     "raw-protected-facts",
     "agent-code-shapes"
+  ],
+  "repair": [
+    "raw-protected-facts"
   ]
 }

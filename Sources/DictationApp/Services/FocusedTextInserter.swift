@@ -97,6 +97,53 @@ final class FocusedTextInserter {
         }
     }
 
+    func replaceInsertedText(
+        _ insertedText: String,
+        with replacement: String,
+        in target: FocusedTextTarget,
+        paceTerminalInput: Bool
+    ) async throws {
+        let applicationKind = DestinationApplicationKind.classify(
+            bundleIdentifier: target.bundleIdentifier
+        )
+
+        for (index, _) in insertedText.enumerated() {
+            if index.isMultiple(of: 16) {
+                try validate(target)
+            }
+            try postKey(code: 51, to: target.processIdentifier)
+
+            if paceTerminalInput,
+               applicationKind == .terminal,
+               index > 0,
+               index.isMultiple(of: 16) {
+                try await Task.sleep(for: Self.terminalChunkDelay)
+            }
+        }
+
+        try await insert(
+            replacement,
+            into: target,
+            paceTerminalInput: paceTerminalInput
+        )
+    }
+
+    private func postKey(code: CGKeyCode, to processIdentifier: pid_t) throws {
+        guard let keyDown = CGEvent(
+            keyboardEventSource: nil,
+            virtualKey: code,
+            keyDown: true
+        ), let keyUp = CGEvent(
+            keyboardEventSource: nil,
+            virtualKey: code,
+            keyDown: false
+        ) else {
+            throw FocusedTextInsertionError.eventCreationFailed
+        }
+        keyDown.postToPid(processIdentifier)
+        keyUp.postToPid(processIdentifier)
+    }
+
     private func validate(_ target: FocusedTextTarget) throws {
         guard NSWorkspace.shared.frontmostApplication?.processIdentifier
             == target.processIdentifier else {

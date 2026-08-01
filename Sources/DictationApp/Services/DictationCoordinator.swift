@@ -18,6 +18,7 @@ final class DictationCoordinator {
     private var emitter = StableTranscriptEmitter()
     private var stabilizer = StableTranscriptStabilizer(trailingTokenCount: 1)
     private var deliveryIssue: String?
+    private var liveTranscriptConflict = false
     private var sessionCorrections: [PersonalCorrection] = []
     private var commandCandidate = false
 
@@ -90,6 +91,7 @@ final class DictationCoordinator {
         store.resetSession()
         emitter.reset()
         deliveryIssue = nil
+        liveTranscriptConflict = false
         sessionCorrections = rules.corrections
         commandCandidate = false
         captureFocusTarget()
@@ -237,8 +239,9 @@ final class DictationCoordinator {
         case let .text(text):
             await insert(text)
         case .conflict:
+            liveTranscriptConflict = true
             deliveryIssue = "The live transcript changed after text had already been typed."
-            store.statusMessage = "Still listening · transcript will be copied"
+            store.statusMessage = "Still listening · field will be corrected on stop"
         }
     }
 
@@ -262,12 +265,18 @@ final class DictationCoordinator {
         case let .prefix(prefix):
             await deliverStablePartial(prefix)
         case .conflict:
+            liveTranscriptConflict = true
             deliveryIssue = "The live transcript changed after text had already been typed."
-            store.statusMessage = "Still listening · transcript will be copied"
+            store.statusMessage = "Still listening · field will be corrected on stop"
         }
     }
 
     private func deliverFinalTranscript(_ transcript: String) async {
+        if liveTranscriptConflict, let focusTarget {
+            await repairFinalTranscript(transcript, in: focusTarget)
+            return
+        }
+
         guard deliveryIssue == nil else { return }
 
         switch emitter.finish(transcript) {
@@ -276,7 +285,31 @@ final class DictationCoordinator {
         case let .text(text):
             await insert(text)
         case .conflict:
-            deliveryIssue = "The final transcript conflicted with text already typed."
+            guard let focusTarget else {
+                deliveryIssue = "The final transcript conflicted with text already typed."
+                return
+            }
+            await repairFinalTranscript(transcript, in: focusTarget)
+        }
+    }
+
+    private func repairFinalTranscript(
+        _ transcript: String,
+        in focusTarget: FocusedTextTarget
+    ) async {
+        do {
+            store.statusMessage = "Correcting final text locally…"
+            try await textInserter.replaceInsertedText(
+                emitter.delivered,
+                with: transcript,
+                in: focusTarget,
+                paceTerminalInput: store.terminalPacingEnabled
+            )
+            deliveryIssue = nil
+            liveTranscriptConflict = false
+        } catch {
+            deliveryIssue = error.localizedDescription
+            liveTranscriptConflict = false
         }
     }
 
