@@ -5,5 +5,10 @@
     "agent-code-shapes",
     "agent-spoken-symbols",
     "correction-command"
+  ],
+  "delivery": [
+    "raw-protected-facts",
+    "agent-code-shapes",
+    "agent-spoken-symbols"
   ]
 }

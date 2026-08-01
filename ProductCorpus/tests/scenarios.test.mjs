@@ -43,4 +43,6 @@ test("named regression preset stays short and references valid scenarios", () =>
 
   assert.equal(presets.regression.length, 5);
   assert.ok(presets.regression.every((id) => scenarioIds.has(id)));
+  assert.equal(presets.delivery.length, 3);
+  assert.ok(presets.delivery.every((id) => scenarioIds.has(id)));
 });
