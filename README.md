@@ -3,8 +3,12 @@
 A native, local macOS dictation app. The working product name is temporary.
 
 Dictation uses FluidAudio Nemotron Streaming 560 ms for live speech and an
-optional Qwen 3.5 9B model through MLX Swift for Email and Article. It has no
+optional Qwen 3.5 9B model through MLX Swift for Agent, Email and Article. It has no
 account, cloud inference, telemetry, Ollama dependency or background server.
+
+The app currently targets Apple silicon Macs running macOS 15 or later. The
+signed app is about 88 MB installed and 27 MB as a release ZIP. Models are
+downloaded separately during onboarding.
 
 ## Use it
 
@@ -15,17 +19,20 @@ account, cloud inference, telemetry, Ollama dependency or background server.
    open dist/Dictation.app
    ```
 
-2. In Settings, allow Microphone, Accessibility and Input Monitoring.
-3. Download the required 613 MB **Live speech** model. Download the optional
-   5.95 GB **Writing tools** model only if you want Email or Article.
+2. Follow the setup assistant. It installs the required 613 MB **Live speech**
+   model, explains Microphone, Accessibility and Input Monitoring, and verifies
+   the shortcut in a real text field.
+3. Download the optional 5.95 GB **Writing tools** model only if you want local
+   AI cleanup for Agent, Email or Article. Raw and Clean do not need it.
 4. Quit Monologue while testing because it uses the same global shortcut.
 5. Focus an editable field, double-tap Right Option to start, then tap Right
    Option once to stop. Hold Right Option while idle to cycle modes and show the
    selected mode. Right Control can be selected in Settings instead.
 
-The menu-bar menu changes mode and can copy the last completed transcript.
-Settings opens automatically whenever a required permission or the speech model
-is missing.
+The menu-bar menu changes mode, opens local history, copies the last completed
+transcript and exposes setup, privacy and licence details. The setup assistant
+opens automatically whenever a required permission or the speech model is
+missing.
 
 ## Modes
 
@@ -44,8 +51,9 @@ Terminal pacing is enabled by default and can be disabled in Settings.
 
 The app captures the frontmost process and focused Accessibility element when a
 session starts. If focus changes, insertion fails or a writing result drops a
-protected fact, the complete intended transcript is copied to the clipboard and
-saved under:
+protected fact, the undelivered tail is copied when it can be identified;
+otherwise the complete intended transcript is copied. The complete recovery
+record is saved under:
 
 ```text
 ~/Library/Application Support/is.ian.dictation/Recovery/latest.json
@@ -99,6 +107,11 @@ app; they live under Application Support and are installed through Settings.
 The script uses the first local code-signing identity by default so macOS keeps
 Microphone, Accessibility and Input Monitoring trust across development builds.
 Set `SIGN_IDENTITY` to choose a different certificate.
+
+For a Developer ID archive and notarized public release, see
+[`docs/RELEASING.md`](docs/RELEASING.md). Application and dependency licences
+are bundled under `Contents/Resources/Legal` and available from **About &
+Legal** in the app.
 
 The direct MLX parity report is in `Results/direct-mlx-parity.md`. The pinned
 Qwen checkpoint is:

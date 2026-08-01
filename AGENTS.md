@@ -7,10 +7,12 @@ AppKit lifecycle/panels and SwiftUI views. The working product name is temporary
 
 - No account, cloud inference, telemetry, Ollama, Homebrew helper or localhost service.
 - Speech uses one engine: FluidAudio Nemotron Streaming 560 ms.
-- Raw and Agent modes type stable text incrementally.
-- Clean, Email and Article transform only after stop with optional local Qwen.
+- Raw types stable text incrementally. Agent buffers by default, applies technical formatting after stop and then types visibly; advanced live Agent delivery is optional.
+- Clean performs deterministic filler and repetition cleanup after stop without a model.
+- Agent, Email and Article can use the optional local Qwen model after stop.
 - Raw text must survive every insertion or transformation failure.
 - Models live under Application Support and are never bundled in the signed app.
+- History, stats, rules and app profiles are local. Do not add telemetry without an explicit product decision and an opt-in design.
 
 ## Repo map
 
@@ -28,6 +30,7 @@ scripts/                 build and benchmark entry points
 swift test
 swift build -c release --product dictation
 ./scripts/build-app.sh
+VERSION=0.1.0 BUILD_NUMBER=1 ./scripts/release-app.sh
 ./scripts/run-parity.sh
 ```
 
@@ -39,3 +42,11 @@ for production must be built with `xcodebuild` and include
 this. The app build script uses the same Xcode path and copies every generated
 resource bundle into `Contents/Resources` before signing. Do not replace that
 production build with a plain `swift build` invocation.
+
+## Release shape
+
+- Apple silicon and macOS 15 or later for now.
+- Public builds use Developer ID, hardened runtime, notarization and stapling.
+- `release-app.sh` requires `VERSION` and `BUILD_NUMBER`; set `NOTARY_PROFILE` for a public archive.
+- The required NVIDIA speech model is downloaded only after the user accepts its linked terms. Keep the required attribution in the app and notices.
+- Do not bundle model weights into the app.
