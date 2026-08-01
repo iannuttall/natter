@@ -23,7 +23,7 @@ struct OverlayView: View {
             ScrollViewReader { proxy in
                 ScrollView {
                     Text(transcript)
-                        .font(.system(size: 16, weight: .regular, design: .rounded))
+                        .font(.system(size: 16, weight: .regular))
                         .foregroundStyle(.primary)
                         .frame(maxWidth: .infinity, alignment: .leading)
                         .textSelection(.enabled)
@@ -48,11 +48,11 @@ struct OverlayView: View {
         }
         .padding(16)
         .frame(width: 440, height: 166)
-        .background(.ultraThickMaterial)
+        .background(.regularMaterial)
         .clipShape(RoundedRectangle(cornerRadius: 18, style: .continuous))
         .overlay {
             RoundedRectangle(cornerRadius: 18, style: .continuous)
-                .stroke(.white.opacity(0.12), lineWidth: 1)
+                .stroke(.separator.opacity(0.45), lineWidth: 1)
         }
     }
 
@@ -71,9 +71,9 @@ struct OverlayView: View {
         }
         .padding(.horizontal, 16)
         .frame(width: 250, height: 56)
-        .background(.ultraThickMaterial)
+        .background(.regularMaterial)
         .clipShape(Capsule())
-        .overlay { Capsule().stroke(.white.opacity(0.12), lineWidth: 1) }
+        .overlay { Capsule().stroke(.separator.opacity(0.45), lineWidth: 1) }
     }
 
     private var header: some View {
@@ -144,29 +144,20 @@ struct OverlayView: View {
 private struct OverlayCancelButton: View {
     let compact: Bool
     let action: () -> Void
-    @State private var isHovered = false
 
     var body: some View {
-        Button(action: action) {
+        Button(role: .destructive, action: action) {
             HStack(spacing: 4) {
                 Image(systemName: "xmark")
                     .font(.system(size: 9, weight: .semibold))
                 if !compact { Text("Cancel") }
             }
-            .font(.system(size: 11, weight: .medium))
-            .foregroundStyle(isHovered ? .white : .red)
-            .frame(minWidth: compact ? 24 : nil, minHeight: 22)
-            .padding(.horizontal, compact ? 2 : 8)
-            .background(
-                RoundedRectangle(cornerRadius: 6)
-                    .fill(isHovered ? Color.red : Color.red.opacity(0.14))
-            )
+            .frame(minWidth: compact ? 22 : nil)
         }
-        .buttonStyle(.plain)
+        .buttonStyle(.bordered)
+        .controlSize(.small)
+        .tint(.red)
         .help("Cancel dictation · press Right Option and Right Control together")
-        .onHover { hovering in
-            withAnimation(.easeInOut(duration: 0.12)) { isHovered = hovering }
-        }
         .accessibilityLabel("Cancel dictation")
     }
 }

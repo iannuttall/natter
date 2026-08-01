@@ -158,7 +158,7 @@ private struct OnboardingView: View {
     private var permissionSetup: some View {
         setupPage(
             title: "Allow only what dictation needs",
-            detail: "macOS controls these permissions. Dictation checks the real capabilities again whenever you return from System Settings.",
+            detail: "macOS controls these permissions. \(AppInfo.displayName) checks the real capabilities again whenever you return from System Settings.",
             symbol: "checkmark.shield"
         ) {
             VStack(spacing: 10) {
@@ -176,7 +176,7 @@ private struct OnboardingView: View {
                     Text("Some macOS releases activate Input Monitoring only after the app restarts.")
                         .font(.caption)
                         .foregroundStyle(.secondary)
-                    Button("Restart Dictation") { AppRelauncher.relaunch() }
+                    Button("Restart \(AppInfo.displayName)") { AppRelauncher.relaunch() }
                 }
                 .padding(14)
                 .background(Theme.Colour.secondaryPanel)
@@ -250,7 +250,7 @@ private struct OnboardingView: View {
     private var ready: some View {
         setupPage(
             title: "Ready",
-            detail: "Dictation is running in the menu bar. You can change modes, overlay style, app profiles and storage at any time.",
+            detail: "\(AppInfo.displayName) is running in the menu bar. You can change modes, overlay style, app profiles and storage at any time.",
             symbol: "checkmark.circle.fill"
         ) {
             VStack(alignment: .leading, spacing: 12) {

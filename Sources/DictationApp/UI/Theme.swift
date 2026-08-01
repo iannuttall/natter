@@ -3,7 +3,7 @@ import SwiftUI
 
 enum Theme {
     enum Colour {
-        static let accent = Color(red: 0.18, green: 0.78, blue: 0.88)
+        static let accent = Color.accentColor
         static let panel = Color(nsColor: .windowBackgroundColor)
         static let secondaryPanel = Color(nsColor: .controlBackgroundColor)
     }
@@ -18,4 +18,3 @@ enum Theme {
         static let card: CGFloat = 12
     }
 }
-

@@ -24,7 +24,7 @@ private struct DictionaryView: View {
             }
 
             HStack(spacing: 10) {
-                TextField("When Dictation hears…", text: $heard)
+                TextField("When \(AppInfo.displayName) hears…", text: $heard)
                 Image(systemName: "arrow.right")
                     .foregroundStyle(.tertiary)
                 TextField("Use…", text: $replacement)
@@ -154,7 +154,7 @@ final class DictionaryWindow: NSObject, NSWindowDelegate {
             backing: .buffered,
             defer: false
         )
-        window.title = "Dictation Dictionary"
+        window.title = "\(AppInfo.displayName) Dictionary"
         window.isReleasedWhenClosed = false
         window.minSize = NSSize(width: 640, height: 420)
         window.center()

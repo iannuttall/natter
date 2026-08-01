@@ -20,7 +20,7 @@ final class HistoryWindow: NSObject, NSWindowDelegate {
             backing: .buffered,
             defer: false
         )
-        window.title = "Dictation History"
+        window.title = "\(AppInfo.displayName) History"
         window.isReleasedWhenClosed = false
         window.minSize = NSSize(width: 680, height: 560)
         window.center()

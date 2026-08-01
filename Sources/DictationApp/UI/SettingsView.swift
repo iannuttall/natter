@@ -67,7 +67,7 @@ struct SettingsView: View {
 
             if launchAtLogin.requiresApproval {
                 HStack {
-                    Text("macOS needs you to allow Dictation in Login Items.")
+                    Text("macOS needs you to allow \(AppInfo.displayName) in Login Items.")
                         .font(.caption)
                         .foregroundStyle(.secondary)
                     Spacer()
