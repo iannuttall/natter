@@ -8,7 +8,6 @@
   ],
   "delivery": [
     "raw-protected-facts",
-    "agent-code-shapes",
-    "agent-spoken-symbols"
+    "agent-code-shapes"
   ]
 }

@@ -297,10 +297,10 @@ import Testing
 }
 
 @Test func agentModeFormatsGenericSpokenSymbolsWithoutGuessingIdentifierCase() {
-    let transcript = "Set scroll restoration colon true and open dot unfamiliar slash config."
+    let transcript = "Set scroll restoration colon true, run tool double dash verbose, and open dot unfamiliar slash config."
 
     #expect(SpokenTechnicalTextNormalizer.normalize(transcript, context: .technical) ==
-        "Set scroll restoration: true and open .unfamiliar/config.")
+        "Set scroll restoration: true, run tool --verbose, and open .unfamiliar/config.")
 }
 
 @Test func spokenDomainsHiddenFilesFlagsAndExtensionsBecomeLiteral() {
@@ -394,6 +394,31 @@ import Testing
     let final = hypotheses.last!
     #expect(emitter.finish(final) != .conflict)
     #expect(emitter.delivered == final)
+}
+
+@Test func proseStabilizerWaitsForACompleteEmailBeforeDelivery() {
+    let hypotheses = [
+        "Send the result to Ian",
+        "Send the result to Ian at example",
+        "Send the result to Ian at example dot com keep the threshold",
+        "Send the result to Ian at example dot com keep the threshold at seventy percent and continue"
+    ]
+    var stabilizer = StableTranscriptStabilizer(trailingTokenCount: 3)
+    var emitter = StableTranscriptEmitter()
+
+    for hypothesis in hypotheses {
+        let formatted = SpokenTechnicalTextNormalizer.normalize(hypothesis, context: .prose)
+        guard case let .prefix(prefix) = stabilizer.observe(formatted) else {
+            Issue.record("stable hypothesis unexpectedly conflicted")
+            return
+        }
+        #expect(emitter.observe(prefix) != .conflict)
+    }
+
+    let final = SpokenTechnicalTextNormalizer.normalize(hypotheses.last!, context: .prose)
+    #expect(emitter.finish(final) != .conflict)
+    #expect(emitter.delivered ==
+        "Send the result to ian@example.com keep the threshold at 70% and continue")
 }
 
 @Test func observedCorrectionCommandVariantIsConsumedSafely() {

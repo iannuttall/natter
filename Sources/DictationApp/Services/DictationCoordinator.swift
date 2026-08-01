@@ -93,9 +93,7 @@ final class DictationCoordinator {
         sessionCorrections = rules.corrections
         commandCandidate = false
         captureFocusTarget()
-        stabilizer = StableTranscriptStabilizer(
-            trailingTokenCount: spokenFormattingContext == .technical ? 3 : 1
-        )
+        stabilizer = StableTranscriptStabilizer(trailingTokenCount: 3)
         store.phase = .preparing
         store.statusMessage = "Loading local speech model…"
         overlay.show()
