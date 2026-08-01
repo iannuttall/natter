@@ -41,6 +41,8 @@ public enum PersonalCorrections {
         _ correction: PersonalCorrection,
         to markdown: String
     ) -> String {
+        guard correction.heard != correction.replacement else { return markdown }
+
         let existing = parse(markdown)
         if existing.contains(where: {
             $0.heard.caseInsensitiveCompare(correction.heard) == .orderedSame
@@ -102,7 +104,7 @@ public enum SpokenCorrectionParser {
             .map(NSRegularExpression.escapedPattern)
             .joined(separator: "|")
         let pattern = #"(?is)^\s*hey\s+(?:"# + escapedNames
-            + #")\s*,?\s+(?:you\s+)?(?:just\s+)?transcribed(?:\s+it)?\s+as\s+(.+?)\s+but\s+(?:what\s+)?i\s+actually\s+said\s+was\s+(.+?)(?:\s+[a-z](?:-[a-z]){1,})?(?:\s+can\s+you\s+add\b.*)?\s*[.?!]?\s*$"#
+            + #")\s*,?\s+(?:you\s+)?(?:just\s+)?transcribed(?:\s+it)?\s+as\s+(.+?)\s+(?:but|for)\s+(?:what\s+)?i\s+actually\s+said\s+was\s+(.+?)(?:\s+[a-z](?:-[a-z]){1,})?(?:\s+can\s+you\s+add\b.*)?\s*[.?!]?\s*$"#
         guard let regex = try? NSRegularExpression(pattern: pattern),
               let match = regex.firstMatch(
                   in: transcript,
@@ -118,9 +120,24 @@ public enum SpokenCorrectionParser {
         )
         let heard = transcript[heardRange].trimmingCharacters(in: punctuation)
         let capturedReplacement = transcript[replacementRange].trimmingCharacters(in: punctuation)
-        let replacement = collapseRepeatedPhrase(capturedReplacement)
+        let replacement = cleanReplacement(capturedReplacement, heard: heard)
         guard !heard.isEmpty, !replacement.isEmpty else { return nil }
         return PersonalCorrection(heard: heard, replacement: replacement)
+    }
+
+    private static func cleanReplacement(_ phrase: String, heard: String) -> String {
+        let collapsed = collapseRepeatedPhrase(phrase)
+        let words = collapsed.split(whereSeparator: \.isWhitespace).map(String.init)
+
+        // Streaming ASR sometimes turns a trailing letter-by-letter spelling hint into
+        // stray phonetic fragments. If the replacement itself is already the same
+        // single word, keep that word and discard the fragments.
+        if !heard.contains(where: \.isWhitespace),
+           let first = words.first,
+           first.caseInsensitiveCompare(heard) == .orderedSame {
+            return heard
+        }
+        return collapsed
     }
 
     private static func collapseRepeatedPhrase(_ phrase: String) -> String {

@@ -35,10 +35,6 @@ public enum SpokenTechnicalTextNormalizer {
         "uk", "yaml", "yml", "zsh"
     ].joined(separator: "|")
 
-    private static let hiddenFileNames = [
-        "context", "editorconfig", "env", "gitconfig", "gitignore", "npmrc", "swiftlint"
-    ].joined(separator: "|")
-
     public static func normalize(
         _ transcript: String,
         context: SpokenFormattingContext = .prose
@@ -58,15 +54,15 @@ public enum SpokenTechnicalTextNormalizer {
         )
         result = replaceMatches(
             in: result,
-            pattern: #"(?i)(?<![\p{L}\p{N}])dot\s+("# + hiddenFileNames + #")\b"#,
-            with: dotSuffix
-        )
-        result = replaceMatches(
-            in: result,
             pattern: #"(?i)(?<![\p{L}\p{N}._%+-])([\p{L}\p{N}._%+-]+)\s+at\s+([\p{L}\p{N}-]+(?:\.[\p{L}\p{N}-]+)+)"#,
-            withTemplate: "$1@$2"
+            with: emailAddress
         )
         if context == .technical {
+            result = replaceMatches(
+                in: result,
+                pattern: #"(?i)\bdot\s+(?=[\p{L}\p{N}_-])"#,
+                with: { _ in "." }
+            )
             result = replaceMatches(
                 in: result,
                 pattern: #"(?i)\s+slash\s+"#,
@@ -77,6 +73,11 @@ public enum SpokenTechnicalTextNormalizer {
                 pattern: #"(?i)\bdash\s+dash\s+([\p{L}\p{N}][\p{L}\p{N}-]*)"#,
                 withTemplate: "--$1"
             )
+            result = replaceMatches(
+                in: result,
+                pattern: #"(?i)\s+colon(?=\s|$)"#,
+                with: { _ in ":" }
+            )
         }
         return result
     }
@@ -86,9 +87,11 @@ public enum SpokenTechnicalTextNormalizer {
         context: SpokenFormattingContext = .prose
     ) -> String {
         let tokens = tokens(in: transcript)
-        guard let last = tokens.last else { return "" }
+        guard !tokens.isEmpty else { return "" }
 
-        var cutoff = last.range.lowerBound
+        let trailingTokenCount = context == .technical ? 3 : 1
+        let trailingTokenIndex = max(0, tokens.count - trailingTokenCount)
+        var cutoff = tokens[trailingTokenIndex].range.lowerBound
         func hold(from tokenIndex: Int) {
             guard tokens.indices.contains(tokenIndex) else { return }
             cutoff = min(cutoff, tokens[tokenIndex].range.lowerBound)
@@ -124,10 +127,9 @@ public enum SpokenTechnicalTextNormalizer {
                     continue
                 }
                 let suffix = tokens[suffixIndex].value
-                let isHidden = hiddenFileNameSet.contains(suffix)
-                guard technicalSuffixSet.contains(suffix) || isHidden else { continue }
+                guard context == .technical || technicalSuffixSet.contains(suffix) else { continue }
                 if suffixIndex + 1 >= tokens.count {
-                    hold(from: isHidden ? index : max(0, index - 1))
+                    hold(from: context == .technical ? index : max(0, index - 1))
                 }
             }
 
@@ -187,12 +189,16 @@ public enum SpokenTechnicalTextNormalizer {
         return "~/" + path
     }
 
-    private static var technicalSuffixSet: Set<String> {
-        Set(technicalSuffixes.split(separator: "|").map(String.init))
+    private static func emailAddress(_ match: String) -> String {
+        replaceMatches(
+            in: match,
+            pattern: #"(?i)\s+at\s+"#,
+            with: { _ in "@" }
+        ).lowercased()
     }
 
-    private static var hiddenFileNameSet: Set<String> {
-        Set(hiddenFileNames.split(separator: "|").map(String.init))
+    private static var technicalSuffixSet: Set<String> {
+        Set(technicalSuffixes.split(separator: "|").map(String.init))
     }
 
     private static func tokens(in text: String) -> [Token] {

@@ -227,6 +227,16 @@ import Testing
     ])
 }
 
+@Test func addingAnExactIdentityCorrectionDoesNothing() {
+    let markdown = PersonalCorrections.defaultMarkdown
+    let updated = PersonalCorrections.appending(
+        PersonalCorrection(heard: "Portman", replacement: "Portman"),
+        to: markdown
+    )
+
+    #expect(updated == markdown)
+}
+
 @Test func spokenCorrectionCommandExtractsRuleAndSpellingHint() {
     let transcript = """
     Hey Dictation, you just transcribed it as en.is but what I actually said was ian.is \
@@ -257,9 +267,16 @@ import Testing
     """
 
     #expect(SpokenTechnicalTextNormalizer.normalize(transcript, context: .technical) == """
-    Send the results to Ian@example.com. Keep the threshold at 70% and \
+    Send the results to ian@example.com. Keep the threshold at 70% and \
     save the report under ~/dev/native/dictation/results before build 402.
     """)
+}
+
+@Test func spokenEmailAddressesAreLowercasedWithoutLowercasingPaths() {
+    let transcript = "Email Ian at Example dot COM and open ~/dev/MyProject/AppDelegate.swift."
+
+    #expect(SpokenTechnicalTextNormalizer.normalize(transcript, context: .technical) ==
+        "Email ian@example.com and open ~/dev/MyProject/AppDelegate.swift.")
 }
 
 @Test func proseFormattingDoesNotRewriteAmbiguousDomainLanguage() {
@@ -277,6 +294,13 @@ import Testing
     #expect(SpokenTechnicalTextNormalizer.normalize(transcript, context: .technical) == """
     Open .context, inspect ~/Documents/Research/notes.txt, and run tool --verbose.
     """)
+}
+
+@Test func agentModeFormatsGenericSpokenSymbolsWithoutGuessingIdentifierCase() {
+    let transcript = "Set scroll restoration colon true and open dot unfamiliar slash config."
+
+    #expect(SpokenTechnicalTextNormalizer.normalize(transcript, context: .technical) ==
+        "Set scroll restoration: true and open .unfamiliar/config.")
 }
 
 @Test func spokenDomainsHiddenFilesFlagsAndExtensionsBecomeLiteral() {
@@ -311,7 +335,28 @@ import Testing
     }
     let final = SpokenTechnicalTextNormalizer.normalize(partials.last!) + "."
     #expect(emitter.finish(final) != .conflict)
-    #expect(emitter.delivered == "Send it to Ian@example.com when build 402 reaches 70% and continue.")
+    #expect(emitter.delivered == "Send it to ian@example.com when build 402 reaches 70% and continue.")
+}
+
+@Test func technicalIncrementalDeliveryKeepsAThreeWordProvisionalTail() {
+    #expect(SpokenTechnicalTextNormalizer.incrementalPrefix(
+        "Open Sources slash DictationApp",
+        context: .technical
+    ) == "Open ")
+    #expect(SpokenTechnicalTextNormalizer.normalize(
+        "Open Sources slash DictationApp slash AppDelegate dot swift",
+        context: .technical
+    ) == "Open Sources/DictationApp/AppDelegate.swift")
+}
+
+@Test func observedCorrectionCommandVariantIsConsumedSafely() {
+    let transcript = """
+    Hey dictation, you just transcribed as Portman for what I actually said was portman por \
+    tna. Can you add that to my rules so you remember for next time.
+    """
+
+    #expect(SpokenCorrectionParser.parse(transcript, appNames: ["Dictation"]) ==
+        PersonalCorrection(heard: "Portman", replacement: "Portman"))
 }
 
 @Test func deterministicCleanerRemovesOnlyExplicitFillers() {

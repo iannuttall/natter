@@ -250,12 +250,17 @@ final class DictationCoordinator {
             return
         }
 
+        let visible = SpokenTechnicalTextNormalizer.normalize(
+            rawTranscript,
+            context: spokenFormattingContext
+        )
+        store.liveTranscript = PersonalCorrections.apply(sessionCorrections, to: visible)
+
         let normalized = SpokenTechnicalTextNormalizer.incrementalPrefix(
             rawTranscript,
             context: spokenFormattingContext
         )
         let corrected = PersonalCorrections.apply(sessionCorrections, to: normalized)
-        store.liveTranscript = corrected
         await deliverStablePartial(corrected)
     }
 
