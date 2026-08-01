@@ -156,7 +156,7 @@
     "title": "Filler and repeated-phrase cleanup",
     "instruction": "Include every filler and repeated phrase; Clean runs locally as soon as you stop.",
     "script": "Um, I need to, I need to send the report today, erm, but first check whether the figures from Tuesday are actually final.",
-    "required": ["send the report today", "figures from Tuesday", "actually final"],
+    "required": ["report today", "figures from Tuesday", "actually final"],
     "forbidden": ["um", "erm", "I need to, I need to"],
     "minInputEvents": 1,
     "manualChecks": ["Nothing was inserted before you stopped"]

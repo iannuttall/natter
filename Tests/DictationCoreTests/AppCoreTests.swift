@@ -212,6 +212,21 @@ import Testing
     #expect(PersonalCorrections.apply(rules, to: "open.island") == "open.island")
 }
 
+@Test func addingCorrectionUpdatesExistingHeardPhrase() {
+    let markdown = """
+    # Personal corrections
+    - "port man" → "Port Man"
+    """
+    let updated = PersonalCorrections.appending(
+        PersonalCorrection(heard: "Port Man", replacement: "Portman"),
+        to: markdown
+    )
+
+    #expect(PersonalCorrections.parse(updated) == [
+        PersonalCorrection(heard: "Port Man", replacement: "Portman")
+    ])
+}
+
 @Test func spokenCorrectionCommandExtractsRuleAndSpellingHint() {
     let transcript = """
     Hey Dictation, you just transcribed it as en.is but what I actually said was ian.is \
@@ -222,6 +237,70 @@ import Testing
     #expect(correction == PersonalCorrection(heard: "en.is", replacement: "ian.is"))
     #expect(SpokenCorrectionParser.couldBeCommand("hey dicta", appNames: ["Dictation"]))
     #expect(!SpokenCorrectionParser.couldBeCommand("here is the build", appNames: ["Dictation"]))
+}
+
+@Test func spokenCorrectionCommandCleansObservedPunctuationAndRepeatedSpelling() {
+    let transcript = """
+    Hey Dictation, you just transcribed it as Port Man, but what I actually said was \
+    Portman Portman. Can you add that to my rules so you remember for next time.
+    """
+    let correction = SpokenCorrectionParser.parse(transcript, appNames: ["Dictation"])
+
+    #expect(correction == PersonalCorrection(heard: "Port Man", replacement: "Portman"))
+}
+
+@Test func spokenTechnicalTokensBecomeLiteralWithoutAnLLM() {
+    let transcript = """
+    Send the results to Ian at example dot com. Keep the threshold at seventy percent and \
+    save the report under tilde slash dev slash native slash dictation slash results before \
+    build four oh two.
+    """
+
+    #expect(SpokenTechnicalTextNormalizer.normalize(transcript, context: .technical) == """
+    Send the results to Ian@example.com. Keep the threshold at 70% and \
+    save the report under ~/dev/native/dictation/results before build 402.
+    """)
+}
+
+@Test func proseFormattingDoesNotRewriteAmbiguousDomainLanguage() {
+    let transcript = "Calculate the dot product, discuss slash fiction, and meet Ian at five."
+
+    #expect(SpokenTechnicalTextNormalizer.normalize(transcript) == transcript)
+}
+
+@Test func spokenDomainsHiddenFilesFlagsAndExtensionsBecomeLiteral() {
+    let transcript = """
+    Open en dot is but leave open dot island unchanged, edit dot context, save output dot \
+    Json, and run git diff dash dash check.
+    """
+
+    #expect(SpokenTechnicalTextNormalizer.normalize(transcript, context: .technical) == """
+    Open en.is but leave open.island unchanged, edit .context, save output.json, and run git \
+    diff --check.
+    """)
+}
+
+@Test func incrementalTechnicalNormalizationNeverRewritesDeliveredText() {
+    let partials = [
+        "Send it to Ian",
+        "Send it to Ian at",
+        "Send it to Ian at example",
+        "Send it to Ian at example dot",
+        "Send it to Ian at example dot com",
+        "Send it to Ian at example dot com when build four",
+        "Send it to Ian at example dot com when build four oh",
+        "Send it to Ian at example dot com when build four oh two",
+        "Send it to Ian at example dot com when build four oh two reaches seventy percent",
+        "Send it to Ian at example dot com when build four oh two reaches seventy percent and continue"
+    ]
+    var emitter = StableTranscriptEmitter()
+
+    for partial in partials {
+        #expect(emitter.observe(SpokenTechnicalTextNormalizer.incrementalPrefix(partial)) != .conflict)
+    }
+    let final = SpokenTechnicalTextNormalizer.normalize(partials.last!) + "."
+    #expect(emitter.finish(final) != .conflict)
+    #expect(emitter.delivered == "Send it to Ian@example.com when build 402 reaches 70% and continue.")
 }
 
 @Test func deterministicCleanerRemovesOnlyExplicitFillers() {

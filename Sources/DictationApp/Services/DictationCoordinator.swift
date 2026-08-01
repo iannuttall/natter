@@ -164,9 +164,13 @@ final class DictationCoordinator {
                     return
                 }
 
+                let normalizedTranscript = SpokenTechnicalTextNormalizer.normalize(
+                    rawTranscript,
+                    context: spokenFormattingContext
+                )
                 let correctedTranscript = PersonalCorrections.apply(
                     sessionCorrections,
-                    to: rawTranscript
+                    to: normalizedTranscript
                 )
                 let transcript: String
                 switch store.selectedMode {
@@ -246,7 +250,11 @@ final class DictationCoordinator {
             return
         }
 
-        let corrected = PersonalCorrections.apply(sessionCorrections, to: rawTranscript)
+        let normalized = SpokenTechnicalTextNormalizer.incrementalPrefix(
+            rawTranscript,
+            context: spokenFormattingContext
+        )
+        let corrected = PersonalCorrections.apply(sessionCorrections, to: normalized)
         store.liveTranscript = corrected
         await deliverStablePartial(corrected)
     }
@@ -374,6 +382,16 @@ final class DictationCoordinator {
 
     private var correctionAppNames: [String] {
         Array(Set([AppInfo.displayName, "Dictation"]))
+    }
+
+    private var spokenFormattingContext: SpokenFormattingContext {
+        if store.selectedMode == .agent
+            || DestinationApplicationKind.classify(
+                bundleIdentifier: focusTarget?.bundleIdentifier
+            ) == .terminal {
+            return .technical
+        }
+        return .prose
     }
 
     private func fail(_ error: Error) {
