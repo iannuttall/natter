@@ -99,6 +99,54 @@
     "manualChecks": []
   },
   {
+    "id": "agent-version-v2",
+    "category": "Agent formatting",
+    "mode": "Agent",
+    "title": "Compact spoken version",
+    "instruction": "Say the letter V followed by the word two.",
+    "script": "Deploy V two after the current checks pass.",
+    "required": ["v2", "current checks pass"],
+    "forbidden": ["V two"],
+    "minInputEvents": 1,
+    "manualChecks": []
+  },
+  {
+    "id": "agent-version-word",
+    "category": "Agent formatting",
+    "mode": "Agent",
+    "title": "Long version form stays long",
+    "instruction": "Say version two naturally; do not say the digit.",
+    "script": "Keep version two available during the migration.",
+    "required": ["version 2", "during the migration"],
+    "forbidden": ["version two", "v2"],
+    "minInputEvents": 1,
+    "manualChecks": []
+  },
+  {
+    "id": "agent-version-semantic",
+    "category": "Agent formatting",
+    "mode": "Agent",
+    "title": "Semantic version number",
+    "instruction": "Say every point and number exactly as displayed.",
+    "script": "The regression began in version two point one point zero.",
+    "required": ["version 2.1.0", "regression began"],
+    "forbidden": ["point one", "point zero"],
+    "minInputEvents": 1,
+    "manualChecks": []
+  },
+  {
+    "id": "agent-version-homophone",
+    "category": "Agent formatting",
+    "mode": "Agent",
+    "title": "Version homophone remains prose",
+    "instruction": "Read this as ordinary prose. The word too must not become the number 2.",
+    "script": "I think this version too needs another review.",
+    "required": ["version too", "another review"],
+    "forbidden": ["version 2", "v2"],
+    "minInputEvents": 1,
+    "manualChecks": []
+  },
+  {
     "id": "focus-control-change",
     "category": "Recovery",
     "mode": "Raw",

@@ -49,6 +49,12 @@ test("named regression preset stays short and references valid scenarios", () =>
   assert.equal(presets.delivery.length, 2);
   assert.ok(presets.delivery.every((id) => scenarioIds.has(id)));
   assert.deepEqual(presets.repair, ["raw-protected-facts"]);
+  assert.equal(presets.writing.length, 10);
+  assert.ok(presets.writing.every((id) => scenarioIds.has(id)));
+  assert.deepEqual(
+    new Set(presets.writing.map((id) => scenarios.find((scenario) => scenario.id === id).mode)),
+    new Set(["Agent", "Clean", "Email", "Article"]),
+  );
 });
 
 test("formatting corpus separates deterministic grammar from smart formatting", () => {

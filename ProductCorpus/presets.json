@@ -12,5 +12,17 @@
   ],
   "repair": [
     "raw-protected-facts"
+  ],
+  "writing": [
+    "agent-version-v2",
+    "agent-version-word",
+    "agent-version-semantic",
+    "agent-version-homophone",
+    "clean-fillers",
+    "clean-tone",
+    "email-direct",
+    "email-uncertainty",
+    "article-structure",
+    "article-no-invention"
   ]
 }

@@ -2,6 +2,7 @@ const storageKey = "dictation-product-corpus-v2";
 const allScenarios = await fetch("scenarios.json", { cache: "no-store" }).then((response) => response.json());
 const presets = await fetch("presets.json", { cache: "no-store" }).then((response) => response.json());
 const routePreset = window.location.pathname.split("/").filter(Boolean).at(-1);
+const waitsForWritingModel = routePreset === "writing";
 const requestedScenarioIds = presets[routePreset] || new URLSearchParams(window.location.search)
   .get("only")
   ?.split(",")
@@ -29,6 +30,13 @@ let hotkeyFirstTapAt = 0;
 let settlingTask = null;
 let attempt = 1;
 let attemptOutputs = [];
+
+if (waitsForWritingModel) {
+  document.title = "Dictation Formatting and Writing Run";
+  elements.eyebrow.textContent = "Formatting + writing checkout";
+  elements.pageTitle.textContent = "Speak it. We’ll handle the rest.";
+  elements.pageDescription.textContent = "Ten short tests cover versions, Clean, Email and Article. The runner waits automatically if Writing Tools is still downloading.";
+}
 
 function scenario() {
   return scenarios[currentIndex];
@@ -113,13 +121,9 @@ async function prepareCurrentScenario() {
   attemptOutputs = [];
   renderScenario();
 
-  if (["Email", "Article"].includes(scenario().mode)) {
-    try {
-      const status = await fetch("/api/status", { cache: "no-store" }).then((response) => response.json());
-      if (!status.writingInstalled) return skipMissingWritingModel();
-    } catch {
-      return skipMissingWritingModel();
-    }
+  if (["Email", "Article"].includes(scenario().mode) && !(await writingModelInstalled())) {
+    if (waitsForWritingModel) return waitForWritingModel();
+    return skipMissingWritingModel();
   }
 
   try {
@@ -141,6 +145,31 @@ async function prepareCurrentScenario() {
 
   await new Promise((resolve) => window.setTimeout(resolve, 350));
   armScenario();
+}
+
+async function writingModelInstalled() {
+  try {
+    const response = await fetch("/api/status", { cache: "no-store" });
+    if (!response.ok) return false;
+    const status = await response.json();
+    return Boolean(status.writingInstalled);
+  } catch {
+    return false;
+  }
+}
+
+function waitForWritingModel() {
+  phase = "waiting-model";
+  elements.runState.textContent = "Waiting for the Writing Tools download to finish…";
+  elements.saveState.textContent = "Checking model…";
+  settlingTask = window.setTimeout(async () => {
+    if (phase !== "waiting-model") return;
+    if (await writingModelInstalled()) {
+      elements.runState.textContent = "Writing Tools ready · continuing automatically…";
+      return prepareCurrentScenario();
+    }
+    waitForWritingModel();
+  }, 2_000);
 }
 
 function skipMissingWritingModel() {

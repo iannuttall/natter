@@ -50,7 +50,7 @@ class CorpusHandler(SimpleHTTPRequestHandler):
                 timeout=2,
             )
             return self.send_json({"text": completed.stdout})
-        if path in {"/regression", "/delivery", "/repair"}:
+        if path in {"/regression", "/delivery", "/repair", "/writing"}:
             self.path = "/index.html"
         return super().do_GET()
 

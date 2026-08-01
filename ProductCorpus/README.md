@@ -16,6 +16,8 @@ Email and Article scenarios are saved as skipped when their optional Writing too
 
 For a targeted regression run, pass comma-separated scenario IDs in `?only=`, for example `?only=raw-protected-facts,clean-facts`.
 
+Open `http://127.0.0.1:4173/writing` for the guided formatting and writing-mode run. It contains ten short Agent, Clean, Email and Article tests. If the optional Writing Tools download is still running when the wizard reaches Email, it waits and resumes automatically.
+
 Nothing is uploaded. The server is bound to `127.0.0.1`, accepts only its own browser origin, and saves the active run atomically to `ProductCorpus/Results/latest.json` plus a run-specific JSON file. Recovery tests read the local macOS clipboard through the same server.
 
 ## Formatting layers
