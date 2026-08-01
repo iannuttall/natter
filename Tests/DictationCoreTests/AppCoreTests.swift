@@ -328,25 +328,72 @@ import Testing
         "Send it to Ian at example dot com when build four oh two reaches seventy percent",
         "Send it to Ian at example dot com when build four oh two reaches seventy percent and continue"
     ]
+    var stabilizer = StableTranscriptStabilizer(trailingTokenCount: 3)
     var emitter = StableTranscriptEmitter()
 
     for partial in partials {
-        #expect(emitter.observe(SpokenTechnicalTextNormalizer.incrementalPrefix(partial)) != .conflict)
+        let formatted = SpokenTechnicalTextNormalizer.normalize(partial, context: .technical)
+        guard case let .prefix(prefix) = stabilizer.observe(formatted) else {
+            Issue.record("stable hypothesis unexpectedly conflicted")
+            return
+        }
+        #expect(emitter.observe(prefix) != .conflict)
     }
-    let final = SpokenTechnicalTextNormalizer.normalize(partials.last!) + "."
+    let final = SpokenTechnicalTextNormalizer.normalize(
+        partials.last!,
+        context: .technical
+    ) + "."
     #expect(emitter.finish(final) != .conflict)
     #expect(emitter.delivered == "Send it to ian@example.com when build 402 reaches 70% and continue.")
 }
 
-@Test func technicalIncrementalDeliveryKeepsAThreeWordProvisionalTail() {
-    #expect(SpokenTechnicalTextNormalizer.incrementalPrefix(
-        "Open Sources slash DictationApp",
-        context: .technical
-    ) == "Open ")
-    #expect(SpokenTechnicalTextNormalizer.normalize(
-        "Open Sources slash DictationApp slash AppDelegate dot swift",
-        context: .technical
-    ) == "Open Sources/DictationApp/AppDelegate.swift")
+@Test func technicalStabilizerDoesNotSplitSpokenSymbolsOrRevisedPaths() {
+    let partials = [
+        "Open dot",
+        "Open dot context inspect",
+        "Open dot context inspect tilde slash Documents",
+        "Open dot context inspect tilde slash Documents slash Research slash notes",
+        "Open dot context inspect tilde slash Documents slash Research slash notes dot txt and run",
+        "Open dot context inspect tilde slash Documents slash Research slash notes dot txt and run tool dash dash verbose"
+    ]
+    var stabilizer = StableTranscriptStabilizer(trailingTokenCount: 3)
+    var emitter = StableTranscriptEmitter()
+
+    for partial in partials {
+        let formatted = SpokenTechnicalTextNormalizer.normalize(partial, context: .technical)
+        guard case let .prefix(prefix) = stabilizer.observe(formatted) else {
+            Issue.record("stable hypothesis unexpectedly conflicted")
+            return
+        }
+        #expect(emitter.observe(prefix) != .conflict)
+    }
+
+    let final = SpokenTechnicalTextNormalizer.normalize(partials.last!, context: .technical)
+    #expect(emitter.finish(final) != .conflict)
+    #expect(emitter.delivered == "Open .context inspect ~/Documents/Research/notes.txt and run tool --verbose")
+}
+
+@Test func technicalStabilizerSurvivesAProvisionalCodeWordRevision() {
+    let hypotheses = [
+        "Open sources",
+        "Open sources app",
+        "Open Sources/DictationApp/AppDelegate.swift keep the main actor",
+        "Open Sources/DictationApp/AppDelegate.swift keep the main actor annotation and continue"
+    ]
+    var stabilizer = StableTranscriptStabilizer(trailingTokenCount: 3)
+    var emitter = StableTranscriptEmitter()
+
+    for hypothesis in hypotheses {
+        guard case let .prefix(prefix) = stabilizer.observe(hypothesis) else {
+            Issue.record("stable hypothesis unexpectedly conflicted")
+            return
+        }
+        #expect(emitter.observe(prefix) != .conflict)
+    }
+
+    let final = hypotheses.last!
+    #expect(emitter.finish(final) != .conflict)
+    #expect(emitter.delivered == final)
 }
 
 @Test func observedCorrectionCommandVariantIsConsumedSafely() {

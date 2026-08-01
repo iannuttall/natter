@@ -16,6 +16,7 @@ final class DictationCoordinator {
     private var sessionTask: Task<Void, Never>?
     private var focusTarget: FocusedTextTarget?
     private var emitter = StableTranscriptEmitter()
+    private var stabilizer = StableTranscriptStabilizer(trailingTokenCount: 1)
     private var deliveryIssue: String?
     private var sessionCorrections: [PersonalCorrection] = []
     private var commandCandidate = false
@@ -92,6 +93,9 @@ final class DictationCoordinator {
         sessionCorrections = rules.corrections
         commandCandidate = false
         captureFocusTarget()
+        stabilizer = StableTranscriptStabilizer(
+            trailingTokenCount: spokenFormattingContext == .technical ? 3 : 1
+        )
         store.phase = .preparing
         store.statusMessage = "Loading local speech model…"
         overlay.show()
@@ -256,12 +260,13 @@ final class DictationCoordinator {
         )
         store.liveTranscript = PersonalCorrections.apply(sessionCorrections, to: visible)
 
-        let normalized = SpokenTechnicalTextNormalizer.incrementalPrefix(
-            rawTranscript,
-            context: spokenFormattingContext
-        )
-        let corrected = PersonalCorrections.apply(sessionCorrections, to: normalized)
-        await deliverStablePartial(corrected)
+        switch stabilizer.observe(store.liveTranscript) {
+        case let .prefix(prefix):
+            await deliverStablePartial(prefix)
+        case .conflict:
+            deliveryIssue = "The live transcript changed after text had already been typed."
+            store.statusMessage = "Still listening · transcript will be copied"
+        }
     }
 
     private func deliverFinalTranscript(_ transcript: String) async {

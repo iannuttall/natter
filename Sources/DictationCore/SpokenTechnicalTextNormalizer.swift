@@ -6,11 +6,6 @@ public enum SpokenFormattingContext: Sendable {
 }
 
 public enum SpokenTechnicalTextNormalizer {
-    private struct Token {
-        let range: Range<String.Index>
-        let value: String
-    }
-
     private static let digitWords: [String: String] = [
         "zero": "0", "oh": "0", "one": "1", "two": "2", "three": "3",
         "four": "4", "five": "5", "six": "6", "seven": "7", "eight": "8",
@@ -82,94 +77,6 @@ public enum SpokenTechnicalTextNormalizer {
         return result
     }
 
-    public static func incrementalPrefix(
-        _ transcript: String,
-        context: SpokenFormattingContext = .prose
-    ) -> String {
-        let tokens = tokens(in: transcript)
-        guard !tokens.isEmpty else { return "" }
-
-        let trailingTokenCount = context == .technical ? 3 : 1
-        let trailingTokenIndex = max(0, tokens.count - trailingTokenCount)
-        var cutoff = tokens[trailingTokenIndex].range.lowerBound
-        func hold(from tokenIndex: Int) {
-            guard tokens.indices.contains(tokenIndex) else { return }
-            cutoff = min(cutoff, tokens[tokenIndex].range.lowerBound)
-        }
-
-        for index in tokens.indices {
-            let value = tokens[index].value
-
-            if value == "at" {
-                guard index > 0 else { continue }
-                if index + 2 >= tokens.count {
-                    hold(from: index - 1)
-                } else if tokens[index + 2].value == "dot" {
-                    var suffixIndex = index + 3
-                    guard suffixIndex < tokens.count else {
-                        hold(from: index - 1)
-                        continue
-                    }
-                    while suffixIndex + 1 < tokens.count,
-                          tokens[suffixIndex + 1].value == "dot" {
-                        suffixIndex += 2
-                    }
-                    if suffixIndex + 1 >= tokens.count {
-                        hold(from: index - 1)
-                    }
-                }
-            }
-
-            if value == "dot" {
-                let suffixIndex = index + 1
-                guard suffixIndex < tokens.count else {
-                    hold(from: max(0, index - 1))
-                    continue
-                }
-                let suffix = tokens[suffixIndex].value
-                guard context == .technical || technicalSuffixSet.contains(suffix) else { continue }
-                if suffixIndex + 1 >= tokens.count {
-                    hold(from: context == .technical ? index : max(0, index - 1))
-                }
-            }
-
-            if value == "slash", context == .technical || tokens[..<index].contains(where: {
-                $0.value == "tilde"
-            }) {
-                var firstSlash = index
-                while firstSlash >= 2, tokens[firstSlash - 2].value == "slash" {
-                    firstSlash -= 2
-                }
-                if index + 2 >= tokens.count {
-                    hold(from: max(0, firstSlash - 1))
-                }
-            }
-
-            if value == "tilde", index + 1 >= tokens.count {
-                hold(from: index)
-            }
-
-            if digitWords[value] != nil {
-                var end = index
-                while end + 1 < tokens.count, digitWords[tokens[end + 1].value] != nil {
-                    end += 1
-                }
-                if end > index, end + 1 >= tokens.count {
-                    hold(from: index)
-                }
-            }
-
-            if percentValues[value] != nil,
-               index + 1 < tokens.count,
-               tokens[index + 1].value == "percent",
-               index + 2 >= tokens.count {
-                hold(from: index)
-            }
-        }
-
-        return normalize(String(transcript[..<cutoff]), context: context)
-    }
-
     private static func dotSuffix(_ match: String) -> String {
         let suffix = match.split(whereSeparator: { $0.isWhitespace }).last ?? ""
         return "." + suffix.lowercased()
@@ -195,22 +102,6 @@ public enum SpokenTechnicalTextNormalizer {
             pattern: #"(?i)\s+at\s+"#,
             with: { _ in "@" }
         ).lowercased()
-    }
-
-    private static var technicalSuffixSet: Set<String> {
-        Set(technicalSuffixes.split(separator: "|").map(String.init))
-    }
-
-    private static func tokens(in text: String) -> [Token] {
-        guard let regex = try? NSRegularExpression(pattern: #"\S+"#) else { return [] }
-        let punctuation = CharacterSet.punctuationCharacters
-        return regex.matches(in: text, range: NSRange(text.startIndex..., in: text)).compactMap {
-            guard let range = Range($0.range, in: text) else { return nil }
-            let value = String(text[range])
-                .lowercased()
-                .trimmingCharacters(in: punctuation)
-            return Token(range: range, value: value)
-        }
     }
 
     private static func replaceDigitSequences(in text: String) -> String {
