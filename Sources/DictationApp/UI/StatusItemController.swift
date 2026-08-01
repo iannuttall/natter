@@ -8,6 +8,7 @@ final class StatusItemController: NSObject, NSMenuDelegate {
     private let modelManager: ModelManager
     private let permissions: PermissionController
     private let rules: RulesManager
+    private let profiles: ApplicationProfileManager
     private let statusItem: NSStatusItem
     private let menu = NSMenu()
 
@@ -15,12 +16,14 @@ final class StatusItemController: NSObject, NSMenuDelegate {
         store: DictationStore,
         modelManager: ModelManager,
         permissions: PermissionController,
-        rules: RulesManager
+        rules: RulesManager,
+        profiles: ApplicationProfileManager
     ) {
         self.store = store
         self.modelManager = modelManager
         self.permissions = permissions
         self.rules = rules
+        self.profiles = profiles
         statusItem = NSStatusBar.system.statusItem(withLength: NSStatusItem.squareLength)
         super.init()
 
@@ -128,7 +131,8 @@ final class StatusItemController: NSObject, NSMenuDelegate {
             store: store,
             modelManager: modelManager,
             permissions: permissions,
-            rules: rules
+            rules: rules,
+            profiles: profiles
         )
     }
 

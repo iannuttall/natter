@@ -10,6 +10,8 @@ final class ModifierHotKeyMonitor {
     private var edgeTracker = ModifierKeyEdgeTracker()
     private var globalMonitor: Any?
     private var localMonitor: Any?
+    private var pressStartedDuringSession = false
+    private var startTriggeredForPress = false
 
     init(
         store: DictationStore,
@@ -54,22 +56,29 @@ final class ModifierHotKeyMonitor {
         let sessionIsActive = store.phase == .preparing || store.phase == .listening
 
         if !modifierIsActive {
-            if holdDetector.keyUp(
-                at: event.timestamp,
-                sessionIsActive: sessionIsActive
-            ) {
+            guard let gesture = holdDetector.keyUp(at: event.timestamp) else { return }
+            defer {
+                pressStartedDuringSession = false
+                startTriggeredForPress = false
+            }
+            if gesture == .hold {
                 detector.reset()
                 actionHandler(.cycleMode)
+            } else if pressStartedDuringSession && !startTriggeredForPress {
+                actionHandler(.stop)
             }
             return
         }
         guard pressed else { return }
 
-        holdDetector.keyDown(at: event.timestamp, sessionIsActive: sessionIsActive)
-        if let action = detector.keyDown(
+        pressStartedDuringSession = sessionIsActive
+        startTriggeredForPress = false
+        holdDetector.keyDown(at: event.timestamp)
+        if !sessionIsActive, let action = detector.keyDown(
             at: event.timestamp,
-            sessionIsActive: sessionIsActive
+            sessionIsActive: false
         ) {
+            startTriggeredForPress = action == .start
             actionHandler(action)
         }
     }

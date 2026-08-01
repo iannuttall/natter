@@ -11,7 +11,8 @@ final class SettingsWindow: NSObject, NSWindowDelegate {
         store: DictationStore,
         modelManager: ModelManager,
         permissions: PermissionController,
-        rules: RulesManager
+        rules: RulesManager,
+        profiles: ApplicationProfileManager
     ) {
         if let window {
             NSApp.activate(ignoringOtherApps: true)
@@ -34,7 +35,8 @@ final class SettingsWindow: NSObject, NSWindowDelegate {
                 store: store,
                 modelManager: modelManager,
                 permissions: permissions,
-                rules: rules
+                rules: rules,
+                profiles: profiles
             )
         )
         self.window = window

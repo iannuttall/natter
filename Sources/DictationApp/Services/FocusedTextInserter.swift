@@ -6,6 +6,7 @@ import Foundation
 struct FocusedTextTarget {
     let processIdentifier: pid_t
     let bundleIdentifier: String?
+    let applicationName: String?
     let element: AXUIElement
     let window: AXUIElement?
     let elementFingerprint: AccessibilityFingerprint
@@ -67,6 +68,7 @@ final class FocusedTextInserter {
         return FocusedTextTarget(
             processIdentifier: application.processIdentifier,
             bundleIdentifier: application.bundleIdentifier,
+            applicationName: application.localizedName,
             element: focusedElement,
             window: focusedWindow,
             elementFingerprint: fingerprint(of: focusedElement),

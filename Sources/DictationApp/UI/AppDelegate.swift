@@ -10,6 +10,7 @@ final class AppDelegate: NSObject, NSApplicationDelegate {
     private var modelManager: ModelManager?
     private var permissions: PermissionController?
     private var rules: RulesManager?
+    private var profiles: ApplicationProfileManager?
 
     func applicationDidFinishLaunching(_ notification: Notification) {
         NSApp.setActivationPolicy(.accessory)
@@ -17,19 +18,23 @@ final class AppDelegate: NSObject, NSApplicationDelegate {
         let modelManager = ModelManager(speechTranscriber: speechTranscriber)
         let permissions = PermissionController()
         let rules = RulesManager()
+        let profiles = ApplicationProfileManager()
         self.modelManager = modelManager
         self.permissions = permissions
         self.rules = rules
+        self.profiles = profiles
         statusItemController = StatusItemController(
             store: store,
             modelManager: modelManager,
             permissions: permissions,
-            rules: rules
+            rules: rules,
+            profiles: profiles
         )
         let coordinator = DictationCoordinator(
             store: store,
             transcriber: speechTranscriber,
-            rules: rules
+            rules: rules,
+            profiles: profiles
         )
         self.coordinator = coordinator
         let hotKeyMonitor = ModifierHotKeyMonitor(store: store) { [weak coordinator] action in
@@ -45,7 +50,8 @@ final class AppDelegate: NSObject, NSApplicationDelegate {
                 store: store,
                 modelManager: modelManager,
                 permissions: permissions,
-                rules: rules
+                rules: rules,
+                profiles: profiles
             )
         }
 

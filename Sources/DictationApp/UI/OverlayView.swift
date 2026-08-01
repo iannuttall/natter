@@ -5,18 +5,19 @@ struct OverlayView: View {
     @Bindable var store: DictationStore
 
     var body: some View {
+        switch store.overlayStyle {
+        case .full:
+            fullOverlay
+        case .compact:
+            compactOverlay
+        case .hidden:
+            EmptyView()
+        }
+    }
+
+    private var fullOverlay: some View {
         VStack(alignment: .leading, spacing: 12) {
-            HStack(spacing: 8) {
-                Image(systemName: "waveform")
-                    .foregroundStyle(Theme.Colour.accent)
-                Text(store.selectedMode.label)
-                    .font(.system(size: 14, weight: .semibold))
-                Spacer()
-                levelMeter
-                Text(store.phase.label)
-                    .font(.system(size: 12, weight: .medium))
-                    .foregroundStyle(.secondary)
-            }
+            header
 
             ScrollViewReader { proxy in
                 ScrollView {
@@ -46,6 +47,48 @@ struct OverlayView: View {
             RoundedRectangle(cornerRadius: 18, style: .continuous)
                 .stroke(.white.opacity(0.12), lineWidth: 1)
         }
+    }
+
+    private var compactOverlay: some View {
+        HStack(spacing: 10) {
+            levelMeter
+            Text(store.selectedMode.label)
+                .font(.system(size: 14, weight: .semibold))
+            Text(store.phase.label)
+                .font(.system(size: 12, weight: .medium))
+                .foregroundStyle(.secondary)
+            Spacer(minLength: 0)
+        }
+        .padding(.horizontal, 16)
+        .frame(width: 250, height: 56)
+        .background(.ultraThickMaterial)
+        .clipShape(Capsule())
+        .overlay { Capsule().stroke(.white.opacity(0.12), lineWidth: 1) }
+    }
+
+    private var header: some View {
+        HStack(spacing: 8) {
+            Image(systemName: "waveform")
+                .foregroundStyle(Theme.Colour.accent)
+            VStack(alignment: .leading, spacing: 0) {
+                Text(store.selectedMode.label)
+                    .font(.system(size: 14, weight: .semibold))
+                if let context = modeContext {
+                    Text(context)
+                        .font(.system(size: 10))
+                        .foregroundStyle(.tertiary)
+                }
+            }
+            Spacer()
+            levelMeter
+            Text(store.phase.label)
+                .font(.system(size: 12, weight: .medium))
+                .foregroundStyle(.secondary)
+        }
+    }
+
+    private var modeContext: String? {
+        store.activeModeSource ?? store.activeApplicationName
     }
 
     private var transcript: String {

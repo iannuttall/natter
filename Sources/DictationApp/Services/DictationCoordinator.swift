@@ -7,6 +7,7 @@ final class DictationCoordinator {
     private let microphone = MicrophoneCapture()
     private let transcriber: SpeechTranscriber
     private let rules: RulesManager
+    private let profiles: ApplicationProfileManager
     private let writingEngine = WritingEngine()
     private let textInserter = FocusedTextInserter()
     private let recovery = TranscriptRecovery()
@@ -25,11 +26,13 @@ final class DictationCoordinator {
     init(
         store: DictationStore,
         transcriber: SpeechTranscriber,
-        rules: RulesManager
+        rules: RulesManager,
+        profiles: ApplicationProfileManager
     ) {
         self.store = store
         self.transcriber = transcriber
         self.rules = rules
+        self.profiles = profiles
         overlay = OverlayPanelController(store: store)
     }
 
@@ -42,9 +45,13 @@ final class DictationCoordinator {
     }
 
     private func cycleMode() {
+        if store.phase == .listening {
+            cycleActiveMode()
+            return
+        }
         guard store.canStart else { return }
         sessionTask?.cancel()
-        store.selectNextMode()
+        store.selectNextModeForSession()
         store.liveTranscript = ""
         store.statusMessage = "\(store.selectedMode.label) mode selected"
         overlay.show()
@@ -54,6 +61,24 @@ final class DictationCoordinator {
             overlay.hide()
             store.statusMessage = nil
         }
+    }
+
+    private func cycleActiveMode() {
+        let nextMode = nextAvailableMode(after: store.selectedMode)
+        store.selectDuringSession(nextMode)
+        store.statusMessage = nextMode.typesIncrementally
+            ? "Switched to \(nextMode.label) · typing live"
+            : "Switched to \(nextMode.label) · finishes when you stop"
+    }
+
+    private func nextAvailableMode(after mode: DictationMode) -> DictationMode {
+        var candidate = mode.next
+        let paths = AppPaths.live(bundleIdentifier: AppInfo.bundleIdentifier)
+        let writingModelIsAvailable = WritingModelLocation.resolve(in: paths) != nil
+        while candidate.isGenerative && !writingModelIsAvailable {
+            candidate = candidate.next
+        }
+        return candidate
     }
 
     func prepareForDebug() {
@@ -111,6 +136,12 @@ final class DictationCoordinator {
         sessionCorrections = rules.corrections
         commandCandidate = false
         captureFocusTarget()
+        let resolution = profiles.resolution(
+            bundleIdentifier: focusTarget?.bundleIdentifier,
+            defaultMode: store.defaultMode
+        )
+        store.prepareSessionMode(resolution)
+        store.activeApplicationName = focusTarget?.applicationName
         stabilizer = StableTranscriptStabilizer(trailingTokenCount: 3)
         store.phase = .preparing
         store.statusMessage = "Loading local speech model…"
@@ -412,7 +443,21 @@ final class DictationCoordinator {
             )
             store.liveTranscript = output
             store.finalTranscript = output
-            await insert(output)
+            if !emitter.delivered.isEmpty, let focusTarget {
+                do {
+                    try await textInserter.replaceInsertedText(
+                        emitter.delivered,
+                        with: output,
+                        in: focusTarget,
+                        paceTerminalInput: store.terminalPacingEnabled
+                    )
+                    deliveryIssue = nil
+                } catch {
+                    deliveryIssue = error.localizedDescription
+                }
+            } else {
+                await insert(output)
+            }
             finishDelivery(of: output)
         } catch {
             recoverTranscript(transcript, reason: error.localizedDescription)
@@ -431,6 +476,12 @@ final class DictationCoordinator {
     private func hideOverlayAfterResult() async {
         try? await Task.sleep(for: .milliseconds(450))
         if store.phase == .idle || store.isRecoverable { overlay.hide() }
+        if store.phase == .idle {
+            store.restoreIdleMode(profiles.resolution(
+                bundleIdentifier: focusTarget?.bundleIdentifier,
+                defaultMode: store.defaultMode
+            ))
+        }
     }
 
     private func validateSelectedMode() throws {

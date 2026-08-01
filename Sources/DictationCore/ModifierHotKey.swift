@@ -27,32 +27,31 @@ public enum ModifierHotKeyAction: Equatable, Sendable {
     case cycleMode
 }
 
+public enum ModifierPressGesture: Equatable, Sendable {
+    case tap
+    case hold
+}
+
 public struct ModifierHoldDetector: Sendable {
     public let holdInterval: TimeInterval
     private var pressedAt: TimeInterval?
-    private var eligible = false
 
     public init(holdInterval: TimeInterval = 0.6) {
         self.holdInterval = holdInterval
     }
 
-    public mutating func keyDown(at time: TimeInterval, sessionIsActive: Bool) {
+    public mutating func keyDown(at time: TimeInterval) {
         pressedAt = time
-        eligible = !sessionIsActive
     }
 
-    public mutating func keyUp(at time: TimeInterval, sessionIsActive: Bool) -> Bool {
-        defer {
-            pressedAt = nil
-            eligible = false
-        }
-        guard eligible, !sessionIsActive, let pressedAt else { return false }
-        return time - pressedAt >= holdInterval
+    public mutating func keyUp(at time: TimeInterval) -> ModifierPressGesture? {
+        defer { pressedAt = nil }
+        guard let pressedAt else { return nil }
+        return time - pressedAt >= holdInterval ? .hold : .tap
     }
 
     public mutating func reset() {
         pressedAt = nil
-        eligible = false
     }
 }
 

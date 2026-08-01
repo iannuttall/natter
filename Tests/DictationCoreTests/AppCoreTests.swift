@@ -97,19 +97,17 @@ import Testing
     #expect(detector.keyDown(at: 10.8, sessionIsActive: false) == .start)
 }
 
-@Test func holdingTheDictationModifierCyclesModeOnlyWhileIdle() {
+@Test func modifierPressDistinguishesTapAndHold() {
     var detector = ModifierHoldDetector(holdInterval: 0.6)
 
-    detector.keyDown(at: 10, sessionIsActive: false)
-    let shortPress = detector.keyUp(at: 10.4, sessionIsActive: false)
-    detector.keyDown(at: 11, sessionIsActive: false)
-    let longPress = detector.keyUp(at: 11.7, sessionIsActive: false)
-    detector.keyDown(at: 12, sessionIsActive: true)
-    let activePress = detector.keyUp(at: 13, sessionIsActive: false)
+    detector.keyDown(at: 10)
+    let shortPress = detector.keyUp(at: 10.4)
+    detector.keyDown(at: 11)
+    let longPress = detector.keyUp(at: 11.7)
 
-    #expect(!shortPress)
-    #expect(longPress)
-    #expect(!activePress)
+    #expect(shortPress == .tap)
+    #expect(longPress == .hold)
+    #expect(detector.keyUp(at: 13) == nil)
 }
 
 @Test func dictationModesCycleInDisplayedOrder() {
@@ -118,6 +116,48 @@ import Testing
     #expect(DictationMode.clean.next == .email)
     #expect(DictationMode.email.next == .article)
     #expect(DictationMode.article.next == .raw)
+}
+
+@Test func appModeProfilesPreferExactAppThenGroupThenDefault() {
+    let configuration = ApplicationModeConfiguration(
+        groupModes: [.terminal: .agent, .mail: .email],
+        applications: [
+            ApplicationModeProfile(
+                bundleIdentifier: "com.mitchellh.ghostty",
+                displayName: "Ghostty",
+                mode: .raw
+            )
+        ]
+    )
+
+    #expect(configuration.resolve(
+        bundleIdentifier: "com.mitchellh.ghostty",
+        defaultMode: .clean
+    ) == ModeResolution(mode: .raw, source: .application("Ghostty")))
+    #expect(configuration.resolve(
+        bundleIdentifier: "com.apple.Terminal",
+        defaultMode: .clean
+    ) == ModeResolution(mode: .agent, source: .group(.terminal)))
+    #expect(configuration.resolve(
+        bundleIdentifier: "com.apple.mail",
+        defaultMode: .raw
+    ) == ModeResolution(mode: .email, source: .group(.mail)))
+    #expect(configuration.resolve(
+        bundleIdentifier: "com.apple.TextEdit",
+        defaultMode: .clean
+    ) == ModeResolution(mode: .clean, source: .defaultMode))
+}
+
+@Test func disabledAppModeProfilesAlwaysUseDefault() {
+    let configuration = ApplicationModeConfiguration(
+        enabled: false,
+        groupModes: [.terminal: .agent]
+    )
+
+    #expect(configuration.resolve(
+        bundleIdentifier: "com.apple.Terminal",
+        defaultMode: .raw
+    ) == ModeResolution(mode: .raw, source: .defaultMode))
 }
 
 @Test func speechModelRequiresEveryRuntimeFile() throws {

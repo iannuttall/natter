@@ -6,6 +6,7 @@ struct SettingsView: View {
     @Bindable var modelManager: ModelManager
     @Bindable var permissions: PermissionController
     @Bindable var rules: RulesManager
+    @Bindable var profiles: ApplicationProfileManager
 
     var body: some View {
         ScrollView {
@@ -14,7 +15,9 @@ struct SettingsView: View {
                 permissionRows
                 hotKeyPicker
                 terminalDelivery
+                overlayPreferences
                 modePicker
+                applicationProfiles
                 rulesButton
                 modelPacks
                 footer
@@ -26,6 +29,7 @@ struct SettingsView: View {
         .onAppear {
             modelManager.refresh()
             permissions.refresh()
+            profiles.refreshInstalledApplications()
         }
         .task {
             while !Task.isCancelled {
@@ -36,6 +40,26 @@ struct SettingsView: View {
                     break
                 }
             }
+        }
+    }
+
+    private var overlayPreferences: some View {
+        HStack(spacing: Theme.Space.regular) {
+            VStack(alignment: .leading, spacing: 2) {
+                Text("Recording overlay")
+                    .font(.headline)
+                Text("Full and compact overlays can be dragged and remember their position.")
+                    .font(.callout)
+                    .foregroundStyle(.secondary)
+            }
+            Spacer()
+            Picker("Recording overlay", selection: $store.overlayStyle) {
+                ForEach(OverlayStyle.allCases) { style in
+                    Text(style.label).tag(style)
+                }
+            }
+            .labelsHidden()
+            .frame(width: 180)
         }
     }
 
@@ -57,7 +81,7 @@ struct SettingsView: View {
             VStack(alignment: .leading, spacing: 2) {
                 Text("Dictation key")
                     .font(.headline)
-                Text("Double tap to start. Hold to switch mode. Tap once to stop.")
+                Text("Double tap to start. Hold before or during dictation to switch mode. Tap once to stop.")
                     .font(.callout)
                     .foregroundStyle(.secondary)
             }
@@ -89,13 +113,13 @@ struct SettingsView: View {
 
             ForEach(DictationMode.allCases) { mode in
                 Button {
-                    store.select(mode)
+                    store.selectDefault(mode)
                 } label: {
                     HStack(alignment: .top, spacing: Theme.Space.regular) {
-                        Image(systemName: store.selectedMode == mode
+                        Image(systemName: store.defaultMode == mode
                             ? "checkmark.circle.fill"
                             : "circle")
-                            .foregroundStyle(store.selectedMode == mode
+                            .foregroundStyle(store.defaultMode == mode
                                 ? Theme.Colour.accent
                                 : Color.secondary)
                         VStack(alignment: .leading, spacing: 2) {
@@ -116,6 +140,144 @@ struct SettingsView: View {
         .padding(Theme.Space.regular)
         .background(Theme.Colour.secondaryPanel)
         .clipShape(RoundedRectangle(cornerRadius: Theme.Radius.card))
+    }
+
+    private var applicationProfiles: some View {
+        VStack(alignment: .leading, spacing: Theme.Space.regular) {
+            Toggle("Choose modes automatically for apps", isOn: $profiles.isEnabled)
+                .font(.headline)
+
+            Text("An app assignment wins over its group. A mode chosen from the menu or by holding the dictation key wins for one recording.")
+                .font(.caption)
+                .foregroundStyle(.secondary)
+
+            ForEach(ApplicationGroup.allCases) { group in
+                HStack(spacing: Theme.Space.regular) {
+                    VStack(alignment: .leading, spacing: 2) {
+                        Text(group.label)
+                            .fontWeight(.medium)
+                        Text(group.detail)
+                            .font(.caption)
+                            .foregroundStyle(.secondary)
+                    }
+                    Spacer()
+                    Picker(group.label, selection: groupModeBinding(group)) {
+                        Text("Use default").tag(nil as DictationMode?)
+                        ForEach(DictationMode.allCases) { mode in
+                            Text(mode.label).tag(mode as DictationMode?)
+                        }
+                    }
+                    .labelsHidden()
+                    .frame(width: 135)
+                }
+            }
+
+            if !profiles.configuration.applications.isEmpty {
+                Divider()
+                ForEach(profiles.configuration.applications) { profile in
+                    HStack {
+                        VStack(alignment: .leading, spacing: 1) {
+                            Text(profile.displayName)
+                                .fontWeight(.medium)
+                            Text(profile.bundleIdentifier)
+                                .font(.caption2)
+                                .foregroundStyle(.tertiary)
+                        }
+                        Spacer()
+                        Picker(profile.displayName, selection: applicationModeBinding(profile)) {
+                            ForEach(DictationMode.allCases) { mode in
+                                Text(mode.label).tag(mode)
+                            }
+                        }
+                        .labelsHidden()
+                        .frame(width: 110)
+                        Button {
+                            profiles.remove(bundleIdentifier: profile.bundleIdentifier)
+                        } label: {
+                            Image(systemName: "trash")
+                        }
+                        .buttonStyle(.borderless)
+                    }
+                }
+            }
+
+            HStack {
+                Menu("Add installed app") {
+                    ForEach(unassignedApplications) { application in
+                        Button(application.displayName) {
+                            profiles.setMode(store.defaultMode, for: application)
+                        }
+                    }
+                    if unassignedApplications.isEmpty {
+                        Text("No unassigned apps found")
+                    }
+                }
+                Button("Choose App…") { chooseApplication() }
+                Spacer()
+            }
+
+            if let errorMessage = profiles.errorMessage {
+                Text(errorMessage)
+                    .font(.caption)
+                    .foregroundStyle(.red)
+            }
+        }
+        .padding(Theme.Space.regular)
+        .background(Theme.Colour.secondaryPanel)
+        .clipShape(RoundedRectangle(cornerRadius: Theme.Radius.card))
+        .disabled(store.phase.isBusy)
+        .opacity(profiles.isEnabled ? 1 : 0.72)
+    }
+
+    private var unassignedApplications: [InstalledApplication] {
+        let assigned = Set(profiles.configuration.applications.map {
+            $0.bundleIdentifier.lowercased()
+        })
+        return profiles.installedApplications.filter {
+            !assigned.contains($0.bundleIdentifier.lowercased())
+        }
+    }
+
+    private func groupModeBinding(_ group: ApplicationGroup) -> Binding<DictationMode?> {
+        Binding(
+            get: { profiles.mode(for: group) },
+            set: { profiles.setMode($0, for: group) }
+        )
+    }
+
+    private func applicationModeBinding(
+        _ profile: ApplicationModeProfile
+    ) -> Binding<DictationMode> {
+        Binding(
+            get: { profile.mode },
+            set: { mode in
+                if let application = profiles.installedApplications.first(where: {
+                    $0.bundleIdentifier == profile.bundleIdentifier
+                }) {
+                    profiles.setMode(mode, for: application)
+                } else {
+                    profiles.setMode(
+                        mode,
+                        for: InstalledApplication(
+                            bundleIdentifier: profile.bundleIdentifier,
+                            displayName: profile.displayName,
+                            url: URL(fileURLWithPath: "/")
+                        )
+                    )
+                }
+            }
+        )
+    }
+
+    private func chooseApplication() {
+        let panel = NSOpenPanel()
+        panel.allowedContentTypes = [.application]
+        panel.allowsMultipleSelection = false
+        panel.canChooseDirectories = false
+        guard panel.runModal() == .OK,
+              let url = panel.url,
+              let application = profiles.application(at: url) else { return }
+        profiles.setMode(store.defaultMode, for: application)
     }
 
     private var modelPacks: some View {
