@@ -105,9 +105,11 @@ node --test ProductCorpus/tests/scenarios.test.mjs
 `build-app.sh` uses Xcode rather than `swift build` so MLX's Metal shaders are
 compiled and copied into the signed app. Model weights are never bundled in the
 app; they live under Application Support and are installed through Settings.
-The script uses the first local code-signing identity by default so macOS keeps
-Microphone, Accessibility and Input Monitoring trust across development builds.
-Set `SIGN_IDENTITY` to choose a different certificate.
+The script uses a stable local code-signing identity so macOS keeps Microphone,
+Accessibility and Input Monitoring trust across development builds. It prefers
+a Developer ID identity when one is available. To pin one identity
+across machines or Keychain changes, put its full certificate name in the
+gitignored `.signing-identity` file. `SIGN_IDENTITY` still overrides both.
 
 For a Developer ID archive and notarized public release, see
 [`docs/RELEASING.md`](docs/RELEASING.md). Application and dependency licences

@@ -15,3 +15,4 @@ ProductCorpus/Results/*.json
 *.pem
 *.mobileprovision
 .release.env
+.signing-identity

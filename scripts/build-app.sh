@@ -10,8 +10,10 @@ bundle_id="${BUNDLE_ID:-is.ian.natter}"
 version="${VERSION:-0.1.0}"
 build_number="${BUILD_NUMBER:-1}"
 sign_identity="${SIGN_IDENTITY:-}"
+signing_identity_file="${SIGNING_IDENTITY_FILE:-$repo_dir/.signing-identity}"
 dist_dir="$repo_dir/dist"
 app_dir="$dist_dir/$app_name.app"
+legacy_app_dir="$dist_dir/Dictation.app"
 contents_dir="$app_dir/Contents"
 entitlements="$repo_dir/Config/Natter.entitlements"
 
@@ -40,6 +42,10 @@ case "$app_dir" in
         exit 70
         ;;
 esac
+
+if [[ "$app_name" == "Natter" && -d "$legacy_app_dir" ]]; then
+    rm -rf "$legacy_app_dir"
+fi
 
 mkdir -p "$contents_dir/MacOS" "$contents_dir/Resources"
 cp "$products_dir/$executable_name" "$contents_dir/MacOS/$executable_name"
@@ -89,11 +95,21 @@ done
 /usr/libexec/PlistBuddy -c "Add :CFBundleURLTypes:0:CFBundleURLSchemes:1 string ian-dictation" "$contents_dir/Info.plist"
 
 if [[ -z "$sign_identity" ]]; then
-    sign_identity="$(
-        security find-identity -v -p codesigning 2>/dev/null \
-            | sed -n 's/^[^"]*"\([^"]*\)".*$/\1/p' \
-            | sed -n '1p'
-    )"
+    if [[ -f "$signing_identity_file" ]]; then
+        IFS= read -r sign_identity < "$signing_identity_file"
+    else
+        available_identities="$(
+            security find-identity -v -p codesigning 2>/dev/null \
+                | sed -n 's/^[^"]*"\([^"]*\)".*$/\1/p'
+        )"
+        sign_identity="$(
+            print -r -- "$available_identities" \
+                | sed -n '/^Developer ID Application: /{p;q;}'
+        )"
+        if [[ -z "$sign_identity" ]]; then
+            sign_identity="$(print -r -- "$available_identities" | sed -n '1p')"
+        fi
+    fi
 fi
 
 if [[ -z "$sign_identity" ]]; then
