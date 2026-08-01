@@ -14,4 +14,6 @@ Quit Monologue before a run because it uses the same double Right Option shortcu
 
 Email and Article scenarios are saved as skipped when their optional Writing tools model is not installed, so the rest of the run can continue without waiting.
 
+For a targeted regression run, pass comma-separated scenario IDs in `?only=`, for example `?only=raw-protected-facts,clean-facts`.
+
 Nothing is uploaded. The server is bound to `127.0.0.1`, accepts only its own browser origin, and saves the active run atomically to `ProductCorpus/Results/latest.json` plus a run-specific JSON file. Recovery tests read the local macOS clipboard through the same server.
