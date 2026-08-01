@@ -1,6 +1,6 @@
 import Foundation
 
-public enum SpokenFormattingContext: Sendable {
+public enum SpokenFormattingContext: String, Codable, Sendable {
     case prose
     case technical
 }
@@ -41,6 +41,18 @@ public enum SpokenTechnicalTextNormalizer {
         context: SpokenFormattingContext = .prose
     ) -> String {
         var result = transcript
+        if context == .technical {
+            result = replaceMatches(
+                in: result,
+                pattern: spokenVersionPattern,
+                with: spokenVersion
+            )
+        }
+        result = replaceMatches(
+            in: result,
+            pattern: spokenDecimalPattern,
+            with: spokenDecimal
+        )
         result = replaceDigitSequences(in: result)
         result = replacePercentages(in: result)
         result = replaceMatches(
@@ -81,6 +93,87 @@ public enum SpokenTechnicalTextNormalizer {
             )
         }
         return result
+    }
+
+    private static let numberWords = [
+        "zero", "oh", "one", "two", "three", "four", "five", "six", "seven",
+        "eight", "nine", "ten", "eleven", "twelve", "thirteen", "fourteen",
+        "fifteen", "sixteen", "seventeen", "eighteen", "nineteen", "twenty",
+        "thirty", "forty", "fifty", "sixty", "seventy", "eighty", "ninety",
+        "hundred"
+    ]
+
+    private static let spokenVersionPattern: String = {
+        let word = "(?:" + numberWords.joined(separator: "|") + ")"
+        let component = "(?:[0-9]+|" + word + "(?:[ -]+" + word + ")*)"
+        return #"(?i)\b(?:v|version)\s+"# + component
+            + #"(?:\s+point\s+"# + component + #")*\b"#
+    }()
+
+    private static let spokenDecimalPattern: String = {
+        let word = "(?:" + numberWords.joined(separator: "|") + ")"
+        let whole = "(?:[0-9]+|" + word + "(?:[ -]+" + word + ")*)"
+        let decimalDigit = "(?:zero|oh|one|two|three|four|five|six|seven|eight|nine)"
+        return #"(?i)\b"# + whole + #"\s+point\s+"#
+            + decimalDigit + #"(?:[ -]+"# + decimalDigit + #")*\b"#
+    }()
+
+    private static func spokenDecimal(_ match: String) -> String {
+        let lowered = match.lowercased()
+        guard let range = lowered.range(of: " point "),
+              let whole = parseNumberComponent(String(lowered[..<range.lowerBound])) else {
+            return match
+        }
+        let decimalWords = lowered[range.upperBound...]
+            .split { $0 == " " || $0 == "-" }
+            .map(String.init)
+        let decimal = decimalWords.compactMap { digitWords[$0] }.joined()
+        guard decimal.count == decimalWords.count else { return match }
+        return whole + "." + decimal
+    }
+
+    private static func spokenVersion(_ match: String) -> String {
+        let pieces = match.split(whereSeparator: \.isWhitespace)
+        guard let first = pieces.first else { return match }
+        let prefix = first.lowercased() == "v" ? "v" : "version "
+        let remainder = pieces.dropFirst().joined(separator: " ").lowercased()
+        let components = remainder.components(separatedBy: " point ")
+        let values = components.compactMap(parseNumberComponent)
+        guard values.count == components.count else { return match }
+        return prefix + values.joined(separator: ".")
+    }
+
+    private static func parseNumberComponent(_ component: String) -> String? {
+        if component.allSatisfy(\.isNumber) {
+            return component
+        }
+
+        let words = component.lowercased().split { $0 == " " || $0 == "-" }.map(String.init)
+        guard !words.isEmpty else { return nil }
+        if words.allSatisfy({ digitWords[$0] != nil }) {
+            return words.compactMap { digitWords[$0] }.joined()
+        }
+
+        let small: [String: Int] = [
+            "zero": 0, "oh": 0, "one": 1, "two": 2, "three": 3, "four": 4,
+            "five": 5, "six": 6, "seven": 7, "eight": 8, "nine": 9, "ten": 10,
+            "eleven": 11, "twelve": 12, "thirteen": 13, "fourteen": 14,
+            "fifteen": 15, "sixteen": 16, "seventeen": 17, "eighteen": 18,
+            "nineteen": 19, "twenty": 20, "thirty": 30, "forty": 40,
+            "fifty": 50, "sixty": 60, "seventy": 70, "eighty": 80, "ninety": 90
+        ]
+        var current = 0
+        for word in words {
+            if word == "hundred" {
+                guard current > 0 else { return nil }
+                current *= 100
+            } else if let value = small[word] {
+                current += value
+            } else {
+                return nil
+            }
+        }
+        return String(current)
     }
 
     private static func dotSuffix(_ match: String) -> String {

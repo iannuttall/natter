@@ -8,6 +8,9 @@ const scenarios = JSON.parse(
 const presets = JSON.parse(
   await readFile(new URL("../presets.json", import.meta.url), "utf8"),
 );
+const formatting = JSON.parse(
+  await readFile(new URL("../formatting-fixtures.json", import.meta.url), "utf8"),
+);
 
 test("scenario ids are unique and every scenario is actionable", () => {
   assert.ok(scenarios.length >= 20);
@@ -46,4 +49,34 @@ test("named regression preset stays short and references valid scenarios", () =>
   assert.equal(presets.delivery.length, 2);
   assert.ok(presets.delivery.every((id) => scenarioIds.has(id)));
   assert.deepEqual(presets.repair, ["raw-protected-facts"]);
+});
+
+test("formatting corpus separates deterministic grammar from smart formatting", () => {
+  assert.ok(formatting.fixtures.length >= 30);
+  assert.equal(
+    new Set(formatting.fixtures.map((fixture) => fixture.id)).size,
+    formatting.fixtures.length,
+  );
+
+  const categories = new Set(formatting.fixtures.map((fixture) => fixture.category));
+  for (const category of [
+    "Versions",
+    "Identifiers",
+    "Flags",
+    "Numbers and units",
+    "Dates",
+    "Addresses and paths",
+    "Ambiguous prose",
+  ]) {
+    assert.ok(categories.has(category), `missing ${category}`);
+  }
+
+  for (const fixture of formatting.fixtures) {
+    assert.ok(["prose", "technical"].includes(fixture.context));
+    assert.ok(fixture.spoken);
+    assert.ok(fixture.deterministicExpected);
+    assert.ok(Array.isArray(fixture.protected));
+    assert.ok(Array.isArray(fixture.forbidden));
+    assert.equal(Boolean(fixture.smartInstructions), Boolean(fixture.smartExpected));
+  }
 });

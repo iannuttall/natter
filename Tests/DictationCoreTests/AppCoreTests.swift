@@ -319,6 +319,30 @@ import Testing
     ) == "Use -- and make it -- every time")
 }
 
+@Test func agentModeFormatsExplicitVersionGrammarWithoutChoosingAStyle() {
+    #expect(SpokenTechnicalTextNormalizer.normalize(
+        "Ship V two, keep version two, and test version two point one point zero.",
+        context: .technical
+    ) == "Ship v2, keep version 2, and test version 2.1.0.")
+}
+
+@Test func proseAndHomophonesDoNotBecomeVersionIdentifiers() {
+    #expect(SpokenTechnicalTextNormalizer.normalize(
+        "Chapter V two is printed here and this version too needs work.",
+        context: .prose
+    ) == "Chapter V two is printed here and this version too needs work.")
+    #expect(SpokenTechnicalTextNormalizer.normalize(
+        "This version too needs work.",
+        context: .technical
+    ) == "This version too needs work.")
+}
+
+@Test func explicitSpokenDecimalsBecomeDigits() {
+    #expect(SpokenTechnicalTextNormalizer.normalize(
+        "The download is five point two four gigabytes."
+    ) == "The download is 5.24 gigabytes.")
+}
+
 @Test func spokenDomainsHiddenFilesFlagsAndExtensionsBecomeLiteral() {
     let transcript = """
     Open en dot is but leave open dot island unchanged, edit dot context, save output dot \

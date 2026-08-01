@@ -10,6 +10,28 @@ import Testing
     #expect(prompt.components(separatedBy: "hello um world").count == 3)
 }
 
+@Test func smartFormattingUsesMinimalEditInstructions() {
+    let fixture = WritingFixture(
+        id: "smart",
+        mode: "Smart formatting",
+        instructions: "Format identifiers.",
+        transcript: "Set scroll restoration: true.",
+        expected: "Set scrollRestoration: true.",
+        required: [],
+        forbidden: []
+    )
+
+    let instructions = WritingBenchmark.systemInstructions(for: fixture)
+    #expect(instructions.contains("smallest possible edit"))
+    #expect(instructions.contains("Never translate prose into source code"))
+}
+
+@Test func smartFormattingRemovesUnrequestedMarkdownBackticks() {
+    #expect(WritingBenchmark.cleanMinimalFormattingEnvelope(
+        "Keep the `@MainActor` annotation."
+    ) == "Keep the @MainActor annotation.")
+}
+
 @Test func evaluationScoresRequirementsAndForbiddenText() {
     let fixture = makeFixture()
     let result = WritingBenchmark.evaluate(

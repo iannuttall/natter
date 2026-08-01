@@ -10,6 +10,7 @@ let package = Package(
     products: [
         .library(name: "DictationCore", targets: ["DictationCore"]),
         .executable(name: "dictation", targets: ["DictationApp"]),
+        .executable(name: "dictation-formatting-bench", targets: ["DictationFormattingBench"]),
         .executable(name: "dictation-parity", targets: ["DictationParity"])
     ],
     dependencies: [
@@ -39,6 +40,10 @@ let package = Package(
                 .product(name: "MLXLMCommon", package: "mlx-swift-lm"),
                 .product(name: "Tokenizers", package: "swift-transformers")
             ]
+        ),
+        .executableTarget(
+            name: "DictationFormattingBench",
+            dependencies: ["DictationCore"]
         ),
         .executableTarget(
             name: "DictationParity",

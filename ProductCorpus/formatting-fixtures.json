@@ -1,0 +1,319 @@
+{
+  "version": 1,
+  "fixtures": [
+    {
+      "id": "version-v-two",
+      "category": "Versions",
+      "context": "technical",
+      "spoken": "Deploy V two after the current checks pass.",
+      "deterministicExpected": "Deploy v2 after the current checks pass.",
+      "protected": ["v2", "current checks"],
+      "forbidden": ["V two"]
+    },
+    {
+      "id": "version-word-two",
+      "category": "Versions",
+      "context": "technical",
+      "spoken": "Keep version two available during the migration.",
+      "deterministicExpected": "Keep version 2 available during the migration.",
+      "protected": ["version 2", "migration"],
+      "forbidden": ["version two"],
+      "smartInstructions": "Lightly format this technical release note. Preserve the phrase version 2; do not abbreviate it.",
+      "smartExpected": "Keep version 2 available during the migration."
+    },
+    {
+      "id": "version-semantic",
+      "category": "Versions",
+      "context": "technical",
+      "spoken": "The regression began in version two point one point zero.",
+      "deterministicExpected": "The regression began in version 2.1.0.",
+      "protected": ["version 2.1.0", "regression"],
+      "forbidden": ["point one"]
+    },
+    {
+      "id": "version-v-twenty-one",
+      "category": "Versions",
+      "context": "technical",
+      "spoken": "The V twenty one API remains experimental.",
+      "deterministicExpected": "The v21 API remains experimental.",
+      "protected": ["v21", "experimental"],
+      "forbidden": ["twenty one"]
+    },
+    {
+      "id": "version-build-like-digits",
+      "category": "Versions",
+      "context": "technical",
+      "spoken": "Archive version four oh two before release.",
+      "deterministicExpected": "Archive version 402 before release.",
+      "protected": ["version 402"],
+      "forbidden": ["four oh two"]
+    },
+    {
+      "id": "version-prose-stays-literal",
+      "category": "Versions",
+      "context": "prose",
+      "spoken": "Chapter V two is the label printed in the source notes.",
+      "deterministicExpected": "Chapter V two is the label printed in the source notes.",
+      "protected": ["V two", "source notes"],
+      "forbidden": ["v2"]
+    },
+    {
+      "id": "version-too-ambiguous",
+      "category": "Versions",
+      "context": "technical",
+      "spoken": "I think this version too needs another review.",
+      "deterministicExpected": "I think this version too needs another review.",
+      "protected": ["version too", "another review"],
+      "forbidden": ["version 2", "v2"]
+    },
+    {
+      "id": "identifier-property",
+      "category": "Identifiers",
+      "context": "technical",
+      "spoken": "Set scroll restoration colon true in the router options.",
+      "deterministicExpected": "Set scroll restoration: true in the router options.",
+      "protected": ["scroll restoration: true", "router options"],
+      "forbidden": ["scrollRestoration"],
+      "smartInstructions": "This is a JavaScript configuration instruction. The project property identifier spoken as scroll restoration is scrollRestoration. Apply that casing and preserve every value and instruction.",
+      "smartExpected": "Set scrollRestoration: true in the router options.",
+      "smartRequired": ["scrollRestoration: true", "router options"],
+      "smartForbidden": ["scroll restoration", "false"]
+    },
+    {
+      "id": "identifier-app-delegate",
+      "category": "Identifiers",
+      "context": "technical",
+      "spoken": "Open app delegate and inspect the launch handler.",
+      "deterministicExpected": "Open app delegate and inspect the launch handler.",
+      "protected": ["app delegate", "launch handler"],
+      "forbidden": ["AppDelegate"],
+      "smartInstructions": "This is a Swift code instruction. Format conventional Swift type names when the context is unambiguous.",
+      "smartExpected": "Open AppDelegate and inspect the launch handler.",
+      "smartRequired": ["AppDelegate", "launch handler"],
+      "smartForbidden": ["ApplicationDelegate"]
+    },
+    {
+      "id": "identifier-main-actor",
+      "category": "Identifiers",
+      "context": "technical",
+      "spoken": "Keep the main actor annotation on the coordinator.",
+      "deterministicExpected": "Keep the main actor annotation on the coordinator.",
+      "protected": ["main actor", "coordinator"],
+      "forbidden": ["@MainActor"],
+      "smartInstructions": "This is a Swift code instruction. Format named language annotations when clearly implied without changing the request.",
+      "smartExpected": "Keep the @MainActor annotation on the coordinator.",
+      "smartRequired": ["@MainActor", "coordinator"],
+      "smartForbidden": ["MainActor.run", "`"]
+    },
+    {
+      "id": "identifier-no-invention",
+      "category": "Identifiers",
+      "context": "technical",
+      "spoken": "Rename the blue handler after checking every caller.",
+      "deterministicExpected": "Rename the blue handler after checking every caller.",
+      "protected": ["blue handler", "every caller"],
+      "forbidden": ["BlueHandler", "blueHandler"]
+    },
+    {
+      "id": "flag-double-dash",
+      "category": "Flags",
+      "context": "technical",
+      "spoken": "Run tool double dash verbose after the build.",
+      "deterministicExpected": "Run tool --verbose after the build.",
+      "protected": ["--verbose", "after the build"],
+      "forbidden": ["double dash"]
+    },
+    {
+      "id": "flag-dash-dash",
+      "category": "Flags",
+      "context": "technical",
+      "spoken": "Run git diff dash dash check before committing.",
+      "deterministicExpected": "Run git diff --check before committing.",
+      "protected": ["git diff --check", "before committing"],
+      "forbidden": ["dash dash"]
+    },
+    {
+      "id": "flag-two-hyphens",
+      "category": "Flags",
+      "context": "technical",
+      "spoken": "Start the server with two hyphens force once.",
+      "deterministicExpected": "Start the server with --force once.",
+      "protected": ["--force", "once"],
+      "forbidden": ["two hyphens"]
+    },
+    {
+      "id": "flag-standalone-boundary",
+      "category": "Flags",
+      "context": "technical",
+      "spoken": "Use dash dash and pass the remaining values unchanged.",
+      "deterministicExpected": "Use -- and pass the remaining values unchanged.",
+      "protected": ["-- and", "remaining values"],
+      "forbidden": ["--and"]
+    },
+    {
+      "id": "flag-every-boundary",
+      "category": "Flags",
+      "context": "technical",
+      "spoken": "It should emit dash dash every time I say it explicitly.",
+      "deterministicExpected": "It should emit -- every time I say it explicitly.",
+      "protected": ["-- every time", "explicitly"],
+      "forbidden": ["--every"]
+    },
+    {
+      "id": "flag-double-check-ambiguous",
+      "category": "Flags",
+      "context": "technical",
+      "spoken": "Please double check the release notes before publishing.",
+      "deterministicExpected": "Please double check the release notes before publishing.",
+      "protected": ["double check", "before publishing"],
+      "forbidden": ["--check"]
+    },
+    {
+      "id": "number-build-digits",
+      "category": "Numbers and units",
+      "context": "prose",
+      "spoken": "Wait for build four oh two before sending the report.",
+      "deterministicExpected": "Wait for build 402 before sending the report.",
+      "protected": ["build 402", "sending the report"],
+      "forbidden": ["four oh two"]
+    },
+    {
+      "id": "number-percentage",
+      "category": "Numbers and units",
+      "context": "prose",
+      "spoken": "The threshold is seventy three percent for this run.",
+      "deterministicExpected": "The threshold is 73% for this run.",
+      "protected": ["73%", "this run"],
+      "forbidden": ["seventy three percent"]
+    },
+    {
+      "id": "number-decimal",
+      "category": "Numbers and units",
+      "context": "technical",
+      "spoken": "The download is five point two four gigabytes.",
+      "deterministicExpected": "The download is 5.24 gigabytes.",
+      "protected": ["5.24", "gigabytes"],
+      "forbidden": ["point two four"],
+      "smartInstructions": "Lightly format quantities using standard abbreviated technical units without changing their values.",
+      "smartExpected": "The download is 5.24 GB.",
+      "smartRequired": ["5.24 GB"],
+      "smartForbidden": ["GB/s", "5.42"]
+    },
+    {
+      "id": "number-unit-style-left-alone",
+      "category": "Numbers and units",
+      "context": "technical",
+      "spoken": "The timeout is two hundred and fifty milliseconds.",
+      "deterministicExpected": "The timeout is two hundred and fifty milliseconds.",
+      "protected": ["two hundred and fifty milliseconds"],
+      "forbidden": ["250 ms"],
+      "smartInstructions": "Lightly format quantities using standard abbreviated technical units without changing their values.",
+      "smartExpected": "The timeout is 250 ms.",
+      "smartRequired": ["250 ms"],
+      "smartForbidden": ["250 seconds", "2.50"]
+    },
+    {
+      "id": "number-ordinary-single",
+      "category": "Numbers and units",
+      "context": "prose",
+      "spoken": "The first two attempts were deliberately slow.",
+      "deterministicExpected": "The first two attempts were deliberately slow.",
+      "protected": ["first two attempts", "deliberately slow"],
+      "forbidden": ["first 2 attempts"]
+    },
+    {
+      "id": "date-natural-prose",
+      "category": "Dates",
+      "context": "prose",
+      "spoken": "Schedule the review for August first twenty twenty six.",
+      "deterministicExpected": "Schedule the review for August first twenty twenty six.",
+      "protected": ["August first twenty twenty six"],
+      "forbidden": ["08/01/26"],
+      "smartInstructions": "Format unambiguous dates in readable British English. Never use an ambiguous all-numeric date.",
+      "smartExpected": "Schedule the review for 1 August 2026.",
+      "smartRequired": ["1 August 2026"],
+      "smartForbidden": ["08/01/26", "1 August 2025"]
+    },
+    {
+      "id": "date-month-name-ambiguous",
+      "category": "Dates",
+      "context": "prose",
+      "spoken": "May four people review the draft before lunch.",
+      "deterministicExpected": "May four people review the draft before lunch.",
+      "protected": ["May four people", "before lunch"],
+      "forbidden": ["May 4", "4 May"]
+    },
+    {
+      "id": "url-domain",
+      "category": "Addresses and paths",
+      "context": "prose",
+      "spoken": "Open example dot com and check the status page.",
+      "deterministicExpected": "Open example.com and check the status page.",
+      "protected": ["example.com", "status page"],
+      "forbidden": ["example dot com"]
+    },
+    {
+      "id": "email-lowercase",
+      "category": "Addresses and paths",
+      "context": "prose",
+      "spoken": "Send it to Ian at Example dot COM after the call.",
+      "deterministicExpected": "Send it to ian@example.com after the call.",
+      "protected": ["ian@example.com", "after the call"],
+      "forbidden": ["Ian@", " dot "]
+    },
+    {
+      "id": "path-home",
+      "category": "Addresses and paths",
+      "context": "technical",
+      "spoken": "Save it under tilde slash dev slash native slash dictation slash results.",
+      "deterministicExpected": "Save it under ~/dev/native/dictation/results.",
+      "protected": ["~/dev/native/dictation/results"],
+      "forbidden": ["tilde slash"]
+    },
+    {
+      "id": "path-hidden-file",
+      "category": "Addresses and paths",
+      "context": "technical",
+      "spoken": "Open dot context and then inspect dot env.",
+      "deterministicExpected": "Open .context and then inspect .env.",
+      "protected": [".context", ".env"],
+      "forbidden": ["dot context", "dot env"]
+    },
+    {
+      "id": "ambiguity-symbol-words",
+      "category": "Ambiguous prose",
+      "context": "prose",
+      "spoken": "Calculate the dot product and discuss slash fiction afterward.",
+      "deterministicExpected": "Calculate the dot product and discuss slash fiction afterward.",
+      "protected": ["dot product", "slash fiction"],
+      "forbidden": [".product", "/fiction"]
+    },
+    {
+      "id": "ambiguity-at",
+      "category": "Ambiguous prose",
+      "context": "prose",
+      "spoken": "Meet Ian at five outside the station.",
+      "deterministicExpected": "Meet Ian at five outside the station.",
+      "protected": ["Ian at five", "station"],
+      "forbidden": ["Ian@five"]
+    },
+    {
+      "id": "ambiguity-colon",
+      "category": "Ambiguous prose",
+      "context": "prose",
+      "spoken": "The colon cancer study needs a careful factual summary.",
+      "deterministicExpected": "The colon cancer study needs a careful factual summary.",
+      "protected": ["colon cancer", "factual summary"],
+      "forbidden": [": cancer"]
+    },
+    {
+      "id": "ambiguity-no-camel-case",
+      "category": "Ambiguous prose",
+      "context": "prose",
+      "spoken": "Scroll restoration matters when readers return to an article.",
+      "deterministicExpected": "Scroll restoration matters when readers return to an article.",
+      "protected": ["Scroll restoration", "readers"],
+      "forbidden": ["scrollRestoration"]
+    }
+  ]
+}

@@ -31,6 +31,11 @@ public struct WritingFixture: Codable, Sendable {
 public struct WritingFixtureSet: Codable, Sendable {
     public let version: Int
     public let fixtures: [WritingFixture]
+
+    public init(version: Int, fixtures: [WritingFixture]) {
+        self.version = version
+        self.fixtures = fixtures
+    }
 }
 
 public struct WritingFixtureResult: Codable, Sendable {
@@ -71,6 +76,18 @@ public enum WritingBenchmark {
     Do not add a title, heading, summary, sign-off or list unless the mode or transcript requires it.
     """
 
+    public static let minimalFormattingInstructions = """
+    Make the smallest possible edit to the transcript. Keep its sentence structure, word order,
+    request form and surrounding prose. Apply only the formatting explicitly justified by the mode
+    instructions. Never translate prose into source code, configuration, commands, bullets or
+    Markdown. Do not wrap identifiers in backticks. If a change is uncertain, leave it unchanged.
+    """
+
+    public static func systemInstructions(for fixture: WritingFixture) -> String {
+        guard fixture.mode == "Smart formatting" else { return baseInstructions }
+        return baseInstructions + "\n" + minimalFormattingInstructions
+    }
+
     public static let aiSmells = [
         "—", "–", "it's worth noting", "it is worth noting", "in conclusion",
         "to summarize", "to wrap things up", "delve", "leverage", "seamless",
@@ -96,7 +113,9 @@ public enum WritingBenchmark {
         rawOutput: String,
         latencySeconds: Double
     ) -> WritingFixtureResult {
-        let output = cleanEnvelope(rawOutput)
+        let output = fixture.mode == "Smart formatting"
+            ? cleanMinimalFormattingEnvelope(rawOutput)
+            : cleanEnvelope(rawOutput)
         let expectedWords = normalizedWords(fixture.expected)
         let outputWords = normalizedWords(output)
         let errors = editDistance(expectedWords, outputWords)
@@ -175,6 +194,14 @@ public enum WritingBenchmark {
         return cleaned
     }
 
+    public static func cleanMinimalFormattingEnvelope(_ text: String) -> String {
+        cleanEnvelope(text).replacingOccurrences(
+            of: #"`([^`\n]+)`"#,
+            with: "$1",
+            options: .regularExpression
+        )
+    }
+
     public static func normalizedWords(_ text: String) -> [String] {
         let folded = text.lowercased().replacingOccurrences(of: "’", with: "'")
         let cleaned = folded.unicodeScalars.map { scalar -> Character in
@@ -212,4 +239,3 @@ public enum WritingBenchmark {
         return sortedValues[index]
     }
 }
-

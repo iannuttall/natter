@@ -18,6 +18,7 @@ private enum ParityError: Error, CustomStringConvertible {
 
 private struct Arguments {
     var fixtures: URL?
+    var formattingFixtures: URL?
     var output: URL?
     var modelID = "mlx-community/Qwen3.5-9B-MLX-4bit"
     var revision = "938d8919941c6e7efd3c7150eff7fe9d12afa631"
@@ -41,6 +42,12 @@ private struct Arguments {
                     throw ParityError.arguments("Missing --output path")
                 }
                 parsed.output = URL(fileURLWithPath: values[index])
+            case "--formatting-fixtures":
+                index += 1
+                guard index < values.count else {
+                    throw ParityError.arguments("Missing --formatting-fixtures path")
+                }
+                parsed.formattingFixtures = URL(fileURLWithPath: values[index])
             case "--model":
                 index += 1
                 guard index < values.count else {
@@ -115,14 +122,33 @@ private enum DictationParity {
     static func main() async {
         do {
             let arguments = try Arguments.parse(Array(CommandLine.arguments.dropFirst()))
-            guard let fixturesURL = arguments.fixtures else {
-                throw ParityError.arguments("--fixtures is required")
+            if arguments.fixtures != nil, arguments.formattingFixtures != nil {
+                throw ParityError.arguments(
+                    "Use either --fixtures or --formatting-fixtures, not both"
+                )
             }
-
-            let fixtureSet = try JSONDecoder().decode(
-                WritingFixtureSet.self,
-                from: Data(contentsOf: fixturesURL)
-            )
+            let fixtureSet: WritingFixtureSet
+            if let fixturesURL = arguments.fixtures {
+                fixtureSet = try JSONDecoder().decode(
+                    WritingFixtureSet.self,
+                    from: Data(contentsOf: fixturesURL)
+                )
+            } else if let formattingURL = arguments.formattingFixtures {
+                let formatting = try JSONDecoder().decode(
+                    FormattingFixtureSet.self,
+                    from: Data(contentsOf: formattingURL)
+                )
+                fixtureSet = WritingFixtureSet(
+                    version: formatting.version,
+                    fixtures: formatting.fixtures.compactMap {
+                        FormattingBenchmark.smartWritingFixture(from: $0)
+                    }
+                )
+            } else {
+                throw ParityError.arguments(
+                    "--fixtures or --formatting-fixtures is required"
+                )
+            }
             let fixtures = arguments.limit.map { Array(fixtureSet.fixtures.prefix($0)) }
                 ?? fixtureSet.fixtures
             let generator = try await MLXWritingGenerator(
@@ -138,7 +164,7 @@ private enum DictationParity {
                 )
                 let started = ContinuousClock.now
                 let output = try await generator.generate(
-                    instructions: WritingBenchmark.baseInstructions,
+                    instructions: WritingBenchmark.systemInstructions(for: fixture),
                     prompt: prompt
                 )
                 let latency = started.duration(to: .now).seconds
