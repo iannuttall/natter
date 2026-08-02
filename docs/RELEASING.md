@@ -75,7 +75,7 @@ public key must not move after the first public release.
 codesign --verify --deep --strict --verbose=2 dist/Natter.app
 spctl --assess --type execute --verbose=4 dist/Natter.app
 xcrun stapler validate dist/Natter-0.1.0.dmg
-shasum -a 256 -c dist/Natter-0.1.0.dmg.sha256
+(cd dist && shasum -a 256 -c Natter-0.1.0.dmg.sha256)
 ```
 
 Test the DMG from a clean macOS account. Complete onboarding, download the speech model, and

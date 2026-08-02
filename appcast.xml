@@ -6,5 +6,16 @@
     <language>en</language>
 
     <!-- Newest release first. scripts/release-app.sh prints a complete item. -->
+    <item>
+      <title>0.1.0</title>
+      <sparkle:version>1</sparkle:version>
+      <sparkle:shortVersionString>0.1.0</sparkle:shortVersionString>
+      <sparkle:minimumSystemVersion>15.0</sparkle:minimumSystemVersion>
+      <enclosure
+        url="https://github.com/iannuttall/natter/releases/download/v0.1.0/Natter-0.1.0.dmg"
+        length="35323405"
+        type="application/octet-stream"
+        sparkle:edSignature="kPXN8UTW/zS5EA5SG9uXmZcsIE1mYTjr4dBQ7QXgoApokA6S3pBHv7/BtSyKcsPqhVWwaKN4PAdqz/cH4oofAg==" />
+    </item>
   </channel>
 </rss>
