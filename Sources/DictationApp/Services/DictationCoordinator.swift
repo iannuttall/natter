@@ -46,6 +46,7 @@ final class DictationCoordinator {
         self.history = history
         overlay = OverlayPanelController(store: store)
         overlay.onCancel = { [weak self] in self?.cancel() }
+        overlay.onCycleMode = { [weak self] in self?.cycleMode() }
     }
 
     func handle(_ action: ModifierHotKeyAction) {
@@ -101,7 +102,7 @@ final class DictationCoordinator {
         }
     }
 
-    private func cycleMode() {
+    func cycleMode() {
         if store.phase == .listening {
             cycleActiveMode()
             return
@@ -123,6 +124,9 @@ final class DictationCoordinator {
     private func cycleActiveMode() {
         let nextMode = nextAvailableMode(after: store.selectedMode)
         store.selectDuringSession(nextMode)
+        NatterLog.app.notice(
+            "session mode switched mode=\(nextMode.rawValue, privacy: .public)"
+        )
         store.statusMessage = sessionTypesIncrementally
             ? "Switched to \(nextMode.label) · typing live"
             : "Switched to \(nextMode.label) · finishes when you stop"
@@ -154,27 +158,57 @@ final class DictationCoordinator {
         }
     }
 
-    func testWritingForDebug(_ transcript: String) {
+    func warmAgentModelIfInstalled() {
+        guard store.smartAgentEnabled else { return }
+        let paths = AppPaths.live(bundleIdentifier: AppInfo.bundleIdentifier)
+        guard let directory = AgentWritingModelLocation.resolve(in: paths) else { return }
+        Task { await writingEngine.warmAgent(modelDirectory: directory) }
+    }
+
+    func testWritingForDebug(
+        _ transcript: String,
+        mode: DictationMode,
+        iterations: Int = 1,
+        delay: Duration = .zero
+    ) {
         sessionTask?.cancel()
         sessionTask = Task {
             do {
+                try await Task.sleep(for: delay)
                 let paths = AppPaths.live(bundleIdentifier: AppInfo.bundleIdentifier)
-                guard let directory = WritingModelLocation.resolve(in: paths) else {
+                let qualityDirectory = WritingModelLocation.resolve(in: paths)
+                let agentDirectory = AgentWritingModelLocation.resolve(in: paths)
+                if mode.isGenerative, qualityDirectory == nil {
                     throw DictationCoordinatorError.writingModelMissing
                 }
-                let output = try await writingEngine.transform(
-                    transcript: transcript,
-                    mode: .clean,
-                    markdownRules: rules.markdown(for: .clean),
-                    modelDirectory: directory
-                )
-                FileHandle.standardError.write(
-                    Data("DICTATION_WRITING_RESULT: \(output)\n".utf8)
-                )
+                for iteration in 1...max(iterations, 1) {
+                    let startedAt = ProcessInfo.processInfo.systemUptime
+                    let output = try await writingEngine.transform(
+                        transcript: transcript,
+                        mode: mode,
+                        markdownRules: rules.markdown(for: mode),
+                        modelDirectory: qualityDirectory,
+                        agentModelDirectory: agentDirectory,
+                        agentContext: AgentWritingContext.production(
+                            destinationApplicationName: "Debug",
+                            corrections: rules.corrections
+                        )
+                    )
+                    let milliseconds = (ProcessInfo.processInfo.systemUptime - startedAt) * 1_000
+                    let result = "DICTATION_WRITING_RESULT run=\(iteration) "
+                        + "elapsed_ms=\(String(format: "%.1f", milliseconds)): \(output)\n"
+                    FileHandle.standardError.write(Data(result.utf8))
+                }
+                if ProcessInfo.processInfo.environment["DICTATION_EXIT_AFTER_WRITING"] == "1" {
+                    NSApp.terminate(nil)
+                }
             } catch {
                 FileHandle.standardError.write(
                     Data("DICTATION_WRITING_ERROR: \(error.localizedDescription)\n".utf8)
                 )
+                if ProcessInfo.processInfo.environment["DICTATION_EXIT_AFTER_WRITING"] == "1" {
+                    NSApp.terminate(nil)
+                }
             }
         }
     }
@@ -188,15 +222,21 @@ final class DictationCoordinator {
                 FileHandle.standardError.write(Data((
                     "NATTER_INSERT_TARGET: \(target.applicationName ?? "unknown") "
                         + "\(target.bundleIdentifier ?? "unknown") "
-                        + "\(target.elementFingerprint.role ?? "unknown")\n"
+                        + "\(target.elementFingerprint?.role ?? "app-fallback")\n"
                 ).utf8))
+                let startedAt = ProcessInfo.processInfo.systemUptime
                 try await textInserter.insert(
                     text,
                     into: target,
                     paceTerminalInput: false
                 )
+                let milliseconds = (ProcessInfo.processInfo.systemUptime - startedAt) * 1_000
                 FileHandle.standardError.write(
-                    Data("NATTER_INSERT_RESULT: success\n".utf8)
+                    Data(
+                        "NATTER_INSERT_RESULT: success "
+                            .appending("elapsed_ms=\(String(format: "%.1f", milliseconds))\n")
+                            .utf8
+                    )
                 )
             } catch {
                 FileHandle.standardError.write(
@@ -358,10 +398,22 @@ final class DictationCoordinator {
                         capitalizesInitial: spokenFormattingContext == .prose
                     )
                 case .clean:
-                    transcript = FinalTranscriptFormatter.punctuateRawProse(
-                        DeterministicTranscriptCleaner.clean(correctedTranscript),
-                        capitalizesInitial: spokenFormattingContext == .prose
-                    )
+                    if !emitter.delivered.isEmpty,
+                       let remainder = emitter.remainingText(in: correctedTranscript) {
+                        let continuation = FinalTranscriptFormatter.punctuateRawProse(
+                            DeterministicTranscriptCleaner.clean(remainder),
+                            capitalizesInitial: false
+                        )
+                        transcript = joinedTranscript(
+                            prefix: emitter.delivered,
+                            continuation: continuation
+                        )
+                    } else {
+                        transcript = FinalTranscriptFormatter.punctuateRawProse(
+                            DeterministicTranscriptCleaner.clean(correctedTranscript),
+                            capitalizesInitial: spokenFormattingContext == .prose
+                        )
+                    }
                 case .agent, .email, .article:
                     transcript = correctedTranscript
                 }
@@ -405,9 +457,17 @@ final class DictationCoordinator {
             focusTarget = target
             sourceBundleIdentifier = target.bundleIdentifier ?? sourceBundleIdentifier
             sourceApplicationName = target.applicationName ?? sourceApplicationName
+            let targetBundle = target.bundleIdentifier ?? "unknown"
+            let targetRole = target.elementFingerprint?.role ?? "clipboard-fallback"
+            NatterLog.delivery.notice(
+                "target captured app=\(targetBundle, privacy: .public) element=\(targetRole, privacy: .public)"
+            )
         } catch {
             focusTarget = nil
             deliveryIssue = error.localizedDescription
+            NatterLog.delivery.error(
+                "target capture failed error=\(error.localizedDescription, privacy: .public)"
+            )
         }
     }
 
@@ -463,8 +523,8 @@ final class DictationCoordinator {
     }
 
     private func deliverFinalTranscript(_ transcript: String) async {
-        if liveTranscriptConflict, let focusTarget {
-            await repairFinalTranscript(transcript, in: focusTarget)
+        if liveTranscriptConflict {
+            deliveryIssue = "The final transcript changed after text had already been typed."
             return
         }
 
@@ -476,31 +536,7 @@ final class DictationCoordinator {
         case let .text(text):
             await insert(text)
         case .conflict:
-            guard let focusTarget else {
-                deliveryIssue = "The final transcript conflicted with text already typed."
-                return
-            }
-            await repairFinalTranscript(transcript, in: focusTarget)
-        }
-    }
-
-    private func repairFinalTranscript(
-        _ transcript: String,
-        in focusTarget: FocusedTextTarget
-    ) async {
-        do {
-            store.statusMessage = "Correcting final text locally…"
-            try await textInserter.replaceInsertedText(
-                emitter.delivered,
-                with: transcript,
-                in: focusTarget,
-                paceTerminalInput: store.terminalPacingEnabled
-            )
-            deliveryIssue = nil
-            liveTranscriptConflict = false
-        } catch {
-            deliveryIssue = error.localizedDescription
-            liveTranscriptConflict = false
+            deliveryIssue = "The final transcript changed after text had already been typed."
         }
     }
 
@@ -519,6 +555,9 @@ final class DictationCoordinator {
         } catch {
             deliveryIssue = error.localizedDescription
             store.statusMessage = "Still listening · transcript will be copied"
+            NatterLog.delivery.error(
+                "text insertion failed error=\(error.localizedDescription, privacy: .public)"
+            )
         }
     }
 
@@ -536,10 +575,8 @@ final class DictationCoordinator {
             if reason == FocusedTextInsertionError.accessibilityPermissionRequired
                 .localizedDescription {
                 store.statusMessage = "Allow Accessibility in Settings · transcript copied"
-            } else if record.clipboardTranscript != record.transcript {
-                store.statusMessage = "Couldn’t finish typing · remaining text copied"
             } else {
-                store.statusMessage = "Couldn’t type · transcript copied"
+                store.statusMessage = "Couldn’t finish typing · complete transcript copied"
             }
             store.phase = .recoverable(reason)
         } catch {
@@ -572,13 +609,33 @@ final class DictationCoordinator {
         store.phase = .transforming
         store.statusMessage = "Applying \(store.selectedMode.label) rules locally…"
 
+        let lockedPrefix = emitter.delivered
+        let transformInput: String
+        if lockedPrefix.isEmpty {
+            transformInput = transcript
+        } else if let remainder = emitter.remainingText(in: transcript) {
+            transformInput = remainder.trimmingCharacters(in: .whitespacesAndNewlines)
+        } else {
+            recoverTranscript(
+                transcript,
+                reason: "The final transcript changed after text had already been typed."
+            )
+            return
+        }
+
+        guard !transformInput.isEmpty else {
+            store.liveTranscript = lockedPrefix
+            store.finalTranscript = lockedPrefix
+            finishDelivery(of: lockedPrefix)
+            return
+        }
+
         let paths = AppPaths.live(bundleIdentifier: AppInfo.bundleIdentifier)
-        guard let modelDirectory = WritingModelLocation.resolve(in: paths) else {
-            if store.selectedMode == .agent {
-                await deliverFinalTranscript(transcript)
-                finishDelivery(of: transcript)
-                return
-            }
+        let modelDirectory = WritingModelLocation.resolve(in: paths)
+        let agentModelDirectory = store.smartAgentEnabled
+            ? AgentWritingModelLocation.resolve(in: paths)
+            : nil
+        if modelDirectory == nil, store.selectedMode != .agent {
             recoverTranscript(
                 transcript,
                 reason: DictationCoordinatorError.writingModelMissing.localizedDescription
@@ -588,33 +645,43 @@ final class DictationCoordinator {
 
         do {
             let output = try await writingEngine.transform(
-                transcript: transcript,
+                transcript: transformInput,
                 mode: store.selectedMode,
                 markdownRules: rules.markdown(for: store.selectedMode),
-                modelDirectory: modelDirectory
+                modelDirectory: modelDirectory,
+                agentModelDirectory: agentModelDirectory,
+                agentContext: AgentWritingContext.production(
+                    destinationApplicationName: sourceApplicationName,
+                    corrections: sessionCorrections
+                )
             )
             performanceTrace?.mark(.transformFinished)
-            store.liveTranscript = output
-            store.finalTranscript = output
-            if !emitter.delivered.isEmpty, let focusTarget {
-                do {
-                    try await textInserter.replaceInsertedText(
-                        emitter.delivered,
-                        with: output,
-                        in: focusTarget,
-                        paceTerminalInput: store.terminalPacingEnabled
-                    )
-                    deliveryIssue = nil
-                } catch {
-                    deliveryIssue = error.localizedDescription
-                }
-            } else {
-                await insert(output)
-            }
-            finishDelivery(of: output)
+            let finalOutput = joinedTranscript(
+                prefix: lockedPrefix,
+                continuation: output
+            )
+            let insertion = String(finalOutput.dropFirst(lockedPrefix.count))
+            store.liveTranscript = finalOutput
+            store.finalTranscript = finalOutput
+            if deliveryIssue == nil, !insertion.isEmpty { await insert(insertion) }
+            finishDelivery(of: finalOutput)
         } catch {
             recoverTranscript(transcript, reason: error.localizedDescription)
         }
+    }
+
+    private func joinedTranscript(prefix: String, continuation: String) -> String {
+        let continuation = continuation.trimmingCharacters(in: .whitespacesAndNewlines)
+        guard !prefix.isEmpty else { return continuation }
+        guard !continuation.isEmpty else { return prefix }
+        guard prefix.last?.isWhitespace != true else { return prefix + continuation }
+
+        let closingPunctuation = CharacterSet(charactersIn: ".,!?;:)]}")
+        if let first = continuation.unicodeScalars.first,
+           closingPunctuation.contains(first) {
+            return prefix + continuation
+        }
+        return prefix + " " + continuation
     }
 
     private func finishDelivery(of transcript: String) {

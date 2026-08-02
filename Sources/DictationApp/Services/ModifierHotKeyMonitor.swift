@@ -10,13 +10,19 @@ private struct ModifierFlagsEvent: Sendable {
 
 private final class HotKeyEventSink: @unchecked Sendable {
     let eventHandler: @Sendable (ModifierFlagsEvent) -> Void
+    let modeCycleHandler: @MainActor (_ isKeyDown: Bool, _ isRepeat: Bool) -> Bool
     let disabledHandler: @Sendable () -> Void
 
     init(
         eventHandler: @escaping @Sendable (ModifierFlagsEvent) -> Void,
+        modeCycleHandler: @escaping @MainActor (
+            _ isKeyDown: Bool,
+            _ isRepeat: Bool
+        ) -> Bool,
         disabledHandler: @escaping @Sendable () -> Void
     ) {
         self.eventHandler = eventHandler
+        self.modeCycleHandler = modeCycleHandler
         self.disabledHandler = disabledHandler
     }
 }
@@ -34,6 +40,17 @@ private func modifierEventTapCallback(
         sink.disabledHandler()
         return Unmanaged.passUnretained(event)
     }
+
+    if type == .keyDown || type == .keyUp,
+       event.getIntegerValueField(.keyboardEventKeycode) == 48,
+       Thread.isMainThread {
+        let isKeyDown = type == .keyDown
+        let isRepeat = event.getIntegerValueField(.keyboardEventAutorepeat) != 0
+        let shouldSuppress = MainActor.assumeIsolated {
+            sink.modeCycleHandler(isKeyDown, isRepeat)
+        }
+        return shouldSuppress ? nil : Unmanaged.passUnretained(event)
+    }
     guard type == .flagsChanged else { return Unmanaged.passUnretained(event) }
 
     sink.eventHandler(ModifierFlagsEvent(
@@ -50,7 +67,6 @@ final class ModifierHotKeyMonitor {
     private let actionHandler: (ModifierHotKeyAction) -> Void
     private let eventObservationHandler: () -> Void
     private var detector = ModifierTapDetector()
-    private var holdDetector = ModifierHoldDetector()
     private var edgeTracker = ModifierKeyEdgeTracker()
     private var cancelChordDetector = CancelModifierChordDetector()
     private var eventTap: CFMachPort?
@@ -63,6 +79,7 @@ final class ModifierHotKeyMonitor {
     private var applicationObserver: NSObjectProtocol?
     private var pressStartedDuringSession = false
     private var startTriggeredForPress = false
+    private var suppressingModeCycleKey = false
     private var hasProvenInputMonitoring = false
     private var lastHandledEvent: (keyCode: UInt16, active: Bool, timestamp: TimeInterval)?
 
@@ -98,8 +115,8 @@ final class ModifierHotKeyMonitor {
 
     func restart() {
         tearDownEventTap()
-        installEventTapIfNeeded(reason: "permission-change")
         removeNSEventMonitors()
+        installEventTapIfNeeded(reason: "permission-change")
         installNSEventMonitorsIfNeeded()
     }
 
@@ -113,16 +130,21 @@ final class ModifierHotKeyMonitor {
             eventHandler: { [weak self] event in
                 DispatchQueue.main.async { self?.handle(event) }
             },
+            modeCycleHandler: { [weak self] isKeyDown, isRepeat in
+                self?.handleModeCycleKey(isKeyDown: isKeyDown, isRepeat: isRepeat) ?? false
+            },
             disabledHandler: { [weak self] in
                 DispatchQueue.main.async { self?.keepEventTapAlive(reason: "disabled") }
             }
         )
         let pointer = Unmanaged.passRetained(sink).toOpaque()
-        let mask = CGEventMask(1) << CGEventType.flagsChanged.rawValue
+        let mask = [CGEventType.flagsChanged, .keyDown, .keyUp].reduce(CGEventMask(0)) {
+            $0 | (CGEventMask(1) << $1.rawValue)
+        }
         guard let tap = CGEvent.tapCreate(
             tap: .cgSessionEventTap,
             place: .headInsertEventTap,
-            options: .listenOnly,
+            options: .defaultTap,
             eventsOfInterest: mask,
             callback: modifierEventTapCallback,
             userInfo: pointer
@@ -131,9 +153,11 @@ final class ModifierHotKeyMonitor {
             NatterLog.hotKey.error(
                 "could not create event tap reason=\(reason, privacy: .public)"
             )
+            installNSEventMonitorsIfNeeded()
             return
         }
 
+        removeNSEventMonitors()
         eventTap = tap
         eventSinkPointer = pointer
         let source = CFMachPortCreateRunLoopSource(kCFAllocatorDefault, tap, 0)
@@ -173,6 +197,10 @@ final class ModifierHotKeyMonitor {
     }
 
     private func installNSEventMonitorsIfNeeded() {
+        // Do not consume the same modifier sequence from two asynchronous sources.
+        // Audio pre-roll can briefly occupy the main actor, allowing duplicated
+        // event-tap and NSEvent sequences to interleave and falsely stop a session.
+        guard eventTap == nil else { return }
         guard globalMonitor == nil, localMonitor == nil else { return }
         globalMonitor = NSEvent.addGlobalMonitorForEvents(matching: .flagsChanged) {
             [weak self] event in
@@ -237,17 +265,31 @@ final class ModifierHotKeyMonitor {
     private func recreateAfterSystemTransition(_ reason: String) {
         resetDetectors()
         tearDownEventTap()
+        removeNSEventMonitors()
         installEventTapIfNeeded(reason: reason)
+        installNSEventMonitorsIfNeeded()
     }
 
     private func resetDetectors() {
         edgeTracker.reset()
         detector.reset()
-        holdDetector.reset()
         cancelChordDetector.reset()
         pressStartedDuringSession = false
         startTriggeredForPress = false
+        suppressingModeCycleKey = false
         lastHandledEvent = nil
+    }
+
+    private func handleModeCycleKey(isKeyDown: Bool, isRepeat: Bool) -> Bool {
+        if !isKeyDown {
+            defer { suppressingModeCycleKey = false }
+            return suppressingModeCycleKey
+        }
+
+        guard store.phase == .listening else { return false }
+        suppressingModeCycleKey = true
+        if !isRepeat { actionHandler(.cycleMode) }
+        return true
     }
 
     private func handle(_ event: ModifierFlagsEvent) {
@@ -293,15 +335,11 @@ final class ModifierHotKeyMonitor {
         )
 
         if !modifierIsActive {
-            guard let gesture = holdDetector.keyUp(at: event.timestamp) else { return }
             defer {
                 pressStartedDuringSession = false
                 startTriggeredForPress = false
             }
-            if gesture == .hold {
-                detector.reset()
-                actionHandler(.cycleMode)
-            } else if pressStartedDuringSession && !startTriggeredForPress {
+            if pressStartedDuringSession && !startTriggeredForPress {
                 actionHandler(.stop)
             }
             return
@@ -310,7 +348,6 @@ final class ModifierHotKeyMonitor {
 
         pressStartedDuringSession = sessionIsActive
         startTriggeredForPress = false
-        holdDetector.keyDown(at: event.timestamp)
         if !sessionIsActive, let action = detector.keyDown(
             at: event.timestamp,
             sessionIsActive: false

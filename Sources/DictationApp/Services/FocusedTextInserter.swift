@@ -7,9 +7,9 @@ struct FocusedTextTarget {
     let processIdentifier: pid_t
     let bundleIdentifier: String?
     let applicationName: String?
-    let element: AXUIElement
+    let element: AXUIElement?
     let window: AXUIElement?
-    let elementFingerprint: AccessibilityFingerprint
+    let elementFingerprint: AccessibilityFingerprint?
     let windowFingerprint: AccessibilityFingerprint?
 }
 
@@ -59,24 +59,40 @@ final class FocusedTextInserter {
         guard AXIsProcessTrusted(), CGPreflightPostEventAccess() else {
             throw FocusedTextInsertionError.accessibilityPermissionRequired
         }
-        guard let application = NSWorkspace.shared.frontmostApplication else {
+        guard let workspaceApplication = NSWorkspace.shared.frontmostApplication else {
             throw FocusedTextInsertionError.noFocusedApplication
         }
 
+        let systemWide = AXUIElementCreateSystemWide()
+        let systemFocusedElement = try? copyFocusedElement(from: systemWide)
+        let systemFocusedApplication = systemFocusedElement
+            .flatMap { element -> NSRunningApplication? in
+                guard isEditableTextControl(element),
+                      let processIdentifier = processIdentifier(of: element) else {
+                    return nil
+                }
+                return NSRunningApplication(processIdentifier: processIdentifier)
+            }
+        let application = systemFocusedApplication ?? workspaceApplication
+
         let appElement = AXUIElementCreateApplication(application.processIdentifier)
-        let focusedElement = try copyCurrentFocusedElement(from: appElement)
-        guard isEditableTextControl(focusedElement) else {
-            throw FocusedTextInsertionError.noFocusedTextControl
+        let focusedElement = systemFocusedElement.flatMap {
+            belongsToProcess($0, processIdentifier: application.processIdentifier) ? $0 : nil
+        } ?? (try? copyFocusedElement(from: appElement))
+        let editableElement = focusedElement.flatMap {
+            isEditableTextControl($0) ? $0 : nil
         }
-        let focusedWindow = copyElementAttribute(kAXWindowAttribute, from: focusedElement)
+        let focusedWindow = focusedElement.flatMap {
+            copyElementAttribute(kAXWindowAttribute, from: $0)
+        }
             ?? copyElementAttribute(kAXFocusedWindowAttribute, from: appElement)
         return FocusedTextTarget(
             processIdentifier: application.processIdentifier,
             bundleIdentifier: application.bundleIdentifier,
             applicationName: application.localizedName,
-            element: focusedElement,
+            element: editableElement,
             window: focusedWindow,
-            elementFingerprint: fingerprint(of: focusedElement),
+            elementFingerprint: editableElement.map(fingerprint),
             windowFingerprint: focusedWindow.map(fingerprint)
         )
     }
@@ -95,15 +111,14 @@ final class FocusedTextInserter {
         for (segmentIndex, segment) in segments.enumerated() {
             switch segment {
             case let .text(value):
-                let chunks = TextInsertionPlan.chunks(
-                    for: value,
-                    maximumCharacterCount: 16
-                )
+                let chunks = applicationKind == .standard
+                    ? [value]
+                    : TextInsertionPlan.chunks(for: value, maximumCharacterCount: 16)
                 for (chunkIndex, chunk) in chunks.enumerated() {
-                    try validate(target)
+                    let element = try validate(target)
                     try await eventPoster.postText(
                         chunk,
-                        into: target.element,
+                        into: element,
                         destination: applicationKind
                     )
 
@@ -117,8 +132,11 @@ final class FocusedTextInserter {
                     }
                 }
             case .lineBreak:
-                try validate(target)
-                try eventPoster.postLineBreak(into: target.element)
+                let element = try validate(target)
+                try await eventPoster.postLineBreak(
+                    into: element,
+                    destination: applicationKind
+                )
                 try await Task.sleep(for: Self.lineBreakDelay)
             }
         }
@@ -136,7 +154,7 @@ final class FocusedTextInserter {
 
         for (index, _) in insertedText.enumerated() {
             if index.isMultiple(of: 16) {
-                try validate(target)
+                _ = try validate(target)
             }
             try eventPoster.postBackspace()
 
@@ -155,21 +173,24 @@ final class FocusedTextInserter {
         )
     }
 
-    private func validate(_ target: FocusedTextTarget) throws {
-        guard NSWorkspace.shared.frontmostApplication?.processIdentifier
-            == target.processIdentifier else {
+    private func validate(_ target: FocusedTextTarget) throws -> AXUIElement? {
+        let systemFocusedElement = try? copyFocusedElement(
+            from: AXUIElementCreateSystemWide()
+        )
+        let systemFocusBelongsToTarget = systemFocusedElement.map {
+            belongsToProcess($0, processIdentifier: target.processIdentifier)
+        } ?? false
+        let workspaceFocusBelongsToTarget = NSWorkspace.shared.frontmostApplication?
+            .processIdentifier == target.processIdentifier
+        guard systemFocusBelongsToTarget || workspaceFocusBelongsToTarget else {
             throw FocusedTextInsertionError.focusChanged
         }
 
         let appElement = AXUIElementCreateApplication(target.processIdentifier)
-        let current = try copyCurrentFocusedElement(from: appElement)
-        guard isEditableTextControl(current) else {
-            throw FocusedTextInsertionError.focusChanged
-        }
-        guard CFEqual(current, target.element)
-                || fingerprint(of: current).matches(target.elementFingerprint) else {
-            throw FocusedTextInsertionError.focusChanged
-        }
+        let current = systemFocusBelongsToTarget
+            ? systemFocusedElement
+            : (try? copyFocusedElement(from: appElement))
+        let currentEditable = current.flatMap { isEditableTextControl($0) ? $0 : nil }
         if let targetWindow = target.window,
            let currentWindow = copyElementAttribute(kAXFocusedWindowAttribute, from: appElement),
            !CFEqual(currentWindow, targetWindow),
@@ -177,16 +198,25 @@ final class FocusedTextInserter {
            !fingerprint(of: currentWindow).matches(expected) {
             throw FocusedTextInsertionError.focusChanged
         }
+
+        // React and other rich editors can replace their accessibility node
+        // after every edit. The frontmost process and window are stable; use
+        // whichever editable node is focused now, or fall back to Cmd-V when
+        // the editor temporarily exposes only its web container.
+        return currentEditable
     }
 
-    private func copyCurrentFocusedElement(
-        from application: AXUIElement
-    ) throws -> AXUIElement {
-        let systemWide = AXUIElementCreateSystemWide()
-        if let focused = try? copyFocusedElement(from: systemWide) {
-            return focused
-        }
-        return try copyFocusedElement(from: application)
+    private func belongsToProcess(
+        _ element: AXUIElement,
+        processIdentifier targetProcessIdentifier: pid_t
+    ) -> Bool {
+        processIdentifier(of: element) == targetProcessIdentifier
+    }
+
+    private func processIdentifier(of element: AXUIElement) -> pid_t? {
+        var identifier = pid_t.zero
+        guard AXUIElementGetPid(element, &identifier) == .success else { return nil }
+        return identifier
     }
 
     private func copyFocusedElement(from application: AXUIElement) throws -> AXUIElement {

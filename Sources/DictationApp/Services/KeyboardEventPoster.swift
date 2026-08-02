@@ -11,15 +11,17 @@ final class KeyboardEventPoster {
 
     func postText(
         _ text: String,
-        into element: AXUIElement,
+        into element: AXUIElement?,
         destination: DestinationApplicationKind
     ) async throws {
         guard !text.isEmpty else { return }
         try requirePostEventPermission()
 
-        // Editable AppKit, WebKit and Chromium controls expose AXSelectedText.
-        // This is the most direct native insertion path and reports failure.
-        if destination == .standard, replaceSelection(with: text, in: element) {
+        // Paste is the common input path understood by AppKit, WebKit and
+        // Chromium editors. Direct AXSelectedText writes can report success
+        // while controlled React editors silently discard the change.
+        if destination == .standard {
+            try await pasteTemporarily(text)
             return
         }
 
@@ -45,9 +47,17 @@ final class KeyboardEventPoster {
         )
     }
 
-    func postLineBreak(into element: AXUIElement) throws {
+    func postLineBreak(
+        into element: AXUIElement?,
+        destination: DestinationApplicationKind
+    ) async throws {
         try requirePostEventPermission()
-        if replaceSelection(with: "\n", in: element) { return }
+        if destination == .standard {
+            try await pasteTemporarily("\n")
+            return
+        }
+
+        if let element, replaceSelection(with: "\n", in: element) { return }
 
         // Shift-Return inserts a line break in chat composers without sending.
         try postKey(code: 36, flags: .maskShift)
@@ -60,14 +70,14 @@ final class KeyboardEventPoster {
 
     private func flushUnsupported(
         _ text: inout String,
-        into element: AXUIElement,
+        into element: AXUIElement?,
         destination: DestinationApplicationKind
     ) async throws {
         guard !text.isEmpty else { return }
         let pending = text
         text = ""
 
-        if replaceSelection(with: pending, in: element) { return }
+        if let element, replaceSelection(with: pending, in: element) { return }
 
         if destination == .terminal {
             try postUnicode(pending)
@@ -103,7 +113,9 @@ final class KeyboardEventPoster {
         let temporaryChangeCount = pasteboard.changeCount
 
         try postKey(code: 9, flags: .maskCommand)
-        try await Task.sleep(for: .milliseconds(40))
+        // Electron and browser paste handlers may read the pasteboard on a later
+        // run-loop turn, so keep the temporary value alive long enough for them.
+        try await Task.sleep(for: .milliseconds(120))
 
         // Never overwrite something the user copied while the paste was in flight.
         if pasteboard.changeCount == temporaryChangeCount {

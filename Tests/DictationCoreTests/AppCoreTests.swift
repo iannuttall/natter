@@ -348,6 +348,14 @@ import Testing
     #expect(emitter.finish("skip the build now") == .conflict)
 }
 
+@Test func stableTranscriptReportsOnlyTextNotYetDelivered() {
+    var emitter = StableTranscriptEmitter()
+
+    #expect(emitter.observe("keep this prefix") == .text("keep this prefix"))
+    #expect(emitter.remainingText(in: "keep this prefix and add this") == " and add this")
+    #expect(emitter.remainingText(in: "replace this prefix") == nil)
+}
+
 @Test func rawPunctuationFinishesProseButNotTechnicalTokens() {
     #expect(FinalTranscriptFormatter.punctuateRawProse("this is a sentence")
         == "This is a sentence.")
@@ -437,17 +445,17 @@ import Testing
 
     let encoded = try JSONEncoder().encode(record)
     #expect(try JSONDecoder().decode(RecoveryRecord.self, from: encoded) == record)
-    #expect(record.clipboardTranscript == "transcript")
+    #expect(record.clipboardTranscript == "full transcript")
 }
 
-@Test func recoveryCopiesOnlyTheUndeliveredAppendOnlyTail() {
+@Test func recoveryAlwaysCopiesTheCompleteTranscript() {
     let record = RecoveryRecord(
         transcript: "The first phrase and the remaining words.",
         deliveredPrefix: "The first phrase",
         targetBundleIdentifier: "com.example.editor",
         reason: "Focus changed"
     )
-    #expect(record.clipboardTranscript == " and the remaining words.")
+    #expect(record.clipboardTranscript == "The first phrase and the remaining words.")
 
     let conflict = RecoveryRecord(
         transcript: "A revised sentence.",
@@ -506,8 +514,12 @@ import Testing
 
     #expect(SpeechModelLocation.installedDirectory(in: paths).path
         == "/tmp/dictation-models/Models/nemotron-streaming/560ms")
+    #expect(AgentWritingModelLocation.installedDirectory(in: paths).path
+        == "/tmp/dictation-models/Models/agent-writing/models/mlx-community/Qwen3.5-4B-MLX-4bit")
     #expect(WritingModelLocation.installedDirectory(in: paths).path
         == "/tmp/dictation-models/Models/writing/models/mlx-community/Qwen3.5-9B-MLX-4bit")
+    #expect(ModelPack.agentWriting.downloadSizeBytes > ModelPack.speech.downloadSizeBytes)
+    #expect(ModelPack.agentWriting.downloadSizeBytes < ModelPack.writing.downloadSizeBytes)
     #expect(ModelPack.writing.downloadSizeBytes > ModelPack.speech.downloadSizeBytes)
 }
 

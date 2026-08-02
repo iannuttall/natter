@@ -25,6 +25,11 @@ public struct StableTranscriptEmitter: Sendable {
         return addition.isEmpty ? .none : .text(addition)
     }
 
+    public func remainingText(in transcript: String) -> String? {
+        guard transcript.hasPrefix(delivered) else { return nil }
+        return String(transcript.dropFirst(delivered.count))
+    }
+
     public mutating func reset() {
         delivered = ""
     }

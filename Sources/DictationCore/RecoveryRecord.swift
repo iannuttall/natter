@@ -22,9 +22,6 @@ public struct RecoveryRecord: Codable, Equatable, Sendable {
     }
 
     public var clipboardTranscript: String {
-        guard !deliveredPrefix.isEmpty,
-              transcript.hasPrefix(deliveredPrefix) else { return transcript }
-        let remainder = String(transcript.dropFirst(deliveredPrefix.count))
-        return remainder.isEmpty ? transcript : remainder
+        transcript
     }
 }

@@ -73,6 +73,10 @@ final class AppDelegate: NSObject, NSApplicationDelegate {
             try? await Task.sleep(for: .milliseconds(350))
             modelManager?.warmSpeechModelIfInstalled()
         }
+        Task { @MainActor [weak coordinator] in
+            try? await Task.sleep(for: .seconds(2))
+            coordinator?.warmAgentModelIfInstalled()
+        }
         observeInputMonitoringPermission()
         activationObserver = NotificationCenter.default.addObserver(
             forName: NSApplication.didBecomeActiveNotification,
@@ -125,7 +129,20 @@ final class AppDelegate: NSObject, NSApplicationDelegate {
         if let transcript = ProcessInfo.processInfo.environment[
             "DICTATION_TEST_WRITING_ON_LAUNCH"
         ] {
-            coordinator.testWritingForDebug(transcript)
+            let mode = ProcessInfo.processInfo.environment["DICTATION_TEST_WRITING_MODE"]
+                .flatMap(DictationMode.init(rawValue:)) ?? .agent
+            let iterations = ProcessInfo.processInfo.environment[
+                "DICTATION_TEST_WRITING_ITERATIONS"
+            ].flatMap(Int.init) ?? 1
+            let delayMilliseconds = ProcessInfo.processInfo.environment[
+                "DICTATION_TEST_WRITING_DELAY_MS"
+            ].flatMap(Int.init) ?? 0
+            coordinator.testWritingForDebug(
+                transcript,
+                mode: mode,
+                iterations: iterations,
+                delay: .milliseconds(delayMilliseconds)
+            )
         }
 
         if let insertionSmokeText {

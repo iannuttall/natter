@@ -11,7 +11,12 @@ struct AudioChunk: Sendable {
     var level: Float {
         guard !samples.isEmpty else { return 0 }
         let meanSquare = samples.reduce(0) { $0 + ($1 * $1) } / Float(samples.count)
-        return min(1, sqrt(meanSquare) * 8)
+        guard meanSquare > 0 else { return 0 }
+
+        let decibels = 10 * log10(meanSquare)
+        let noiseFloor: Float = -55
+        let speechCeiling: Float = -15
+        return min(1, max(0, (decibels - noiseFloor) / (speechCeiling - noiseFloor)))
     }
 
     var duration: TimeInterval {

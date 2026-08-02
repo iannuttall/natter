@@ -4,6 +4,7 @@ import SwiftUI
 @MainActor
 final class OverlayPanelController {
     var onCancel: (() -> Void)?
+    var onCycleMode: (() -> Void)?
     private let panel: NSPanel
     private let store: DictationStore
     private let frameAutosaveName = "DictationOverlayFrame"
@@ -18,6 +19,7 @@ final class OverlayPanelController {
         )
         panel.contentView = NSHostingView(rootView: OverlayView(
             store: store,
+            onCycleMode: { [weak self] in self?.onCycleMode?() },
             onCancel: { [weak self] in self?.onCancel?() }
         ))
         panel.isOpaque = false

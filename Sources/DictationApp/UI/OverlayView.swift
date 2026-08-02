@@ -3,6 +3,7 @@ import SwiftUI
 
 struct OverlayView: View {
     @Bindable var store: DictationStore
+    let onCycleMode: () -> Void
     let onCancel: () -> Void
 
     var body: some View {
@@ -59,8 +60,7 @@ struct OverlayView: View {
     private var compactOverlay: some View {
         HStack(spacing: 10) {
             levelMeter
-            Text(store.selectedMode.label)
-                .font(.system(size: 14, weight: .semibold))
+            modeButton(font: .system(size: 14, weight: .semibold))
             Text(store.phase.label)
                 .font(.system(size: 12, weight: .medium))
                 .foregroundStyle(.secondary)
@@ -81,8 +81,7 @@ struct OverlayView: View {
             Image(systemName: "waveform")
                 .foregroundStyle(Theme.Colour.accent)
             VStack(alignment: .leading, spacing: 0) {
-                Text(store.selectedMode.label)
-                    .font(.system(size: 14, weight: .semibold))
+                modeButton(font: .system(size: 14, weight: .semibold))
                 if let context = modeContext {
                     Text(context)
                         .font(.system(size: 10))
@@ -113,20 +112,28 @@ struct OverlayView: View {
     }
 
     private var levelMeter: some View {
-        HStack(alignment: .center, spacing: 2) {
-            ForEach(0..<5, id: \.self) { index in
-                Capsule()
-                    .fill(Theme.Colour.accent.opacity(barIsActive(index) ? 1 : 0.2))
-                    .frame(width: 3, height: CGFloat(5 + (index % 3) * 4))
+        LiveVoiceMeter(level: store.audioLevel, isActive: canCancel)
+    }
+
+    private func modeButton(font: Font) -> some View {
+        Button(action: onCycleMode) {
+            HStack(spacing: 3) {
+                Text(store.selectedMode.label)
+                    .font(font)
+                Image(systemName: "chevron.right")
+                    .font(.system(size: 8, weight: .bold))
+                    .foregroundStyle(.tertiary)
             }
         }
-        .animation(.linear(duration: 0.08), value: store.audioLevel)
+        .buttonStyle(.plain)
+        .help("Switch mode · press Tab while listening")
+        .accessibilityLabel("Switch from \(store.selectedMode.label) mode")
     }
 
     private var footerText: String {
         switch store.phase {
         case .preparing, .listening:
-            "Tap \(store.selectedHotKey.label) to stop · both right modifiers cancel"
+            "Tab: switch mode · tap \(store.selectedHotKey.label): stop · Right Option + Right Control: cancel"
         case .recoverable:
             "The complete transcript is on your clipboard"
         case .failed:
@@ -136,8 +143,48 @@ struct OverlayView: View {
         }
     }
 
-    private func barIsActive(_ index: Int) -> Bool {
-        store.audioLevel >= Float(index + 1) / 6
+}
+
+private struct LiveVoiceMeter: View {
+    let level: Float
+    let isActive: Bool
+    @State private var bars = Array(repeating: CGFloat.zero, count: 7)
+
+    private let heightProfile: [CGFloat] = [0.46, 0.72, 0.9, 1, 0.84, 0.64, 0.42]
+    private let releaseProfile: [CGFloat] = [0.62, 0.68, 0.72, 0.76, 0.7, 0.66, 0.6]
+
+    var body: some View {
+        HStack(alignment: .center, spacing: 2) {
+            ForEach(bars.indices, id: \.self) { index in
+                Capsule()
+                    .fill(Theme.Colour.accent.opacity(0.3 + (0.7 * bars[index])))
+                    .frame(width: 3, height: 3 + (bars[index].squareRoot() * 17))
+            }
+        }
+        .frame(width: 39, height: 20)
+        .onChange(of: level, initial: true) { _, newLevel in
+            guard isActive else {
+                bars = Array(repeating: 0, count: bars.count)
+                return
+            }
+            let measured = CGFloat(min(1, max(0, newLevel)))
+            let nextBars = bars.indices.map { index in
+                let target = min(1, measured * heightProfile[index])
+                let previous = bars[index]
+                guard target < previous else { return target }
+                let release = releaseProfile[index]
+                return (previous * release) + (target * (1 - release))
+            }
+            withAnimation(.linear(duration: 0.06)) {
+                bars = nextBars
+            }
+        }
+        .onChange(of: isActive) { _, active in
+            if !active { bars = Array(repeating: 0, count: bars.count) }
+        }
+        .accessibilityElement(children: .ignore)
+        .accessibilityLabel("Microphone level")
+        .accessibilityValue("\(Int(min(1, max(0, level)) * 100)) percent")
     }
 }
 
