@@ -1,80 +1,86 @@
 # Releasing Natter
 
-Public builds are distributed directly as a notarized Developer ID app. The app
-currently supports Apple silicon and macOS 15 or later.
+Natter ships as a notarized Developer ID app inside a DMG. Sparkle reads `appcast.xml` from
+the public GitHub repository and verifies each update with an EdDSA signature.
 
-## One-time setup
+## Set up the release Mac once
 
-The release Mac needs a `Developer ID Application` certificate in Keychain and
-an App Store Connect app-specific password stored for `notarytool`:
+The Mac needs a `Developer ID Application` certificate and its private key in Keychain.
+Natter can use the same App Store Connect notarization profile as Portman because both apps
+ship under the same developer team:
 
 ```sh
-xcrun notarytool store-credentials natter-notary \
+xcrun notarytool store-credentials portmanager \
   --apple-id "APPLE_ID" \
   --team-id TEAMID \
   --password "APP_SPECIFIC_PASSWORD"
 ```
 
-Do not commit credentials or export the signing certificate into the repository.
-`SIGN_IDENTITY` must be the full certificate name printed by
-`security find-identity -v -p codesigning`. The certificate and private key stay
-in Keychain; only the value is passed to the release process.
-
-## Build, sign and notarize
-
-Start from a clean commit, choose a semantic version and increment the numeric
-build number:
+Sparkle uses the existing `ed25519` update key in the login keychain. Its public half is
+pinned in `scripts/build-app.sh`. The private half never enters the repository.
 
 ```sh
-swift test
-node --test ProductCorpus/tests/scenarios.test.mjs
+.build/artifacts/sparkle/Sparkle/bin/generate_keys -p
+```
+
+That command must print the same public key used by `SPARKLE_PUBLIC_KEY` in the build script.
+
+## Build, sign, and notarize
+
+Start from a clean commit. Choose a semantic version and increment the numeric build number.
+
+```sh
+make check
 
 VERSION=0.1.0 \
 BUILD_NUMBER=1 \
-SIGN_IDENTITY="Developer ID Application: Name (TEAMID)" \
-NOTARY_PROFILE=natter-notary \
+SIGN_IDENTITY="Developer ID Application: Iancredible Ltd (JXNCT3BEVQ)" \
+NOTARY_PROFILE=portmanager \
 ./scripts/release-app.sh
 ```
 
-The script:
+The release script builds with Xcode, embeds MLX resources and Sparkle, signs every nested
+component, verifies hardened runtime, launches the finished app, builds a DMG, notarizes it,
+staples the ticket, signs the Sparkle update, and writes a SHA-256 file.
 
-1. builds with Xcode so MLX Metal resources are present;
-2. copies the Apache app licence and every dependency licence into the bundle;
-3. signs with Developer ID, hardened runtime and the required audio-input entitlement;
-4. creates and submits the ZIP to Apple's notary service;
-5. staples the ticket, recreates the ZIP and writes a SHA-256 file.
+The final files are:
 
-The final files are `dist/Natter-VERSION.zip` and its `.sha256` sibling.
-Model weights are not included.
+```text
+dist/Natter-VERSION.dmg
+dist/Natter-VERSION.dmg.sha256
+```
 
-## Verify before publishing
+## Publish the update
+
+The script prints a complete Sparkle `<item>` with the DMG length and EdDSA signature.
+Add it to the top of `appcast.xml`, include a plain release description, and commit that
+change before publishing the GitHub release.
+
+Create the tagged release with both files:
+
+```sh
+gh release create v0.1.0 \
+  dist/Natter-0.1.0.dmg \
+  dist/Natter-0.1.0.dmg.sha256 \
+  --title "Natter 0.1.0" \
+  --notes-file RELEASE_NOTES.md
+```
+
+Older installed copies fetch the raw appcast from the `main` branch, so the feed URL and
+public key must not move after the first public release.
+
+## Check the exact artifact
 
 ```sh
 codesign --verify --deep --strict --verbose=2 dist/Natter.app
 spctl --assess --type execute --verbose=4 dist/Natter.app
-xcrun stapler validate dist/Natter.app
-shasum -a 256 -c dist/Natter-VERSION.zip.sha256
+xcrun stapler validate dist/Natter-0.1.0.dmg
+shasum -a 256 -c dist/Natter-0.1.0.dmg.sha256
 ```
 
-Test the archive on a Mac user account that has never granted the app
-permissions. Complete onboarding, download the speech model, dictate into the
-release matrix, revoke each permission once, and confirm recovery.
+Test the DMG from a clean macOS account. Complete onboarding, download the speech model, and
+exercise native fields, Safari, Chrome, Gmail, ChatGPT Desktop, Claude Desktop, Terminal,
+iTerm, and Ghostty. Include a focus change during Raw and buffered Agent delivery.
 
-Required destinations before a public release:
-
-- native text field and text editor;
-- Safari and Chrome address bars and standard web inputs;
-- Gmail and X composers;
-- ChatGPT and Claude desktop composers;
-- Terminal, iTerm and Ghostty;
-- a focus switch during Raw and during buffered Agent delivery.
-
-The release is not ready if any transcript disappears. A failed destination
-must leave a local recovery record and copy either the undelivered tail or the
-complete transcript.
-
-## Product release blockers
-
-Before the first public build, add a proper app icon, decide the initial version,
-run the clean-account matrix above and create the first notarization profile.
-Auto-update can wait until after the first manually distributed build.
+A release is blocked if any transcript disappears. Failure must leave a recovery record and
+the complete intended transcript on the clipboard.

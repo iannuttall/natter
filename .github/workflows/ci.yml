@@ -1,0 +1,56 @@
+name: CI
+
+on:
+  push:
+    branches: [main]
+  pull_request:
+  workflow_dispatch:
+
+concurrency:
+  group: ci-${{ github.ref }}
+  cancel-in-progress: true
+
+jobs:
+  test:
+    runs-on: macos-15
+    steps:
+      - uses: actions/checkout@v4
+
+      - name: Show toolchain
+        run: swift --version
+
+      - name: Cache Swift packages
+        uses: actions/cache@v4
+        with:
+          path: |
+            .build
+            .xcode-build/SourcePackages
+          key: spm-${{ runner.os }}-${{ hashFiles('Package.resolved') }}
+          restore-keys: spm-${{ runner.os }}-
+
+      - name: Test Swift packages
+        run: swift test
+
+      - name: Test product corpus
+        run: node --test ProductCorpus/tests/scenarios.test.mjs
+
+      - name: Build signed app bundle
+        env:
+          SIGN_IDENTITY: "-"
+        run: ./scripts/build-app.sh
+
+      - name: Verify app and Sparkle signatures
+        run: |
+          test -d dist/Natter.app/Contents/Frameworks/Sparkle.framework
+          codesign --verify --deep --strict --verbose=1 dist/Natter.app
+
+      - name: Verify the app launches
+        run: |
+          dist/Natter.app/Contents/MacOS/dictation & PID=$!
+          sleep 6
+          if kill -0 $PID 2>/dev/null; then
+            kill $PID
+          else
+            echo "::error::Natter exited during launch"
+            exit 1
+          fi

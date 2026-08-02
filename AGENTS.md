@@ -9,7 +9,7 @@ AppKit lifecycle/panels and SwiftUI views.
 - Speech uses one engine: FluidAudio Nemotron Streaming 560 ms.
 - Raw types stable text incrementally. Agent buffers by default, applies technical formatting after stop and then types visibly; advanced live Agent delivery is optional.
 - Clean performs deterministic filler and repetition cleanup after stop without a model.
-- Agent, Email and Article can use the optional local Qwen model after stop.
+- Agent can use the optional local Qwen 3.5 4B model after stop. Email and Article use the optional Qwen 3.5 9B model.
 - Raw text must survive every insertion or transformation failure.
 - Models live under Application Support and are never bundled in the signed app.
 - History, stats, rules and app profiles are local. Do not add telemetry without an explicit product decision and an opt-in design.
@@ -22,6 +22,7 @@ Sources/DictationApp/    AppKit lifecycle/services and SwiftUI views
 Sources/DictationParity/ direct MLX writing benchmark
 Tests/                   pure logic tests
 scripts/                 build and benchmark entry points
+.github/                 public CI and project metadata
 ```
 
 ## Commands
@@ -29,6 +30,8 @@ scripts/                 build and benchmark entry points
 ```sh
 swift test
 swift build -c release --product dictation
+make check
+make install
 ./scripts/build-app.sh
 VERSION=0.1.0 BUILD_NUMBER=1 ./scripts/release-app.sh
 ./scripts/run-parity.sh
@@ -47,6 +50,8 @@ production build with a plain `swift build` invocation.
 
 - Apple silicon and macOS 15 or later for now.
 - Public builds use Developer ID, hardened runtime, notarization and stapling.
+- Sparkle updates use the pinned appcast URL and EdDSA public key in `build-app.sh`. Never rotate either after the first release without a migration plan.
 - `release-app.sh` requires `VERSION` and `BUILD_NUMBER`; set `NOTARY_PROFILE` for a public archive.
 - The required NVIDIA speech model is downloaded only after the user accepts its linked terms. Keep the required attribution in the app and notices.
 - Do not bundle model weights into the app.
+- GitHub issues are open. Pull request creation is limited to repository collaborators.

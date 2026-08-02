@@ -1,139 +1,144 @@
-<p align="center">
-  <img src="docs/assets/n-wave-cyan.svg" width="180" alt="Natter">
-</p>
+<div align="center">
+
+<img src="docs/assets/n-wave-cyan.svg" width="150" alt="Natter">
 
 # Natter
 
-Just Natter your thoughts and the app will clean them up for you. Native, local
-macOS dictation with no cloud bullshit.
+**Fast dictation for people who talk in code, commands, and half-finished thoughts.**
 
-Natter uses FluidAudio Nemotron Streaming 560 ms for live speech and an
-optional Qwen 3.5 9B model through MLX Swift for Agent, Email and Article. It has no
-account, cloud inference, telemetry, Ollama dependency or background server.
+Natter is a native macOS menu bar app that transcribes speech locally, cleans it up, and
+types into the app you were already using.
 
-The app currently targets Apple silicon Macs running macOS 15 or later. The
-signed app is about 88 MB installed and 27 MB as a release ZIP. Models are
-downloaded separately during onboarding.
+[Download for macOS](https://github.com/iannuttall/natter/releases/latest) ·
+[Report a problem](https://github.com/iannuttall/natter/issues) · Apache 2.0 licensed
 
-## Use it
+</div>
 
-1. Build and launch the signed app:
+---
 
-   ```sh
-   ./scripts/build-app.sh
-   open dist/Natter.app
-   ```
+## What Natter does
 
-2. Follow the setup assistant. It installs the required 613 MB **Live speech**
-   model, explains Microphone, Accessibility and Input Monitoring, and verifies
-   the shortcut in a real text field.
-3. Download the optional 5.95 GB **Writing tools** model only if you want local
-   AI cleanup for Agent, Email or Article. Raw and Clean do not need it.
-4. Quit Monologue while testing because it uses the same global shortcut.
-5. Focus an editable field, double-tap Right Option to start, then tap Right
-   Option once to stop. Hold Right Option while idle to cycle modes and show the
-   selected mode. Right Control can be selected in Settings instead.
+Double-tap Right Option and start talking. Natter listens through a local speech model and
+shows the live transcript in a small overlay. Tap Right Option once to stop.
 
-The menu-bar menu changes mode, opens local history, copies the last completed
-transcript and exposes setup, privacy and licence details. The setup assistant
-opens automatically whenever a required permission or the speech model is
-missing.
+Raw mode types stable words as you speak. Agent mode waits until you stop, fixes technical
+terms and sentence boundaries, then types the finished result. Press Tab while listening to
+switch mode without moving focus out of the text field.
 
-## Modes
+The app is designed for the awkward dictation that ordinary macOS speech tools tend to
+mangle: GitHub, SwiftPM, `--flags`, file paths, version numbers, terminal commands, and names
+from your own dictionary.
 
-- **Raw** types stable phrases live and applies personal corrections.
-- **Agent** shows the live transcript in the overlay, applies conservative local technical formatting when you stop, then types the result visibly. Live Agent typing remains an advanced option.
-- **Clean** removes explicit filler and obvious repeated words or phrases after
-  stop, without another model.
-- **Email** formats a direct email body after stop.
-- **Article** restructures longer speech into prose after stop.
+## Nothing you say leaves your Mac
 
-Only append-only stable phrases are sent to the focused app. Mutable guesses
-remain in the non-activating overlay. Text is inserted as small Unicode keyboard
-events rather than through the clipboard. Known terminal apps receive paced
-chunks so coding-agent TUIs do not merge a long transcript into one paste burst.
-Terminal pacing is enabled by default and can be disabled in Settings.
+There is no account, cloud transcription, telemetry, Ollama dependency, Homebrew helper, or
+localhost service. Audio and transcripts stay on the Mac.
 
-The app captures the frontmost process and focused Accessibility element when a
-session starts. If focus changes, insertion fails or a writing result drops a
-protected fact, the undelivered tail is copied when it can be identified;
-otherwise the complete intended transcript is copied. The complete recovery
-record is saved under:
+Natter downloads model weights only after you choose to install them. They live under
+Application Support and are never bundled into the app or this repository.
 
-```text
-~/Library/Application Support/is.ian.natter/Recovery/latest.json
-```
+| Model | Used for | Download |
+|---|---|---:|
+| FluidAudio Nemotron Streaming 560 ms | Required live speech | 613 MB |
+| Qwen 3.5 4B MLX 4-bit | Optional fast Agent cleanup | 3.03 GB |
+| Qwen 3.5 9B MLX 4-bit | Optional Email and Article rewriting | 5.95 GB |
 
-## Personal rules
+Raw and Clean do not need a writing model. Agent also has a deterministic fallback when its
+optional model is missing or rejects an unsafe edit.
 
-Settings opens a native editor for local Markdown files under:
+## Dictation modes
+
+- **Raw** types stable speech live with personal corrections.
+- **Agent** keeps the live transcript in the overlay, applies conservative technical cleanup
+  after stop, and types the result visibly.
+- **Clean** removes explicit filler and repeated fragments without a writing model.
+- **Email** turns the transcript into a direct email body after stop.
+- **Article** restructures longer speech into readable prose after stop.
+
+Every delivery path keeps the original transcript recoverable. If the destination loses
+focus, rejects keyboard events, or a model returns an unsafe rewrite, Natter stores a local
+recovery record and copies the complete intended transcript.
+
+## Install Natter
+
+Download the latest DMG, drag Natter to Applications, and launch it. Natter supports Apple
+silicon Macs running macOS 15 or later.
+
+The setup assistant walks through three macOS permissions:
+
+- Microphone lets Natter hear the active recording.
+- Accessibility lets it identify the text field that had focus.
+- Input Monitoring lets the global dictation shortcut work outside Natter.
+
+The app can open at login. You can change that from Settings at any time.
+
+## Teach it your words
+
+The dictionary stores preferred spellings locally. Writing rules are plain Markdown files
+under:
 
 ```text
 ~/Library/Application Support/is.ian.natter/Rules/
 ```
 
-`personal.md` stores deterministic corrections. The other files hold the Clean,
-Email and Article instructions. A correction can also be taught by voice:
+You can also teach a correction by voice:
 
-> Hey Natter, you just transcribed it as port man but what I actually said
-> was Portman p-o-r-t-m-a-n can you add that to my rules so you remember for
-> next time.
+> Hey Natter, you just transcribed it as port man but what I said was Portman,
+> p-o-r-t-m-a-n. Add that to my rules.
 
-The command is not typed into the destination. It is parsed locally and saved
-to the same reversible Markdown file.
+The correction command is consumed instead of being typed into the destination.
 
-## Product corpus
+## Verify a downloaded build
 
-The local browser harness covers delivery, recovery, correction, writing and
-stress scenarios. It switches modes, captures and grades output, saves results
-to disk and advances automatically. It deliberately does not repeat accent/model
-selection; the recorded benchmark already tested Ian's British accent.
+Public builds are signed with Developer ID and notarized by Apple.
 
 ```sh
-./scripts/serve-product-corpus.sh
+codesign --verify --deep --strict --verbose=2 /Applications/Natter.app
+spctl --assess --type execute --verbose=4 /Applications/Natter.app
 ```
 
-Open `http://127.0.0.1:4173` and press **Start run**. Results are written after
-every scenario to `ProductCorpus/Results/latest.json`.
-
-## Build and verification
+Each GitHub release also includes a SHA-256 checksum for its DMG.
 
 ```sh
-swift test
-./scripts/build-app.sh
-codesign --verify --deep --strict --verbose=2 dist/Natter.app
-./scripts/run-parity.sh
-node --test ProductCorpus/tests/scenarios.test.mjs
+shasum -a 256 ~/Downloads/Natter-*.dmg
 ```
 
-`build-app.sh` uses Xcode rather than `swift build` so MLX's Metal shaders are
-compiled and copied into the signed app. Model weights are never bundled in the
-app; they live under Application Support and are installed through Settings.
-The script uses a stable local code-signing identity so macOS keeps Microphone,
-Accessibility and Input Monitoring trust across development builds. It prefers
-a Developer ID identity when one is available. To pin one identity
-across machines or Keychain changes, put its full certificate name in the
-gitignored `.signing-identity` file. `SIGN_IDENTITY` still overrides both.
+## Build it locally
 
-For a Developer ID archive and notarized public release, see
-[`docs/RELEASING.md`](docs/RELEASING.md). Application and dependency licences
-are bundled under `Contents/Resources/Legal` and available from **About &
-Legal** in the app.
-
-The direct MLX parity report is in `Results/direct-mlx-parity.md`. The pinned
-Qwen checkpoint is:
-
-```text
-mlx-community/Qwen3.5-9B-MLX-4bit@938d8919941c6e7efd3c7150eff7fe9d12afa631
+```sh
+make check       # Swift and product-corpus tests
+make build       # signed app in dist/Natter.app
+make install     # install to ~/Applications and enable Open at Login
+make dmg         # drag-install DMG
+make parity      # direct MLX writing benchmark
 ```
 
-## Repository map
+`build-app.sh` uses Xcode because MLX Metal shaders are not compiled by a plain SwiftPM
+release build. The script copies every generated resource bundle and Sparkle framework into
+the signed app before verification.
+
+The main source areas are:
 
 ```text
-Sources/DictationCore/   pure models, rules and pipeline logic
-Sources/DictationApp/    native lifecycle, services and SwiftUI/AppKit UI
+Sources/DictationCore/   pure models, rules, and pipeline logic
+Sources/DictationApp/    AppKit lifecycle, services, and SwiftUI views
 Sources/DictationParity/ direct MLX writing benchmark
 Tests/                   pure Swift regression tests
 ProductCorpus/           local workflow test harness
-scripts/                 build, parity and corpus entry points
+scripts/                 build, install, release, and benchmark commands
 ```
+
+Read [AGENTS.md](AGENTS.md) before changing the app. It records the product contracts and
+build traps that are easy to reintroduce.
+
+## Report bugs and request features
+
+Open a [GitHub issue](https://github.com/iannuttall/natter/issues) with the macOS version,
+destination app, selected mode, and what happened to the transcript. Pull request creation is
+limited to maintainers so fixes can stay tied to the local safety and release checks.
+
+## License
+
+Natter is licensed under Apache License 2.0. Model weights keep their original upstream
+licences and are downloaded separately after their terms are shown in the app. See
+[THIRD_PARTY_NOTICES.md](THIRD_PARTY_NOTICES.md) for the full attribution list.
