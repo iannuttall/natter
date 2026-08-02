@@ -12,6 +12,7 @@ struct SettingsView: View {
     let onShowHistory: () -> Void
     @State private var launchAtLogin = LaunchAtLoginManager()
     @State private var audioInputs = AudioInputDeviceManager.shared
+    @State private var updater = UpdateController.shared
 
     init(
         store: DictationStore,
@@ -135,6 +136,24 @@ struct SettingsView: View {
                     .font(.caption)
                     .foregroundStyle(.red)
                     .textSelection(.enabled)
+            }
+
+            if updater.isConfigured {
+                Divider()
+                HStack {
+                    VStack(alignment: .leading, spacing: 2) {
+                        Text("Updates")
+                            .fontWeight(.medium)
+                        Text("Natter checks quietly and lets you choose when to install.")
+                            .font(.caption)
+                            .foregroundStyle(.secondary)
+                    }
+                    Spacer()
+                    Button(updater.pendingUpdate.map { "Update to \($0)…" } ?? "Check Now…") {
+                        updater.checkForUpdates()
+                    }
+                    .disabled(!updater.canCheckForUpdates)
+                }
             }
         }
         .padding(Theme.Space.regular)
@@ -260,7 +279,7 @@ struct SettingsView: View {
             VStack(alignment: .leading, spacing: 2) {
                 Text("Dictation key")
                     .font(.headline)
-                Text("Double tap to start. Hold before or during dictation to switch mode. Tap once to stop.")
+                Text("Double tap to start. Press Tab while listening to switch mode. Tap once to stop.")
                     .font(.callout)
                     .foregroundStyle(.secondary)
             }

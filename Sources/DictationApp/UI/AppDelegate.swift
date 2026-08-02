@@ -18,6 +18,7 @@ final class AppDelegate: NSObject, NSApplicationDelegate {
 
     func applicationDidFinishLaunching(_ notification: Notification) {
         NSApp.setActivationPolicy(.accessory)
+        _ = UpdateController.shared
         do {
             try LegacyDataMigrator.migrateIfNeeded(to: AppInfo.bundleIdentifier)
         } catch {

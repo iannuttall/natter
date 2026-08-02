@@ -29,6 +29,7 @@ The upstream NOTICE files supplied by SwiftASN1, SwiftCrypto and SwiftNIO are re
 - EventSource — Copyright 2025 Mattt
 - MLX Swift — Copyright 2023 ml-explore
 - MLX Swift LM — Copyright 2024 ml-explore
+- Sparkle — Copyright 2006-2026 Andy Matuschak and contributors
 - yyjson — Copyright 2020 YaoYuan
 
 Their complete MIT licence texts are reproduced in the app bundle.
@@ -52,6 +53,13 @@ Licensed by NVIDIA Corporation under the NVIDIA Open Model License
 - Original model: `Qwen/Qwen3.5-9B`
 - Licence: Apache License 2.0
 - Model card: https://huggingface.co/mlx-community/Qwen3.5-9B-MLX-4bit
+
+### Qwen 3.5 4B MLX 4-bit
+
+- Model: `mlx-community/Qwen3.5-4B-MLX-4bit`
+- Original model: `Qwen/Qwen3.5-4B`
+- Licence: Apache License 2.0
+- Model card: https://huggingface.co/mlx-community/Qwen3.5-4B-MLX-4bit
 
 ## Privacy
 

@@ -15,6 +15,7 @@ final class StatusItemController: NSObject, NSMenuDelegate {
     private let statusItem: NSStatusItem
     private let menu = NSMenu()
     private let audioInputs = AudioInputDeviceManager.shared
+    private let updater = UpdateController.shared
 
     init(
         store: DictationStore,
@@ -200,6 +201,14 @@ final class StatusItemController: NSObject, NSMenuDelegate {
         )
         menu.addItem(legal)
 
+        if updater.isConfigured {
+            menu.addItem(item(
+                title: updater.pendingUpdate.map { "Update to \($0)…" } ?? "Check for Updates…",
+                action: #selector(checkForUpdates),
+                symbol: "arrow.triangle.2.circlepath"
+            ))
+        }
+
         let quit = item(
             title: "Quit \(AppInfo.displayName)",
             action: #selector(quitApp),
@@ -322,6 +331,11 @@ final class StatusItemController: NSObject, NSMenuDelegate {
 
     @objc private func openLegal() {
         LegalWindow.shared.show()
+    }
+
+    @objc private func checkForUpdates() {
+        NSApp.activate(ignoringOtherApps: true)
+        updater.checkForUpdates()
     }
 
     @objc private func cancelDictation() {

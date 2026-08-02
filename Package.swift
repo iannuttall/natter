@@ -14,6 +14,7 @@ let package = Package(
         .executable(name: "dictation-parity", targets: ["DictationParity"])
     ],
     dependencies: [
+        .package(url: "https://github.com/sparkle-project/Sparkle", from: "2.6.0"),
         .package(
             url: "https://github.com/FluidInference/FluidAudio.git",
             revision: "88d6d8166880dee1ac7c32c80f8e10cd782f8ca8"
@@ -34,6 +35,7 @@ let package = Package(
             dependencies: [
                 "DictationCore",
                 .product(name: "FluidAudio", package: "FluidAudio"),
+                .product(name: "Sparkle", package: "Sparkle"),
                 .product(name: "Hub", package: "swift-transformers"),
                 .product(name: "MLXHuggingFace", package: "mlx-swift-lm"),
                 .product(name: "MLXGuidedGeneration", package: "mlx-swift-lm"),

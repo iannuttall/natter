@@ -11,10 +11,13 @@ version="${VERSION:-0.1.0}"
 build_number="${BUILD_NUMBER:-1}"
 sign_identity="${SIGN_IDENTITY:-}"
 signing_identity_file="${SIGNING_IDENTITY_FILE:-$repo_dir/.signing-identity}"
+sparkle_feed_url="${SPARKLE_FEED_URL:-https://raw.githubusercontent.com/iannuttall/natter/main/appcast.xml}"
+sparkle_public_key="${SPARKLE_PUBLIC_KEY:-nwuSNKWY2YAhvGb8G4DF2Zxmpugdei3TaQekrb2S/vg=}"
 dist_dir="$repo_dir/dist"
 app_dir="$dist_dir/$app_name.app"
 legacy_app_dir="$dist_dir/Dictation.app"
 contents_dir="$app_dir/Contents"
+frameworks_dir="$contents_dir/Frameworks"
 entitlements="$repo_dir/Config/Natter.entitlements"
 
 cd "$repo_dir"
@@ -47,12 +50,24 @@ if [[ "$app_name" == "Natter" && -d "$legacy_app_dir" ]]; then
     rm -rf "$legacy_app_dir"
 fi
 
-mkdir -p "$contents_dir/MacOS" "$contents_dir/Resources"
+mkdir -p "$contents_dir/MacOS" "$contents_dir/Resources" "$frameworks_dir"
 cp "$products_dir/$executable_name" "$contents_dir/MacOS/$executable_name"
 strip -S "$contents_dir/MacOS/$executable_name"
 for resource_bundle in "$products_dir"/*.bundle(N/); do
     ditto "$resource_bundle" "$contents_dir/Resources/$(basename "$resource_bundle")"
 done
+
+sparkle_framework="$(
+    find "$products_dir" "$repo_dir/.xcode-build/SourcePackages/artifacts" \
+        -type d -name Sparkle.framework -print -quit 2>/dev/null
+)"
+if [[ -z "$sparkle_framework" ]]; then
+    echo "Sparkle.framework was not produced by the Xcode build" >&2
+    exit 65
+fi
+ditto "$sparkle_framework" "$frameworks_dir/Sparkle.framework"
+install_name_tool -add_rpath '@executable_path/../Frameworks' \
+    "$contents_dir/MacOS/$executable_name" 2>/dev/null || true
 
 icon_source="$repo_dir/Resources/AppIcon.icon"
 icon_output="$repo_dir/.xcode-build/NatterIcon"
@@ -124,6 +139,10 @@ done
 /usr/libexec/PlistBuddy -c "Add :CFBundleURLTypes:0:CFBundleURLSchemes array" "$contents_dir/Info.plist"
 /usr/libexec/PlistBuddy -c "Add :CFBundleURLTypes:0:CFBundleURLSchemes:0 string natter" "$contents_dir/Info.plist"
 /usr/libexec/PlistBuddy -c "Add :CFBundleURLTypes:0:CFBundleURLSchemes:1 string ian-dictation" "$contents_dir/Info.plist"
+/usr/libexec/PlistBuddy -c "Add :SUFeedURL string $sparkle_feed_url" "$contents_dir/Info.plist"
+/usr/libexec/PlistBuddy -c "Add :SUPublicEDKey string $sparkle_public_key" "$contents_dir/Info.plist"
+/usr/libexec/PlistBuddy -c "Add :SUEnableAutomaticChecks bool true" "$contents_dir/Info.plist"
+/usr/libexec/PlistBuddy -c "Add :SUScheduledCheckInterval integer 86400" "$contents_dir/Info.plist"
 
 # actool's fallback ICNS stops at 256px. Render the vector-backed icon from the
 # finished bundle and merge larger renditions for macOS 15 Finder and Get Info.
@@ -167,11 +186,28 @@ if [[ -z "$sign_identity" ]]; then
     echo "warning: no signing identity found; macOS permissions may reset after rebuilds" >&2
 fi
 
-if [[ "$sign_identity" == "-" ]]; then
-    codesign --force --deep --entitlements "$entitlements" --sign "$sign_identity" "$app_dir"
-else
-    codesign --force --deep --options runtime --timestamp \
-        --entitlements "$entitlements" --sign "$sign_identity" "$app_dir"
+sign_flags=(--force)
+if [[ "$sign_identity" != "-" ]]; then
+    sign_flags+=(--options runtime --timestamp)
 fi
+
+sign_component() {
+    codesign "${sign_flags[@]}" --sign "$sign_identity" "$1"
+}
+
+sparkle_version_dir="$frameworks_dir/Sparkle.framework/Versions/B"
+for xpc in "$sparkle_version_dir"/XPCServices/*.xpc(N); do
+    sign_component "$xpc"
+done
+if [[ -e "$sparkle_version_dir/Updater.app" ]]; then
+    sign_component "$sparkle_version_dir/Updater.app"
+fi
+if [[ -e "$sparkle_version_dir/Autoupdate" ]]; then
+    sign_component "$sparkle_version_dir/Autoupdate"
+fi
+sign_component "$frameworks_dir/Sparkle.framework"
+
+codesign "${sign_flags[@]}" --entitlements "$entitlements" \
+    --sign "$sign_identity" "$app_dir"
 echo "Signed with: $sign_identity"
 echo "$app_dir"
