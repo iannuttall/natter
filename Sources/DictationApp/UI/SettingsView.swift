@@ -151,7 +151,7 @@ struct SettingsView: View {
                 .font(.caption)
                 .foregroundStyle(.secondary)
             Toggle("Use local AI cleanup when installed", isOn: $store.smartAgentEnabled)
-            Text("Falls back to deterministic technical formatting when Writing tools are not installed.")
+            Text("Uses the fast 4B Agent model and falls back to deterministic technical formatting when it is not installed.")
                 .font(.caption)
                 .foregroundStyle(.secondary)
         }

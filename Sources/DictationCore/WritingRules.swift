@@ -18,6 +18,8 @@ public enum WritingRules {
             # Agent mode
 
             - Make the smallest possible corrections justified by technical context.
+            - Remove explicit speech fillers and repeated fragments.
+            - Correct clear grammar and sentence-boundary punctuation without rephrasing.
             - Correct obvious speech-recognition homophones for commands, tools and identifiers.
             - Format explicit CLI commands, subcommands, flags, paths and code symbols literally.
             - Lowercase command names and flags only when the command context is unambiguous.
@@ -63,21 +65,54 @@ public enum WritingRules {
     public static func prompt(
         transcript: String,
         mode: DictationMode,
-        markdownRules: String
+        markdownRules: String,
+        agentContext: AgentWritingContext? = nil
     ) -> String {
-        """
+        let contextSection: String
+        if mode == .agent,
+           let agentContext,
+           !agentContext.promptSection.isEmpty {
+            contextSection = """
+
+            Local context:
+            <context>
+            \(agentContext.promptSection)
+            </context>
+            """
+        } else {
+            contextSection = ""
+        }
+        return """
         Mode: \(mode.label)
 
         User rules:
         <rules>
         \(markdownRules)
-        </rules>
+        </rules>\(contextSection)
 
         Speech transcript:
         <transcript>
         \(transcript)
         </transcript>
         """
+    }
+
+    public static func agentRulesContainCustomInstructions(_ rules: String) -> Bool {
+        let defaultLines = Set(normalizedInstructionLines(defaultMarkdown(for: .agent)))
+        return normalizedInstructionLines(rules).contains { !defaultLines.contains($0) }
+    }
+
+    private static func normalizedInstructionLines(_ rules: String) -> [String] {
+        rules.split(whereSeparator: \.isNewline).compactMap { rawLine in
+            var line = rawLine.trimmingCharacters(in: .whitespacesAndNewlines)
+            guard !line.isEmpty, !line.hasPrefix("#") else { return nil }
+            if line.hasPrefix("- ") {
+                line.removeFirst(2)
+            }
+            return line.lowercased()
+                .split(whereSeparator: \.isWhitespace)
+                .joined(separator: " ")
+        }
     }
 }
 

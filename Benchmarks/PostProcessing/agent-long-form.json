@@ -1,0 +1,118 @@
+{
+  "version": 1,
+  "fixtures": [
+    {
+      "id": "agent-medium-native-app-workflow",
+      "mode": "Agent",
+      "instructions": "Make only high-confidence technical corrections and preserve the request exactly.",
+      "transcript": "I want to tighten the NATA workflow without changing what the speaker actually asked for. Start by opening the Gitter repository and checking the latest commit on the performance branch. The raw transcript must remain available even if the local writing model fails, the edit plan is invalid, or the destination application loses focus. Keep /Users/ian/dev/native/dictation intact, preserve version 0.1.0, and do not change the 560 ms speech window. In the Swift code, set scroll restoration: true in the router options, keep the main actor annotation on the coordinator, and open app delegate before changing launch behaviour. The cleanup pass should understand that ChatGPT, Claude, SwiftPM, MLX, FluidAudio, Qwen, and Nemotron are preferred spellings, but it must not replace an unrelated ordinary word simply because it looks similar. Measure model preparation separately from prompt prefill, generated output, validation, and final insertion. For a representative medium dictation, the warm post-processing target is below 2 seconds at p50 and below 3 seconds at p95. Every URL, email address, path, number, percentage, version, command, and explicit constraint must survive. If structured generation returns an empty edit list, deliver the deterministic input immediately. If it returns a source string that is absent, repeated, overlapping, or too broad, reject the plan and deliver the safe input instead of asking another model to rewrite everything. Keep the interface responsive while the work runs away from the main actor. Treat the first measured request as cold and keep it visible in the report, but calculate the warm target from later iterations after the model, Metal kernels, tokenizer, and grammar vocabulary are ready. Record the input word count and changed word count beside every latency. A fast empty plan is useful evidence, but the corpus must also require real identifier edits so the result proves generation, JSON decoding, validation, reconstruction, and fact checking all completed. Do not hide a rejected plan inside an apparently successful aggregate. Do not add headings, a summary, a sign-off, extra politeness, or an invented implementation detail. The point is to make Agent mode feel immediate while retaining the exact substance and tone of a long technical request.",
+      "expected": "I want to tighten the Natter workflow without changing what the speaker actually asked for. Start by opening the GitHub repository and checking the latest commit on the performance branch. The raw transcript must remain available even if the local writing model fails, the edit plan is invalid, or the destination application loses focus. Keep /Users/ian/dev/native/dictation intact, preserve version 0.1.0, and do not change the 560 ms speech window. In the Swift code, set scrollRestoration: true in the router options, keep the @MainActor annotation on the coordinator, and open AppDelegate before changing launch behaviour. The cleanup pass should understand that ChatGPT, Claude, SwiftPM, MLX, FluidAudio, Qwen, and Nemotron are preferred spellings, but it must not replace an unrelated ordinary word simply because it looks similar. Measure model preparation separately from prompt prefill, generated output, validation, and final insertion. For a representative medium dictation, the warm post-processing target is below 2 seconds at p50 and below 3 seconds at p95. Every URL, email address, path, number, percentage, version, command, and explicit constraint must survive. If structured generation returns an empty edit list, deliver the deterministic input immediately. If it returns a source string that is absent, repeated, overlapping, or too broad, reject the plan and deliver the safe input instead of asking another model to rewrite everything. Keep the interface responsive while the work runs away from the main actor. Treat the first measured request as cold and keep it visible in the report, but calculate the warm target from later iterations after the model, Metal kernels, tokenizer, and grammar vocabulary are ready. Record the input word count and changed word count beside every latency. A fast empty plan is useful evidence, but the corpus must also require real identifier edits so the result proves generation, JSON decoding, validation, reconstruction, and fact checking all completed. Do not hide a rejected plan inside an apparently successful aggregate. Do not add headings, a summary, a sign-off, extra politeness, or an invented implementation detail. The point is to make Agent mode feel immediate while retaining the exact substance and tone of a long technical request.",
+      "required": [
+        "Natter workflow",
+        "GitHub repository",
+        "/Users/ian/dev/native/dictation",
+        "version 0.1.0",
+        "560 ms",
+        "scrollRestoration: true",
+        "@MainActor",
+        "AppDelegate",
+        "below 2 seconds",
+        "below 3 seconds"
+      ],
+      "forbidden": [
+        "NATA workflow",
+        "Gitter repository",
+        "scroll restoration: true",
+        "main actor annotation",
+        "open app delegate"
+      ]
+    },
+    {
+      "id": "agent-medium-personal-glossary",
+      "mode": "Agent",
+      "instructions": "Apply the supplied personal terminology only where the spoken variants appear, then preserve everything else.",
+      "transcript": "Before changing the dictation release, open the en dot is dashboard and ask code x to inspect the keep NCP integration. These are personal spellings supplied for this benchmark, not guesses from a global replacement table. Keep the sentence structure and do not turn the request into a checklist. The test must preserve /Users/ian/dev/native/dictation, release 0.1.0, 5.24%, 560 ms, ian@example.com, and https://example.com/releases exactly. It must also leave the NATA organisation and the old Gitter chat unchanged because neither phrase refers to the dictation app or a GitHub repository. Return a compact edit plan with one exact source for each supported correction. Do not rewrite surrounding prose, change punctuation, add a heading, remove a constraint, or normalize a protected value. If a proposed source is missing or ambiguous, reject the plan and retain the safe transcript. This fixture exists to prove that a fast model actually reads the bounded glossary and makes useful validated edits rather than returning an empty list while deterministic rules receive all the credit.",
+      "expected": "Before changing the dictation release, open the ian.is dashboard and ask Codex to inspect the Keep MCP integration. These are personal spellings supplied for this benchmark, not guesses from a global replacement table. Keep the sentence structure and do not turn the request into a checklist. The test must preserve /Users/ian/dev/native/dictation, release 0.1.0, 5.24%, 560 ms, ian@example.com, and https://example.com/releases exactly. It must also leave the NATA organisation and the old Gitter chat unchanged because neither phrase refers to the dictation app or a GitHub repository. Return a compact edit plan with one exact source for each supported correction. Do not rewrite surrounding prose, change punctuation, add a heading, remove a constraint, or normalize a protected value. If a proposed source is missing or ambiguous, reject the plan and retain the safe transcript. This fixture exists to prove that a fast model actually reads the bounded glossary and makes useful validated edits rather than returning an empty list while deterministic rules receive all the credit.",
+      "required": [
+        "ian.is dashboard",
+        "ask Codex",
+        "Keep MCP integration",
+        "/Users/ian/dev/native/dictation",
+        "release 0.1.0",
+        "5.24%",
+        "560 ms",
+        "ian@example.com",
+        "https://example.com/releases",
+        "NATA organisation",
+        "Gitter chat"
+      ],
+      "forbidden": [
+        "en dot is dashboard",
+        "ask code x",
+        "keep NCP integration"
+      ],
+      "terminology": [
+        {"preferred": "ian.is", "variants": ["en dot is"], "authoritative": true},
+        {"preferred": "Codex", "variants": ["code x"], "authoritative": true},
+        {"preferred": "Keep MCP", "variants": ["keep NCP"], "authoritative": true}
+      ]
+    },
+    {
+      "id": "agent-short-grammar-edits",
+      "mode": "Agent",
+      "instructions": "Correct only the four clear subject-verb agreement errors. Preserve every technical fact and all surrounding wording.",
+      "transcript": "The medium result are below 2 seconds, but the long result need another measured run. The validator have preserved /Users/ian/dev/native/dictation, release 0.1.0, 5.24%, 560 ms, ian@example.com, and https://example.com/releases, and it do not rewrite NATA or the old Gitter chat. Keep this as one paragraph. Do not add a heading, a summary, a checklist, extra explanation, or a claim that the benchmark has passed. Return only exact local edits for the four grammatical errors. Everything else is already deliberate.",
+      "expected": "The medium result is below 2 seconds, but the long result needs another measured run. The validator has preserved /Users/ian/dev/native/dictation, release 0.1.0, 5.24%, 560 ms, ian@example.com, and https://example.com/releases, and it does not rewrite NATA or the old Gitter chat. Keep this as one paragraph. Do not add a heading, a summary, a checklist, extra explanation, or a claim that the benchmark has passed. Return only exact local edits for the four grammatical errors. Everything else is already deliberate.",
+      "required": [
+        "medium result is below 2 seconds",
+        "long result needs another measured run",
+        "validator has preserved",
+        "it does not rewrite",
+        "/Users/ian/dev/native/dictation",
+        "release 0.1.0",
+        "5.24%",
+        "560 ms",
+        "ian@example.com",
+        "https://example.com/releases",
+        "NATA",
+        "Gitter chat"
+      ],
+      "forbidden": [
+        "medium result are",
+        "long result need another",
+        "validator have",
+        "it do not rewrite"
+      ]
+    },
+    {
+      "id": "agent-long-release-investigation",
+      "mode": "Agent",
+      "instructions": "Make only high-confidence technical corrections and preserve every fact, constraint and paragraph.",
+      "transcript": "We need a controlled release investigation for the dictation pipeline, and the result has to be useful rather than flattering. Begin with the same recorded audio for every speech engine so that microphone timing, room noise, pauses, and pronunciation do not move between runs. Store the reference transcript beside the audio, then calculate ordinary word error rate and a separate technical-term recall score. The technical list should include NATA, Gitter repositories, ChatGPT, Claude Desktop, SwiftPM, MLX, FluidAudio, Qwen, Nemotron, bundle identifiers, file paths, command flags, URLs, email addresses, versions, percentages, and units. Do not let a good score on common prose hide failures on the words that matter during development. For post-processing, feed every candidate the same raw transcript rather than allowing each speech engine to produce a different input. Record cold model load, warm prompt prefill, first generated token, final generated token, edit validation, text reconstruction, and destination insertion as separate timings. A full rewrite that takes 10 seconds and then types for another 2.5 seconds is not competitive just because model loading happened earlier. A structured edit run must still be rejected if it changes /Users/ian/dev/native/dictation, drops release 0.1.0, alters 5.24%, changes 560 ms, removes ian@example.com, or rewrites https://example.com/releases. Run enough iterations to report p50 and p95 without treating the first warm result as the whole story. Medium transcripts should cover roughly 150 to 350 words. Long transcripts should cover roughly 350 to 800 words. Stress transcripts should go beyond that and must prove the raw source remains recoverable even when a model reaches its context or output limit. On this machine, the initial acceptance target is warm Agent post-processing below 2 seconds at p50 for about 350 words and below 3 seconds at p50 for about 700 words. The p95 targets are below 3 seconds and below 5 seconds respectively. Natter must also beat the comparable Monologue local result by at least 25 percent in each representative bucket. Compare end-to-end stop-to-finished latency separately from model-only latency because terminal pacing and inaccessible text controls are delivery problems, not inference problems. Keep Email and Article on the full Qwen rewrite path because those modes intentionally restructure prose. Agent should use the compact edit path because most technical dictation needs only a few corrected identifiers, punctuation marks, or explicit spoken forms. Set scroll restoration: true only when that exact property is requested. Keep the main actor annotation where the coordinator owns user-interface state, and inspect app delegate before moving launch code. The validator must require every edit source to be an exact, case-sensitive, unique substring. It must reject overlapping ranges, more than sixteen edits, absent source text, ambiguous repeated source text, and a total change budget above one third of the transcript, while ignoring an unchanged replacement. Apply accepted ranges from the end toward the beginning so earlier string indices remain valid. After reconstruction, run the protected-fact guard over the complete output. If any check fails, preserve the original raw record and deliver the safe deterministic transcript rather than cascading into another generative rewrite. The model prompt can include a bounded local glossary. Preferred spellings should come from the user's dictionary, the destination application, the current project, and a small built-in set for Natter's own stack. User-defined spellings are authoritative. Built-in hints are contextual and must never become a giant global replacement table. A phrase such as Gitter chat can remain unchanged, while Gitter repository is strong evidence for GitHub. The term NATA can remain an organisation in ordinary prose, while using NATA to describe this dictation app is strong evidence for Natter. Keep this context local and do not introduce telemetry, accounts, cloud inference, Ollama, a Homebrew helper, or a localhost service. Once the model benchmark passes, rebuild the signed application through xcodebuild so the MLX Metal shader bundle sits beside the executable. Then test ordinary native fields, Safari, Chrome, Gmail, ChatGPT Desktop, Claude Desktop, Terminal, iTerm, and Ghostty. Include focus changes, screenshots pasted during a recording, Raw delivery, buffered Agent delivery, cancellation, Paste Last Transcript, and recovery after the original text field disappears. Report failures honestly, keep the exact transcript available, and do not call the performance goal complete until every named latency and safety gate has direct evidence.",
+      "expected": "We need a controlled release investigation for the dictation pipeline, and the result has to be useful rather than flattering. Begin with the same recorded audio for every speech engine so that microphone timing, room noise, pauses, and pronunciation do not move between runs. Store the reference transcript beside the audio, then calculate ordinary word error rate and a separate technical-term recall score. The technical list should include NATA, GitHub repositories, ChatGPT, Claude Desktop, SwiftPM, MLX, FluidAudio, Qwen, Nemotron, bundle identifiers, file paths, command flags, URLs, email addresses, versions, percentages, and units. Do not let a good score on common prose hide failures on the words that matter during development. For post-processing, feed every candidate the same raw transcript rather than allowing each speech engine to produce a different input. Record cold model load, warm prompt prefill, first generated token, final generated token, edit validation, text reconstruction, and destination insertion as separate timings. A full rewrite that takes 10 seconds and then types for another 2.5 seconds is not competitive just because model loading happened earlier. A structured edit run must still be rejected if it changes /Users/ian/dev/native/dictation, drops release 0.1.0, alters 5.24%, changes 560 ms, removes ian@example.com, or rewrites https://example.com/releases. Run enough iterations to report p50 and p95 without treating the first warm result as the whole story. Medium transcripts should cover roughly 150 to 350 words. Long transcripts should cover roughly 350 to 800 words. Stress transcripts should go beyond that and must prove the raw source remains recoverable even when a model reaches its context or output limit. On this machine, the initial acceptance target is warm Agent post-processing below 2 seconds at p50 for about 350 words and below 3 seconds at p50 for about 700 words. The p95 targets are below 3 seconds and below 5 seconds respectively. Natter must also beat the comparable Monologue local result by at least 25 percent in each representative bucket. Compare end-to-end stop-to-finished latency separately from model-only latency because terminal pacing and inaccessible text controls are delivery problems, not inference problems. Keep Email and Article on the full Qwen rewrite path because those modes intentionally restructure prose. Agent should use the compact edit path because most technical dictation needs only a few corrected identifiers, punctuation marks, or explicit spoken forms. Set scrollRestoration: true only when that exact property is requested. Keep the @MainActor annotation where the coordinator owns user-interface state, and inspect AppDelegate before moving launch code. The validator must require every edit source to be an exact, case-sensitive, unique substring. It must reject overlapping ranges, more than sixteen edits, absent source text, ambiguous repeated source text, and a total change budget above one third of the transcript, while ignoring an unchanged replacement. Apply accepted ranges from the end toward the beginning so earlier string indices remain valid. After reconstruction, run the protected-fact guard over the complete output. If any check fails, preserve the original raw record and deliver the safe deterministic transcript rather than cascading into another generative rewrite. The model prompt can include a bounded local glossary. Preferred spellings should come from the user's dictionary, the destination application, the current project, and a small built-in set for Natter's own stack. User-defined spellings are authoritative. Built-in hints are contextual and must never become a giant global replacement table. A phrase such as Gitter chat can remain unchanged, while GitHub repository is strong evidence for GitHub. The term NATA can remain an organisation in ordinary prose, while using Natter to describe this dictation app is strong evidence for Natter. Keep this context local and do not introduce telemetry, accounts, cloud inference, Ollama, a Homebrew helper, or a localhost service. Once the model benchmark passes, rebuild the signed application through xcodebuild so the MLX Metal shader bundle sits beside the executable. Then test ordinary native fields, Safari, Chrome, Gmail, ChatGPT Desktop, Claude Desktop, Terminal, iTerm, and Ghostty. Include focus changes, screenshots pasted during a recording, Raw delivery, buffered Agent delivery, cancellation, Paste Last Transcript, and recovery after the original text field disappears. Report failures honestly, keep the exact transcript available, and do not call the performance goal complete until every named latency and safety gate has direct evidence.",
+      "required": [
+        "Natter",
+        "GitHub repositories",
+        "/Users/ian/dev/native/dictation",
+        "release 0.1.0",
+        "5.24%",
+        "560 ms",
+        "ian@example.com",
+        "https://example.com/releases",
+        "below 2 seconds",
+        "below 3 seconds",
+        "below 5 seconds",
+        "at least 25 percent",
+        "scrollRestoration: true",
+        "@MainActor",
+        "AppDelegate"
+      ],
+      "forbidden": [
+        "Gitter repositories",
+        "scroll restoration: true",
+        "main actor annotation",
+        "inspect app delegate"
+      ]
+    }
+  ]
+}

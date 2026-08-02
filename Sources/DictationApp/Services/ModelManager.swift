@@ -13,6 +13,7 @@ final class ModelManager {
     private var speechWarmupTask: Task<Void, Never>?
 
     private(set) var speechInstalled = false
+    private(set) var agentWritingInstalled = false
     private(set) var writingInstalled = false
     private(set) var installing: ModelPack?
     private(set) var progress: Double = 0
@@ -31,6 +32,7 @@ final class ModelManager {
     func isInstalled(_ pack: ModelPack) -> Bool {
         switch pack {
         case .speech: speechInstalled
+        case .agentWriting: agentWritingInstalled
         case .writing: writingInstalled
         }
     }
@@ -48,6 +50,8 @@ final class ModelManager {
                 switch pack {
                 case .speech:
                     try await installSpeech()
+                case .agentWriting:
+                    try await installAgentWriting()
                 case .writing:
                     try await installWriting()
                 }
@@ -111,6 +115,8 @@ final class ModelManager {
                 Task { await speechTranscriber.unload() }
             case .writing:
                 try removeIfPresent(WritingModelLocation.downloadRoot(in: paths))
+            case .agentWriting:
+                try removeIfPresent(AgentWritingModelLocation.downloadRoot(in: paths))
             }
             refresh()
             status = "Removed"
@@ -122,6 +128,9 @@ final class ModelManager {
     func refresh() {
         speechInstalled = SpeechModelLocation.isComplete(
             at: SpeechModelLocation.installedDirectory(in: paths)
+        )
+        agentWritingInstalled = WritingModelLocation.isComplete(
+            at: AgentWritingModelLocation.installedDirectory(in: paths)
         )
         writingInstalled = WritingModelLocation.isComplete(
             at: WritingModelLocation.installedDirectory(in: paths)
@@ -139,8 +148,18 @@ final class ModelManager {
     }
 
     private func installWriting() async throws {
-        status = "Downloading writing tools…"
-        let directory = try await writingInstaller.install(in: paths) { [weak self] progress in
+        status = "Downloading long-form writing…"
+        let directory = try await writingInstaller.installQuality(in: paths) { [weak self] progress in
+            Task { @MainActor in self?.progress = progress }
+        }
+        guard WritingModelLocation.isComplete(at: directory) else {
+            throw ModelManagerError.incompleteDownload
+        }
+    }
+
+    private func installAgentWriting() async throws {
+        status = "Downloading fast Agent cleanup…"
+        let directory = try await writingInstaller.installAgent(in: paths) { [weak self] progress in
             Task { @MainActor in self?.progress = progress }
         }
         guard WritingModelLocation.isComplete(at: directory) else {

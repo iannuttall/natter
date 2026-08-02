@@ -2,6 +2,7 @@ import Foundation
 
 public enum ModelPack: String, CaseIterable, Identifiable, Sendable {
     case speech
+    case agentWriting
     case writing
 
     public var id: String { rawValue }
@@ -9,20 +10,23 @@ public enum ModelPack: String, CaseIterable, Identifiable, Sendable {
     public var label: String {
         switch self {
         case .speech: "Live speech"
-        case .writing: "Writing tools"
+        case .agentWriting: "Fast Agent cleanup"
+        case .writing: "Long-form writing"
         }
     }
 
     public var detail: String {
         switch self {
         case .speech: "Nemotron Streaming 560 ms · required"
-        case .writing: "Qwen 3.5 9B MLX 4-bit · Agent, Email and Article"
+        case .agentWriting: "Qwen 3.5 4B MLX 4-bit · guarded run-on cleanup"
+        case .writing: "Qwen 3.5 9B MLX 4-bit · Email and Article"
         }
     }
 
     public var downloadSizeBytes: Int64 {
         switch self {
         case .speech: 613_000_000
+        case .agentWriting: 3_030_000_000
         case .writing: 5_950_000_000
         }
     }
@@ -30,8 +34,40 @@ public enum ModelPack: String, CaseIterable, Identifiable, Sendable {
     public var sizeLabel: String {
         switch self {
         case .speech: "613 MB"
+        case .agentWriting: "3.03 GB"
         case .writing: "5.95 GB"
         }
+    }
+}
+
+public enum AgentWritingModelLocation {
+    public static let repository = "mlx-community/Qwen3.5-4B-MLX-4bit"
+    public static let revision = "32f3e8ecf65426fc3306969496342d504bfa13f3"
+
+    public static func downloadRoot(in paths: AppPaths) -> URL {
+        paths.models.appendingPathComponent("agent-writing", isDirectory: true)
+    }
+
+    public static func installedDirectory(in paths: AppPaths) -> URL {
+        downloadRoot(in: paths)
+            .appendingPathComponent("models", isDirectory: true)
+            .appendingPathComponent("mlx-community", isDirectory: true)
+            .appendingPathComponent("Qwen3.5-4B-MLX-4bit", isDirectory: true)
+    }
+
+    public static func resolve(
+        in paths: AppPaths,
+        environment: [String: String] = ProcessInfo.processInfo.environment,
+        fileManager: FileManager = .default
+    ) -> URL? {
+        if let override = environment["DICTATION_AGENT_WRITING_MODEL_DIR"], !override.isEmpty {
+            let url = URL(fileURLWithPath: override, isDirectory: true)
+            if WritingModelLocation.isComplete(at: url, fileManager: fileManager) { return url }
+        }
+        let installed = installedDirectory(in: paths)
+        return WritingModelLocation.isComplete(at: installed, fileManager: fileManager)
+            ? installed
+            : nil
     }
 }
 

@@ -1,0 +1,49 @@
+{
+  "version": 1,
+  "fixtures": [
+    {
+      "id": "agent-dense-repeated-corrections",
+      "mode": "Agent",
+      "instructions": "Correct every clear grammar and technical terminology error, including every repeated occurrence. Remove explicit fillers and repetitions. Preserve every protected fact and all surrounding wording.",
+      "transcript": "Um, the first benchmark result for segment {{index}} are incomplete, and the second benchmark result for segment {{index}} need another measured pass. The validator for segment {{index}} have preserved /Users/ian/dev/native/dictation, release 0.1.0, 5.24%, 560 ms, ian@example.com, and https://example.com/releases, but the validator for segment {{index}} do not yet prove the long case. Open the Gitter repository for segment {{index}}, set scroll restoration: true, keep the main actor annotation, inspect app delegate, and confirm that the NATA dictation app still has the raw transcript. The delivery checks for segment {{index}} is running in ChatGPT Desktop and Claude Desktop, while the terminal checks for segment {{index}} needs Ghostty, iTerm, and Terminal. These constraints for segment {{index}} remains deliberate, and the cleanup model must not invent a result, remove a number, change a path, add a heading, or silently skip an error because the transcript contains many corrections.",
+      "expected": "The first benchmark result for segment {{index}} is incomplete, and the second benchmark result for segment {{index}} needs another measured pass. The validator for segment {{index}} has preserved /Users/ian/dev/native/dictation, release 0.1.0, 5.24%, 560 ms, ian@example.com, and https://example.com/releases, but the validator for segment {{index}} does not yet prove the long case. Open the GitHub repository for segment {{index}}, set scrollRestoration: true, keep the @MainActor annotation, inspect AppDelegate, and confirm that the Natter dictation app still has the raw transcript. The delivery checks for segment {{index}} are running in ChatGPT Desktop and Claude Desktop, while the terminal checks for segment {{index}} need Ghostty, iTerm, and Terminal. These constraints for segment {{index}} remain deliberate, and the cleanup model must not invent a result, remove a number, change a path, add a heading, or silently skip an error because the transcript contains many corrections.",
+      "required": [
+        "first benchmark result for segment {{index}} is incomplete",
+        "second benchmark result for segment {{index}} needs another measured pass",
+        "validator for segment {{index}} has preserved",
+        "validator for segment {{index}} does not yet prove",
+        "GitHub repository",
+        "scrollRestoration: true",
+        "@MainActor annotation",
+        "AppDelegate",
+        "Natter dictation app",
+        "delivery checks for segment {{index}} are running",
+        "terminal checks for segment {{index}} need",
+        "constraints for segment {{index}} remain deliberate",
+        "/Users/ian/dev/native/dictation",
+        "release 0.1.0",
+        "5.24%",
+        "560 ms",
+        "ian@example.com",
+        "https://example.com/releases",
+        "ChatGPT Desktop",
+        "Claude Desktop"
+      ],
+      "forbidden": [
+        "Um,",
+        "segment {{index}} are incomplete",
+        "segment {{index}} need another",
+        "segment {{index}} have preserved",
+        "segment {{index}} do not yet prove",
+        "Gitter repository",
+        "scroll restoration: true",
+        "main actor annotation",
+        "inspect app delegate",
+        "NATA dictation app",
+        "segment {{index}} is running",
+        "segment {{index}} needs Ghostty",
+        "segment {{index}} remains deliberate"
+      ]
+    }
+  ]
+}

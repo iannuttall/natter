@@ -33,7 +33,9 @@ final class OnboardingManager {
             accessibilityGranted: permissions.accessibilityGranted,
             inputMonitoringGranted: permissions.inputMonitoringGranted,
             practiceCompleted: practiceCompleted,
-            writingChoiceCompleted: writingChoiceCompleted || modelManager.writingInstalled
+            writingChoiceCompleted: writingChoiceCompleted
+                || modelManager.agentWritingInstalled
+                || modelManager.writingInstalled
         )
     }
 

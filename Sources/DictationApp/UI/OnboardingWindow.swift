@@ -225,10 +225,15 @@ private struct OnboardingView: View {
 
     private var writingModel: some View {
         setupPage(
-            title: "Optional writing tools",
-            detail: "Agent, Email and Article can use a local Qwen model after you stop speaking. Raw and Clean work without it.",
+            title: "Optional writing models",
+            detail: "Fast Agent cleanup and long-form writing use separate local models. Raw, Clean and deterministic Agent formatting work without either one.",
             symbol: "text.badge.star"
         ) {
+            modelCard(
+                pack: .agentWriting,
+                licence: "Apache License 2.0",
+                licenceURL: URL(string: "https://huggingface.co/mlx-community/Qwen3.5-4B-MLX-4bit")!
+            )
             modelCard(
                 pack: .writing,
                 licence: "Apache License 2.0",
@@ -238,7 +243,7 @@ private struct OnboardingView: View {
             HStack {
                 Button("Not now") { onboarding.deferWritingModel() }
                 Spacer()
-                if modelManager.writingInstalled {
+                if modelManager.agentWritingInstalled || modelManager.writingInstalled {
                     Button("Continue") { onboarding.deferWritingModel() }
                         .buttonStyle(.borderedProminent)
                 }
@@ -258,7 +263,8 @@ private struct OnboardingView: View {
                     symbol: "record.circle"
                 )
                 feature("Tap once to stop", symbol: "stop.circle")
-                feature("Press both right modifiers to cancel", symbol: "xmark.circle")
+                feature("Press Tab while listening to switch mode", symbol: "arrow.triangle.2.circlepath")
+                feature("Press Right Option + Right Control to cancel", symbol: "xmark.circle")
             }
             Spacer()
             HStack {
