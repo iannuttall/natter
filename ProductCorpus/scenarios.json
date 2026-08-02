@@ -44,8 +44,8 @@
     "mode": "Raw",
     "title": "Paths, addresses and numbers",
     "instruction": "Say the symbols as you normally would when dictating technical work.",
-    "script": "Send the result to hello@example.com, keep the threshold at 70%, and save the report under ~/dev/native/dictation/results before build 402.",
-    "required": ["hello@example.com", "70%", "~/dev/native/dictation", "402"],
+    "script": "Send the result to hello@example.com, keep the threshold at 70%, and save the report under ~/dev/native/natter/results before build 402.",
+    "required": ["hello@example.com", "70%", "~/dev/native/natter", "402"],
     "forbidden": [],
     "minInputEvents": 2,
     "manualChecks": ["The destination remained easy to inspect as technical tokens arrived"]
@@ -239,8 +239,8 @@
     "mode": "Clean",
     "title": "Cleanup cannot drop protected facts",
     "instruction": "Speak naturally with the fillers. The guarded output must retain every exact technical fact.",
-    "script": "Uh, email ian@example.com when build 402 reaches 70%, and, erm, save the log at ~/dev/native/dictation/output.json.",
-    "required": ["ian@example.com", "402", "70%", "~/dev/native/dictation/output.json"],
+    "script": "Uh, email ian@example.com when build 402 reaches 70%, and, erm, save the log at ~/dev/native/natter/output.json.",
+    "required": ["ian@example.com", "402", "70%", "~/dev/native/natter/output.json"],
     "forbidden": ["uh", "erm"],
     "minInputEvents": 1,
     "manualChecks": []

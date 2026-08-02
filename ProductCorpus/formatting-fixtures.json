@@ -266,8 +266,8 @@
       "category": "Addresses and paths",
       "context": "technical",
       "spoken": "Save it under tilde slash dev slash native slash dictation slash results.",
-      "deterministicExpected": "Save it under ~/dev/native/dictation/results.",
-      "protected": ["~/dev/native/dictation/results"],
+      "deterministicExpected": "Save it under ~/dev/native/natter/results.",
+      "protected": ["~/dev/native/natter/results"],
       "forbidden": ["tilde slash"]
     },
     {

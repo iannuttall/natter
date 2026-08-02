@@ -643,13 +643,13 @@ import Testing
 @Test func spokenTechnicalTokensBecomeLiteralWithoutAnLLM() {
     let transcript = """
     Send the results to Ian at example dot com. Keep the threshold at seventy percent and \
-    save the report under tilde slash dev slash native slash dictation slash results before \
+    save the report under tilde slash dev slash native slash natter slash results before \
     build four oh two.
     """
 
     #expect(SpokenTechnicalTextNormalizer.normalize(transcript, context: .technical) == """
     Send the results to ian@example.com. Keep the threshold at 70% and \
-    save the report under ~/dev/native/dictation/results before build 402.
+    save the report under ~/dev/native/natter/results before build 402.
     """)
 }
 

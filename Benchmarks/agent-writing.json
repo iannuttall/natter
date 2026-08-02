@@ -50,9 +50,9 @@
       "id": "agent-facts-and-path",
       "mode": "Agent",
       "instructions": "# Agent mode\n\n- Make the smallest possible corrections justified by technical context.\n- Correct obvious speech-recognition homophones for commands, tools and identifiers.\n- Format explicit CLI commands, subcommands, flags, paths and code symbols literally.\n- Lowercase command names and flags only when the command context is unambiguous.\n- Preserve the speaker's request, word order, constraints, profanity and line breaks.\n- Do not turn prose into source code, Markdown or a different command.\n- If a change is uncertain, leave it unchanged.",
-      "transcript": "Run Codecs exec in ~/dev/native/dictation with 70 recordings and keep the 5.24% result.",
-      "expected": "Run codex exec in ~/dev/native/dictation with 70 recordings and keep the 5.24% result.",
-      "required": ["codex exec", "~/dev/native/dictation", "70 recordings", "5.24%"],
+      "transcript": "Run Codecs exec in ~/dev/native/natter with 70 recordings and keep the 5.24% result.",
+      "expected": "Run codex exec in ~/dev/native/natter with 70 recordings and keep the 5.24% result.",
+      "required": ["codex exec", "~/dev/native/natter", "70 recordings", "5.24%"],
       "forbidden": ["Codecs exec"]
     },
     {
