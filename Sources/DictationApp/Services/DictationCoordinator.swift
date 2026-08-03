@@ -432,13 +432,25 @@ final class DictationCoordinator {
                 let transcript: String
                 switch store.selectedMode {
                 case .raw:
-                    transcript = FinalTranscriptFormatter.punctuateRawProse(
-                        correctedTranscript,
-                        capitalizesInitial: spokenFormattingContext == .prose
-                    )
+                    if !emitter.delivered.isEmpty,
+                       let remainder = emitter.tolerantRemainder(in: correctedTranscript) {
+                        let continuation = FinalTranscriptFormatter.punctuateRawProse(
+                            remainder.trimmingCharacters(in: .whitespacesAndNewlines),
+                            capitalizesInitial: false
+                        )
+                        transcript = joinedTranscript(
+                            prefix: emitter.delivered,
+                            continuation: continuation
+                        )
+                    } else {
+                        transcript = FinalTranscriptFormatter.punctuateRawProse(
+                            correctedTranscript,
+                            capitalizesInitial: spokenFormattingContext == .prose
+                        )
+                    }
                 case .clean:
                     if !emitter.delivered.isEmpty,
-                       let remainder = emitter.remainingText(in: correctedTranscript) {
+                       let remainder = emitter.tolerantRemainder(in: correctedTranscript) {
                         let continuation = FinalTranscriptFormatter.punctuateRawProse(
                             DeterministicTranscriptCleaner.clean(remainder),
                             capitalizesInitial: false
@@ -708,7 +720,7 @@ final class DictationCoordinator {
         let transformInput: String
         if lockedPrefix.isEmpty {
             transformInput = transcript
-        } else if let remainder = emitter.remainingText(in: transcript) {
+        } else if let remainder = emitter.tolerantRemainder(in: transcript) {
             transformInput = remainder.trimmingCharacters(in: .whitespacesAndNewlines)
         } else {
             recoverTranscript(
@@ -831,6 +843,14 @@ final class DictationCoordinator {
     private var sessionTypesIncrementally: Bool {
         store.selectedMode.typesIncrementally
             || (store.selectedMode == .agent && store.agentTypesLive)
+            || (store.terminalStreamsLive && destinationIsTerminal
+                && !store.selectedMode.isGenerative)
+    }
+
+    private var destinationIsTerminal: Bool {
+        DestinationApplicationKind.classify(
+            bundleIdentifier: sourceBundleIdentifier
+        ) == .terminal
     }
 
     private var shouldUseWritingModel: Bool {
