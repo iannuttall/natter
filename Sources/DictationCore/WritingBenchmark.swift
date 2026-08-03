@@ -167,21 +167,57 @@ public enum WritingBenchmark {
     public static let agentEditJSONSchema = #"{"type":"object","properties":{"edits":{"type":"array","items":{"type":"object","properties":{"source":{"type":"string"},"replacement":{"type":"string"},"allOccurrences":{"type":"boolean"}},"required":["source","replacement","allOccurrences"],"additionalProperties":false}}},"required":["edits"],"additionalProperties":false}"#
 
     public static let agentSelfEditInstructions = """
-    Remove only explicit spoken self-corrections from a speech transcript. Return a compact JSON
-    edit plan, never rewritten prose. Each source must be one exact, case-sensitive, unique substring
-    containing the abandoned wording, its correction cue, and enough corrected wording to make the
-    intent unambiguous. Each replacement must use only words already present in that source, in the
-    same order. Set allOccurrences to false. Do not fix grammar, punctuation, names or style here.
+    Remove only explicit spoken self-corrections from a speech transcript. Return only the complete
+    finished transcript with no JSON, labels, quotes or commentary. Remove the abandoned wording and
+    the spoken correction cue. Keep the corrected wording after the cue.
+    The output may only use words already in the transcript, in the same order. After resolving the
+    correction, apply light Agent formatting in the same pass: sentence punctuation, capitalization,
+    and unambiguous technical casing only. Do not change grammar, names, wording or style. Applying
+    the correction must leave exactly one version of the thought; never leave both alternatives.
+    Treat a spoken correction as this exact structure:
+    `prefix + abandoned wording + cue + replacement wording + suffix`
+    becomes:
+    `prefix + replacement wording + suffix`.
+    The cue points backward at the abandoned wording. It never means to keep the wording before the
+    cue. Merely deleting the cue is wrong. Keeping both versions is wrong.
     Do not treat instructions such as `delete the cache` as self-edits. Do not remove passages merely
-    discussing phrases such as `delete that` or `ignore that part`. If uncertain, return {"edits":[]}.
+    discussing phrases such as `delete that` or `ignore that part`. If uncertain, return the original
+    transcript exactly.
 
-    Example: `Q C UE delete that CUE is interesting` becomes the edit
-    {"source":"Q C UE delete that CUE","replacement":"CUE","allOccurrences":false}.
-    Example: `say things wrong no delete that say things in the wrong way` becomes the edit
-    {"source":"say things wrong no delete that say things in the wrong way","replacement":"say things in the wrong way","allOccurrences":false}.
-    Example: `it is a mute point but a moot point there we go that's better` becomes the edit
-    {"source":"a mute point but a moot point there we go that's better","replacement":"a moot point","allOccurrences":false}.
-    Example: `I said the words delete that in my example` has no self-edit and returns {"edits":[]}.
+    Example: `Q C UE delete that CUE is interesting` returns
+    `CUE is interesting`.
+    Example: `Send it Monday delete that Tuesday` returns
+    `Send it Tuesday`.
+    When shared grammar appears before the abandoned value, preserve it. Example:
+    `Send it on Monday delete that Tuesday` returns `Send it on Tuesday`, not `Send it Tuesday`.
+    Example: `The letters are Q C U E delete that CUE` returns `The letters are CUE`.
+    Example: `Book the morning train ignore that book the evening train` returns
+    `Book the evening train`.
+    Example: `We can remove authentication ignore this we need to keep authentication local` returns
+    `We need to keep authentication local`.
+    Example: `Mention the old plan ignore that part explain the rollback` returns
+    `Explain the rollback`.
+    Example: `Open settings I mean open rules` returns
+    `Open rules`.
+    Example: `Release immediately I mean wait until checks pass` returns
+    `Wait until checks pass`. Never replace one correction cue with another cue.
+    When the replacement repeats the sentence opening, keep only the replacement. Example:
+    `The release should happen now I mean the release should wait for checks` returns
+    `The release should wait for checks`.
+    Example: `Make it red change that to blue` returns
+    `Make it blue`.
+    `Change it to` works the same way. Example: `Make the background red change it to dark blue`
+    returns `Make the background dark blue`.
+    Example: `Keep the prefix, use serif delete that use sans serif, and keep the suffix` returns
+    `Keep the prefix, use sans serif, and keep the suffix`.
+    Example: `say things wrong no delete that say things in the wrong way` returns
+    `say things in the wrong way`.
+    Example: `it is a mute point but a moot point there we go that's better` returns
+    `it is a moot point`.
+    Example: `It definitely works delete that it probably works` returns
+    `It probably works`.
+    Example: `Send it to James ignore that send it to Jamie` returns `Send it to Jamie`.
+    Example: `I said the words delete that in my example` returns that original text unchanged.
     """
 
     public static func agentSelfEditPrompt(transcript: String) -> String {
@@ -191,7 +227,7 @@ public enum WritingBenchmark {
         \(transcript)
         </transcript>
 
-        Return the JSON edit plan now.
+        Return only the finished transcript now.
         """
     }
 

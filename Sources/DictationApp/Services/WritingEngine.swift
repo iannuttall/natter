@@ -114,12 +114,8 @@ actor WritingEngine {
             guard let agentModelDirectory else { return correctedInput }
             do {
                 let container = try await loadIfNeeded(from: agentModelDirectory)
-                let selfEditedInput = try await applyAgentSelfEditsIfNeeded(
-                    to: correctedInput,
-                    container: container
-                )
                 return try await transformAgentSelectively(
-                    transcript: selfEditedInput,
+                    transcript: correctedInput,
                     markdownRules: markdownRules,
                     context: agentContext,
                     container: container
@@ -168,50 +164,29 @@ actor WritingEngine {
         container: ModelContainer
     ) async throws -> String {
         guard AgentSelfEditPolicy.containsCorrectionCue(transcript) else { return transcript }
-        let grammar = try await loadAgentGrammarIfNeeded(container: container)
-        let constraint = try GrammarConstraint(
-            tokenizer: grammar.tokenizer,
-            jsonSchema: WritingBenchmark.agentEditJSONSchema,
-            fastForward: true,
-            hostTokenizer: grammar.hostTokenizer
-        )
-        let rawPlan = try await container.perform { modelContext in
-            let input = try await modelContext.processor.prepare(input: UserInput(
-                chat: [
-                    .system(WritingBenchmark.agentSelfEditInstructions),
-                    .user(WritingBenchmark.agentSelfEditPrompt(transcript: transcript))
-                ],
-                additionalContext: ["enable_thinking": false]
-            ))
-            var output = ""
-            try GuidedGenerationLoop.run(
-                input: input,
-                context: modelContext,
-                constraint: constraint,
+        let session = ChatSession(
+            container,
+            instructions: WritingBenchmark.agentSelfEditInstructions,
+            generateParameters: GenerateParameters(
                 maxTokens: AgentEditGenerationBudget.maximumTokens(for: transcript),
-                vocabSize: grammar.tokenizer.vocabSize
-            ) { delta in
-                output += delta
-                return true
-            }
-            return output
-        }
-        let proposedPlan = try JSONDecoder().decode(
-            TranscriptEditPlan.self,
-            from: Data(rawPlan.utf8)
+                temperature: 0,
+                seed: 42
+            ),
+            additionalContext: ["enable_thinking": false]
         )
-        let safePlan = AgentSelfEditPolicy.safePlan(from: proposedPlan)
-        let application = TranscriptEditApplier.applyRecovering(safePlan, to: transcript)
-        if application.rejectedEdits > 0
-            || safePlan.edits.count != proposedPlan.edits.count {
+        let response = try await session.respond(
+            to: WritingBenchmark.agentSelfEditPrompt(transcript: transcript)
+        )
+        guard let output = AgentSelfEditPolicy.safeOutput(
+            input: transcript,
+            proposedOutput: WritingBenchmark.cleanEnvelope(response)
+        ) else {
             NatterLog.model.notice(
-                "Agent self-edit discarded unsafe edits proposed=\(proposedPlan.edits.count, privacy: .public) accepted=\(application.acceptedEdits, privacy: .public)"
+                "Agent self-edit discarded an unsafe response"
             )
+            return transcript
         }
-        guard application.acceptedEdits > 0 else { return application.output }
-        return AgentSelfEditPolicy.removingResidualAcknowledgementCues(
-            from: application.output
-        )
+        return output
     }
 
     private func transformAgentSelectively(
@@ -220,6 +195,12 @@ actor WritingEngine {
         context: AgentWritingContext,
         container: ModelContainer
     ) async throws -> String {
+        if AgentSelfEditPolicy.containsCorrectionCue(transcript) {
+            return try await applyAgentSelfEditsIfNeeded(
+                to: transcript,
+                container: container
+            )
+        }
         var output = ""
         for segment in AgentRewriteSegmenter.segments(transcript) {
             guard segment.requiresRewrite else {

@@ -35,6 +35,7 @@ private struct Arguments {
         case safeFullRewrite = "safe-full-rewrite"
         case selectiveSafeRewrite = "selective-safe-rewrite"
         case structuredEdits = "structured-edits"
+        case agentSelfEdits = "agent-self-edits"
         case deterministicAgent = "deterministic-agent"
         case recordedBaseline = "recorded-baseline"
     }
@@ -113,7 +114,7 @@ private struct Arguments {
                 guard index < values.count,
                       let value = Strategy(rawValue: values[index]) else {
                     throw ParityError.arguments(
-                        "--strategy must be full-rewrite, safe-full-rewrite, selective-safe-rewrite, structured-edits, deterministic-agent, or recorded-baseline"
+                        "--strategy must be full-rewrite, safe-full-rewrite, selective-safe-rewrite, structured-edits, agent-self-edits, deterministic-agent, or recorded-baseline"
                     )
                 }
                 parsed.strategy = value
@@ -395,6 +396,39 @@ private actor MLXWritingGenerator {
         }
     }
 
+    func generateAgentSelfEdits(transcript: String) async -> StructuredGenerationResult {
+        guard AgentSelfEditPolicy.containsCorrectionCue(transcript) else {
+            return StructuredGenerationResult(output: transcript, outcome: "bypassed")
+        }
+        do {
+            let response = try await generate(
+                instructions: WritingBenchmark.agentSelfEditInstructions,
+                prompt: WritingBenchmark.agentSelfEditPrompt(transcript: transcript)
+            )
+            let proposedOutput = WritingBenchmark.cleanEnvelope(response)
+            writeError("[agent-self-edit-output] \(proposedOutput)")
+            guard let output = AgentSelfEditPolicy.safeOutput(
+                input: transcript,
+                proposedOutput: proposedOutput
+            ) else {
+                return StructuredGenerationResult(
+                    output: transcript,
+                    outcome: "fallback: unsafe-response"
+                )
+            }
+            return StructuredGenerationResult(
+                output: output,
+                outcome: output == transcript ? "no-edit" : "accepted"
+            )
+        } catch {
+            writeError("[agent-self-edit-fallback] \(error)")
+            return StructuredGenerationResult(
+                output: transcript,
+                outcome: "fallback: \(String(describing: type(of: error)))"
+            )
+        }
+    }
+
     private func transformStructuredChunk(
         _ transcript: String,
         markdownRules: String,
@@ -663,6 +697,12 @@ private enum DictationParity {
                         )
                         output = structured.output
                         pipelineOutcome = structured.outcome
+                    case .agentSelfEdits:
+                        let edited = await generator!.generateAgentSelfEdits(
+                            transcript: repeatedTranscript
+                        )
+                        output = edited.output
+                        pipelineOutcome = edited.outcome
                     case .deterministicAgent:
                         output = ContextualTranscriptCorrector.correct(
                             DeterministicTranscriptCleaner.clean(repeatedTranscript),

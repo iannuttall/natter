@@ -1,0 +1,401 @@
+{
+  "version": 1,
+  "fixtures": [
+    {
+      "id": "delete-simple-replacement",
+      "mode": "Agent self-edit",
+      "instructions": "",
+      "transcript": "Send it on Monday delete that Tuesday.",
+      "expected": "Send it on Tuesday.",
+      "required": ["Send it on Tuesday"],
+      "forbidden": ["Monday", "delete that"]
+    },
+    {
+      "id": "delete-with-no-prefix",
+      "mode": "Agent self-edit",
+      "instructions": "",
+      "transcript": "Use the small icon no delete that use the large icon.",
+      "expected": "Use the large icon.",
+      "required": ["use the large icon"],
+      "forbidden": ["small icon", "delete that"]
+    },
+    {
+      "id": "delete-spelled-correction",
+      "mode": "Agent self-edit",
+      "instructions": "",
+      "transcript": "The app is called Q C U E delete that CUE.",
+      "expected": "The app is called CUE.",
+      "required": ["called CUE"],
+      "forbidden": ["Q C U E", "delete that"]
+    },
+    {
+      "id": "delete-entire-clause",
+      "mode": "Agent self-edit",
+      "instructions": "",
+      "transcript": "The first option is cheaper but slower delete that the first option is faster but less stable.",
+      "expected": "The first option is faster but less stable.",
+      "required": ["faster but less stable"],
+      "forbidden": ["cheaper", "delete that"]
+    },
+    {
+      "id": "delete-number-preserves-new-number",
+      "mode": "Agent self-edit",
+      "instructions": "",
+      "transcript": "Set the timeout to thirty seconds delete that forty-five seconds.",
+      "expected": "Set the timeout to forty-five seconds.",
+      "required": ["forty-five seconds"],
+      "forbidden": ["thirty seconds", "delete that"]
+    },
+    {
+      "id": "delete-technical-command",
+      "mode": "Agent self-edit",
+      "instructions": "",
+      "transcript": "Run git status delete that run git diff before committing.",
+      "expected": "Run git diff before committing.",
+      "required": ["git diff", "before committing"],
+      "forbidden": ["git status", "delete that"]
+    },
+    {
+      "id": "delete-profanity-preserved",
+      "mode": "Agent self-edit",
+      "instructions": "",
+      "transcript": "This is annoying delete that this is fucking broken.",
+      "expected": "This is fucking broken.",
+      "required": ["fucking broken"],
+      "forbidden": ["annoying", "delete that"]
+    },
+    {
+      "id": "ignore-that-replacement",
+      "mode": "Agent self-edit",
+      "instructions": "",
+      "transcript": "Book the morning train ignore that book the evening train.",
+      "expected": "Book the evening train.",
+      "required": ["evening train"],
+      "forbidden": ["morning train", "ignore that"]
+    },
+    {
+      "id": "ignore-this-replacement",
+      "mode": "Agent self-edit",
+      "instructions": "",
+      "transcript": "We can remove authentication ignore this we need to keep authentication local.",
+      "expected": "We need to keep authentication local.",
+      "required": ["keep authentication local"],
+      "forbidden": ["remove authentication", "ignore this"]
+    },
+    {
+      "id": "ignore-it-replacement",
+      "mode": "Agent self-edit",
+      "instructions": "",
+      "transcript": "Put it in the sidebar ignore it put it in the toolbar.",
+      "expected": "Put it in the toolbar.",
+      "required": ["in the toolbar"],
+      "forbidden": ["sidebar", "ignore it"]
+    },
+    {
+      "id": "ignore-that-part",
+      "mode": "Agent self-edit",
+      "instructions": "",
+      "transcript": "Mention the old migration plan ignore that part explain only the rollback procedure.",
+      "expected": "Explain only the rollback procedure.",
+      "required": ["rollback procedure"],
+      "forbidden": ["old migration plan", "ignore that part"]
+    },
+    {
+      "id": "scratch-that-replacement",
+      "mode": "Agent self-edit",
+      "instructions": "",
+      "transcript": "Let's meet at ten scratch that let's meet at eleven.",
+      "expected": "Let's meet at eleven.",
+      "required": ["meet at eleven"],
+      "forbidden": ["meet at ten", "scratch that"]
+    },
+    {
+      "id": "scratch-this-replacement",
+      "mode": "Agent self-edit",
+      "instructions": "",
+      "transcript": "The heading should say Overview scratch this the heading should say Details.",
+      "expected": "The heading should say Details.",
+      "required": ["say Details"],
+      "forbidden": ["Overview", "scratch this"]
+    },
+    {
+      "id": "change-that-to",
+      "mode": "Agent self-edit",
+      "instructions": "",
+      "transcript": "Call the method load data change that to fetch data.",
+      "expected": "Call the method fetch data.",
+      "required": ["method fetch data"],
+      "forbidden": ["load data", "change that to"]
+    },
+    {
+      "id": "change-it-to",
+      "mode": "Agent self-edit",
+      "instructions": "",
+      "transcript": "Make the background red change it to dark blue.",
+      "expected": "Make the background dark blue.",
+      "required": ["background dark blue"],
+      "forbidden": ["background red", "change it to"]
+    },
+    {
+      "id": "i-mean-single-word",
+      "mode": "Agent self-edit",
+      "instructions": "",
+      "transcript": "Open the settings panel I mean the rules panel.",
+      "expected": "Open the rules panel.",
+      "required": ["rules panel"],
+      "forbidden": ["settings panel", "I mean"]
+    },
+    {
+      "id": "i-mean-long-rephrase",
+      "mode": "Agent self-edit",
+      "instructions": "",
+      "transcript": "The release should happen as soon as possible I mean the release should wait until every check passes.",
+      "expected": "The release should wait until every check passes.",
+      "required": ["wait until every check passes"],
+      "forbidden": ["as soon as possible", "I mean"]
+    },
+    {
+      "id": "acknowledgement-cue",
+      "mode": "Agent self-edit",
+      "instructions": "",
+      "transcript": "It is a mute point but a moot point there we go that's better.",
+      "expected": "It is a moot point.",
+      "required": ["moot point"],
+      "forbidden": ["mute point", "there we go", "that's better"]
+    },
+    {
+      "id": "correction-in-middle",
+      "mode": "Agent self-edit",
+      "instructions": "",
+      "transcript": "For the landing page use a serif font delete that use a sans serif font and keep the existing spacing.",
+      "expected": "For the landing page use a sans serif font and keep the existing spacing.",
+      "required": ["sans serif font", "existing spacing"],
+      "forbidden": ["a serif font", "delete that"]
+    },
+    {
+      "id": "correction-at-end",
+      "mode": "Agent self-edit",
+      "instructions": "",
+      "transcript": "Keep the cache local and run the tests on Friday ignore that run the tests on Monday.",
+      "expected": "Keep the cache local and run the tests on Monday.",
+      "required": ["cache local", "tests on Monday"],
+      "forbidden": ["Friday", "ignore that"]
+    },
+    {
+      "id": "preserve-uncertainty",
+      "mode": "Agent self-edit",
+      "instructions": "",
+      "transcript": "It definitely fixes the bug delete that it probably fixes the bug.",
+      "expected": "It probably fixes the bug.",
+      "required": ["probably fixes"],
+      "forbidden": ["definitely", "delete that"]
+    },
+    {
+      "id": "preserve-name",
+      "mode": "Agent self-edit",
+      "instructions": "",
+      "transcript": "Send it to James ignore that send it to Jamie.",
+      "expected": "Send it to Jamie.",
+      "required": ["to Jamie"],
+      "forbidden": ["to James", "ignore that"]
+    },
+    {
+      "id": "preserve-path",
+      "mode": "Agent self-edit",
+      "instructions": "",
+      "transcript": "Save it under slash temp delete that save it under slash var slash tmp.",
+      "expected": "Save it under slash var slash tmp.",
+      "required": ["slash var slash tmp"],
+      "forbidden": ["under slash temp", "delete that"]
+    },
+    {
+      "id": "multiple-independent-corrections",
+      "mode": "Agent self-edit",
+      "instructions": "",
+      "transcript": "Ship on Monday delete that ship on Tuesday and email Sam ignore that email Alex.",
+      "expected": "Ship on Tuesday and email Alex.",
+      "required": ["Ship on Tuesday", "email Alex"],
+      "forbidden": ["Monday", "Sam", "delete that", "ignore that"]
+    },
+    {
+      "id": "nested-stumble",
+      "mode": "Agent self-edit",
+      "instructions": "",
+      "transcript": "Say things wrong no delete that say things in the wrong way.",
+      "expected": "Say things in the wrong way.",
+      "required": ["things in the wrong way"],
+      "forbidden": ["things wrong", "delete that"]
+    },
+    {
+      "id": "long-context-correction",
+      "mode": "Agent self-edit",
+      "instructions": "",
+      "transcript": "We need to keep the application local-only, preserve the raw transcript in history, avoid telemetry, keep every model under Application Support, and make the onboarding clear. The cancel control should stay visible while processing. The default timeout should be five seconds delete that the default timeout should be eight seconds, and all the other constraints still apply.",
+      "expected": "We need to keep the application local-only, preserve the raw transcript in history, avoid telemetry, keep every model under Application Support, and make the onboarding clear. The cancel control should stay visible while processing. The default timeout should be eight seconds, and all the other constraints still apply.",
+      "required": ["local-only", "raw transcript", "avoid telemetry", "Application Support", "cancel control", "eight seconds", "other constraints still apply"],
+      "forbidden": ["five seconds", "delete that"]
+    },
+    {
+      "id": "negative-direct-delete-command",
+      "mode": "Agent self-edit",
+      "instructions": "",
+      "transcript": "Please delete that paragraph before sending the email.",
+      "expected": "Please delete that paragraph before sending the email.",
+      "required": ["delete that paragraph", "sending the email"],
+      "forbidden": []
+    },
+    {
+      "id": "negative-delete-question",
+      "mode": "Agent self-edit",
+      "instructions": "",
+      "transcript": "Should I delete that file or keep it for the audit?",
+      "expected": "Should I delete that file or keep it for the audit?",
+      "required": ["delete that file", "keep it", "audit"],
+      "forbidden": []
+    },
+    {
+      "id": "negative-delete-negated",
+      "mode": "Agent self-edit",
+      "instructions": "",
+      "transcript": "Do not delete that note because it records the original decision.",
+      "expected": "Do not delete that note because it records the original decision.",
+      "required": ["Do not delete that note", "original decision"],
+      "forbidden": []
+    },
+    {
+      "id": "negative-delete-quoted",
+      "mode": "Agent self-edit",
+      "instructions": "",
+      "transcript": "The transcript contained the words delete that but they were part of my explanation.",
+      "expected": "The transcript contained the words delete that but they were part of my explanation.",
+      "required": ["words delete that", "my explanation"],
+      "forbidden": []
+    },
+    {
+      "id": "negative-delete-conditional",
+      "mode": "Agent self-edit",
+      "instructions": "",
+      "transcript": "If I say delete that during dictation, the agent should remove the abandoned wording.",
+      "expected": "If I say delete that during dictation, the agent should remove the abandoned wording.",
+      "required": ["If I say delete that", "agent should remove"],
+      "forbidden": []
+    },
+    {
+      "id": "negative-ignore-command",
+      "mode": "Agent self-edit",
+      "instructions": "",
+      "transcript": "Ignore that part of the configuration when comparing the two environments.",
+      "expected": "Ignore that part of the configuration when comparing the two environments.",
+      "required": ["Ignore that part", "two environments"],
+      "forbidden": []
+    },
+    {
+      "id": "negative-ignore-capability",
+      "mode": "Agent self-edit",
+      "instructions": "",
+      "transcript": "The parser can ignore it when the optional field is absent.",
+      "expected": "The parser can ignore it when the optional field is absent.",
+      "required": ["can ignore it", "optional field"],
+      "forbidden": []
+    },
+    {
+      "id": "negative-change-command",
+      "mode": "Agent self-edit",
+      "instructions": "",
+      "transcript": "Change that to blue after the designer approves the mockup.",
+      "expected": "Change that to blue after the designer approves the mockup.",
+      "required": ["Change that to blue", "designer approves"],
+      "forbidden": []
+    },
+    {
+      "id": "negative-change-description",
+      "mode": "Agent self-edit",
+      "instructions": "",
+      "transcript": "We need to change it to the production URL before release.",
+      "expected": "We need to change it to the production URL before release.",
+      "required": ["change it to", "production URL", "before release"],
+      "forbidden": []
+    },
+    {
+      "id": "negative-i-mean-literal",
+      "mode": "Agent self-edit",
+      "instructions": "",
+      "transcript": "I mean what I say, and I want that sentence kept exactly.",
+      "expected": "I mean what I say, and I want that sentence kept exactly.",
+      "required": ["I mean what I say", "kept exactly"],
+      "forbidden": []
+    },
+    {
+      "id": "negative-acknowledgement-literal",
+      "mode": "Agent self-edit",
+      "instructions": "",
+      "transcript": "The button finally responded and I said there we go that's better to the person beside me.",
+      "expected": "The button finally responded and I said there we go that's better to the person beside me.",
+      "required": ["button finally responded", "person beside me"],
+      "forbidden": []
+    },
+    {
+      "id": "negative-scratch-record-command",
+      "mode": "Agent self-edit",
+      "instructions": "",
+      "transcript": "Scratch that record from the export only after the backup completes.",
+      "expected": "Scratch that record from the export only after the backup completes.",
+      "required": ["Scratch that record", "backup completes"],
+      "forbidden": []
+    },
+    {
+      "id": "bypass-ordinary-prose",
+      "mode": "Agent self-edit",
+      "instructions": "",
+      "transcript": "The local model formats the transcript after recording stops.",
+      "expected": "The local model formats the transcript after recording stops.",
+      "required": ["local model", "after recording stops"],
+      "forbidden": []
+    },
+    {
+      "id": "bypass-delete-object",
+      "mode": "Agent self-edit",
+      "instructions": "",
+      "transcript": "Delete the cache and restart the application.",
+      "expected": "Delete the cache and restart the application.",
+      "required": ["Delete the cache", "restart the application"],
+      "forbidden": []
+    },
+    {
+      "id": "bypass-ignore-object",
+      "mode": "Agent self-edit",
+      "instructions": "",
+      "transcript": "Ignore compiler warnings from the generated dependency.",
+      "expected": "Ignore compiler warnings from the generated dependency.",
+      "required": ["compiler warnings", "generated dependency"],
+      "forbidden": []
+    },
+    {
+      "id": "bypass-change-object",
+      "mode": "Agent self-edit",
+      "instructions": "",
+      "transcript": "Change the background colour after reviewing the contrast ratio.",
+      "expected": "Change the background colour after reviewing the contrast ratio.",
+      "required": ["background colour", "contrast ratio"],
+      "forbidden": []
+    },
+    {
+      "id": "bypass-near-acknowledgement",
+      "mode": "Agent self-edit",
+      "instructions": "",
+      "transcript": "There we go, the build has finished and every test passed.",
+      "expected": "There we go, the build has finished and every test passed.",
+      "required": ["build has finished", "every test passed"],
+      "forbidden": []
+    },
+    {
+      "id": "bypass-long-no-cue",
+      "mode": "Agent self-edit",
+      "instructions": "",
+      "transcript": "The application must stay local-only and preserve every raw transcript in local history. It should keep the speech model and optional writing models under Application Support, avoid telemetry, retain names and numbers exactly, and fall back to the original text whenever transformation fails. None of those constraints should require a network service or an account.",
+      "expected": "The application must stay local-only and preserve every raw transcript in local history. It should keep the speech model and optional writing models under Application Support, avoid telemetry, retain names and numbers exactly, and fall back to the original text whenever transformation fails. None of those constraints should require a network service or an account.",
+      "required": ["local-only", "raw transcript", "Application Support", "avoid telemetry", "original text", "network service", "account"],
+      "forbidden": []
+    }
+  ]
+}
