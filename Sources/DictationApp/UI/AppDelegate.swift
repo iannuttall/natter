@@ -78,6 +78,10 @@ final class AppDelegate: NSObject, NSApplicationDelegate {
             try? await Task.sleep(for: .seconds(2))
             coordinator?.warmAgentModelIfInstalled()
         }
+        Task { @MainActor [weak coordinator] in
+            try? await Task.sleep(for: .seconds(8))
+            coordinator?.warmWritingModelIfInstalled()
+        }
         observeInputMonitoringPermission()
         activationObserver = NotificationCenter.default.addObserver(
             forName: NSApplication.didBecomeActiveNotification,

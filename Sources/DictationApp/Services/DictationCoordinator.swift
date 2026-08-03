@@ -27,6 +27,7 @@ final class DictationCoordinator {
     private var liveTranscriptConflict = false
     private var sessionCorrections: [PersonalCorrection] = []
     private var commandCandidate = false
+    private var lastHandledPartial = ""
     private var previousTranscript: String?
     private var recordingStartedAt: Date?
     private var recordingStoppedAt: Date?
@@ -164,6 +165,12 @@ final class DictationCoordinator {
         let paths = AppPaths.live(bundleIdentifier: AppInfo.bundleIdentifier)
         guard let directory = AgentWritingModelLocation.resolve(in: paths) else { return }
         Task { await writingEngine.warmAgent(modelDirectory: directory) }
+    }
+
+    func warmWritingModelIfInstalled() {
+        let paths = AppPaths.live(bundleIdentifier: AppInfo.bundleIdentifier)
+        guard let directory = WritingModelLocation.resolve(in: paths) else { return }
+        Task { await writingEngine.warmWriting(modelDirectory: directory) }
     }
 
     func testWritingForDebug(
@@ -312,6 +319,7 @@ final class DictationCoordinator {
         liveTranscriptConflict = false
         sessionCorrections = rules.corrections
         commandCandidate = false
+        lastHandledPartial = ""
         recordingStartedAt = nil
         recordingStoppedAt = nil
         historyWasRecorded = false
@@ -524,6 +532,12 @@ final class DictationCoordinator {
     }
 
     private func handlePartial(_ rawTranscript: String) async {
+        // The ASR emits a new hypothesis roughly every 560 ms while the tap
+        // delivers buffers ~47x/sec; skip the normalization pipeline for the
+        // ~25 of 26 callbacks whose transcript hasn't changed.
+        guard rawTranscript != lastHandledPartial else { return }
+        lastHandledPartial = rawTranscript
+
         if commandCandidate || SpokenCorrectionCommand.couldBeCommand(
             rawTranscript,
             appNames: correctionAppNames

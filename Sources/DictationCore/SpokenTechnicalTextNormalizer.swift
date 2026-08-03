@@ -44,66 +44,110 @@ public enum SpokenTechnicalTextNormalizer {
         if context == .technical {
             result = replaceMatches(
                 in: result,
-                pattern: #"(?i)\b(?:et\s+cetera|etcetera)\b"#,
+                using: etCeteraRegex,
                 with: { _ in "etc." }
             )
             result = replaceMatches(
                 in: result,
-                pattern: spokenVersionPattern,
+                using: spokenVersionRegex,
                 with: spokenVersion
             )
         }
         result = replaceMatches(
             in: result,
-            pattern: spokenDecimalPattern,
+            using: spokenDecimalRegex,
             with: spokenDecimal
         )
         result = replaceDigitSequences(in: result)
         result = replacePercentages(in: result)
         result = replaceMatches(
             in: result,
-            pattern: #"(?i)\btilde\s+slash\s+[\p{L}\p{N}._-]+(?:\s+slash\s+[\p{L}\p{N}._-]+)*"#,
+            using: tildePathRegex,
             with: tildePath
         )
         result = replaceMatches(
             in: result,
-            pattern: #"(?i)\s+dot\s+("# + technicalSuffixes + #")\b"#,
+            using: dotSuffixRegex,
             with: dotSuffix
         )
         result = replaceMatches(
             in: result,
-            pattern: #"(?i)(?<![\p{L}\p{N}._%+-])([\p{L}\p{N}._%+-]+)\s+at\s+([\p{L}\p{N}-]+(?:\.[\p{L}\p{N}-]+)+)"#,
+            using: emailAddressRegex,
             with: emailAddress
         )
         if context == .technical {
             result = replaceMatches(
                 in: result,
-                pattern: #"(?i)\bdot\s+(?=[\p{L}\p{N}_-])"#,
+                using: technicalDotRegex,
                 with: { _ in "." }
             )
             result = replaceMatches(
                 in: result,
-                pattern: #"(?i)\s+slash\s+"#,
+                using: slashSeparatorRegex,
                 with: { _ in "/" }
             )
             result = replaceMatches(
                 in: result,
-                pattern: #"(?i)\b(?:dash\s+dash|double\s+dash|hyphen\s+hyphen|two\s+(?:dashes|hyphens))(?:\s+[\p{L}\p{N}][\p{L}\p{N}-]*)?"#,
+                using: doubleDashRegex,
                 with: doubleDash
             )
             result = replaceMatches(
                 in: result,
-                pattern: #"(?i)\b(?:dash|hyphen)\s+[a-z0-9]\b"#,
+                using: singleDashRegex,
                 with: singleDash
             )
             result = replaceMatches(
                 in: result,
-                pattern: #"(?i)\s+colon(?=\s|$)"#,
+                using: spokenColonRegex,
                 with: { _ in ":" }
             )
         }
         return result
     }
+
+    // Compiled once and reused: `normalize` runs on every partial transcript, and
+    // `NSRegularExpression` is immutable and safe to share.
+    private static let etCeteraRegex = compiled(#"(?i)\b(?:et\s+cetera|etcetera)\b"#)
+
+    private static let tildePathRegex = compiled(
+        #"(?i)\btilde\s+slash\s+[\p{L}\p{N}._-]+(?:\s+slash\s+[\p{L}\p{N}._-]+)*"#
+    )
+
+    private static let dotSuffixRegex = compiled(
+        #"(?i)\s+dot\s+("# + technicalSuffixes + #")\b"#
+    )
+
+    private static let emailAddressRegex = compiled(
+        #"(?i)(?<![\p{L}\p{N}._%+-])([\p{L}\p{N}._%+-]+)\s+at\s+([\p{L}\p{N}-]+(?:\.[\p{L}\p{N}-]+)+)"#
+    )
+
+    private static let technicalDotRegex = compiled(#"(?i)\bdot\s+(?=[\p{L}\p{N}_-])"#)
+
+    private static let slashSeparatorRegex = compiled(#"(?i)\s+slash\s+"#)
+
+    private static let doubleDashRegex = compiled(
+        #"(?i)\b(?:dash\s+dash|double\s+dash|hyphen\s+hyphen|two\s+(?:dashes|hyphens))(?:\s+[\p{L}\p{N}][\p{L}\p{N}-]*)?"#
+    )
+
+    private static let singleDashRegex = compiled(#"(?i)\b(?:dash|hyphen)\s+[a-z0-9]\b"#)
+
+    private static let spokenColonRegex = compiled(#"(?i)\s+colon(?=\s|$)"#)
+
+    private static let tildePathPrefixRegex = compiled(#"(?i)^tilde\s+slash\s+"#)
+
+    private static let atSeparatorRegex = compiled(#"(?i)\s+at\s+"#)
+
+    private static let spelledLowercaseRegex = compiled(
+        #"(?i)\blowercase\s+((?:[a-z]\s+){2,}[a-z])\b"#
+    )
+
+    private static let spelledUppercaseRegex = compiled(
+        #"(?<![\p{L}\p{N}])(?:[A-Z]\s+){2,}[A-Z](?![\p{L}\p{N}])"#
+    )
+
+    private static let spelledHyphenatedRegex = compiled(
+        #"(?<![\p{L}\p{N}])(?:[A-Za-z]-){2,}[A-Za-z](?![\p{L}\p{N}])"#
+    )
 
     private static let numberWords = [
         "zero", "oh", "one", "two", "three", "four", "five", "six", "seven",
@@ -113,19 +157,40 @@ public enum SpokenTechnicalTextNormalizer {
         "hundred"
     ]
 
-    private static let spokenVersionPattern: String = {
+    private static let spokenVersionRegex: NSRegularExpression? = {
         let word = "(?:" + numberWords.joined(separator: "|") + ")"
         let component = "(?:[0-9]+|" + word + "(?:[ -]+" + word + ")*)"
-        return #"(?i)\b(?:v|version)\s+"# + component
-            + #"(?:\s+point\s+"# + component + #")*\b"#
+        return compiled(
+            #"(?i)\b(?:v|version)\s+"# + component
+                + #"(?:\s+point\s+"# + component + #")*\b"#
+        )
     }()
 
-    private static let spokenDecimalPattern: String = {
+    private static let spokenDecimalRegex: NSRegularExpression? = {
         let word = "(?:" + numberWords.joined(separator: "|") + ")"
         let whole = "(?:[0-9]+|" + word + "(?:[ -]+" + word + ")*)"
         let decimalDigit = "(?:zero|oh|one|two|three|four|five|six|seven|eight|nine)"
-        return #"(?i)\b"# + whole + #"\s+point\s+"#
-            + decimalDigit + #"(?:[ -]+"# + decimalDigit + #")*\b"#
+        return compiled(
+            #"(?i)\b"# + whole + #"\s+point\s+"#
+                + decimalDigit + #"(?:[ -]+"# + decimalDigit + #")*\b"#
+        )
+    }()
+
+    private static let digitSequenceRegex: NSRegularExpression? = {
+        let digit = digitWords.keys.sorted().joined(separator: "|")
+        return compiled(
+            #"(?i)(?<![\p{L}\p{N}_])(?:"# + digit
+                + #")(?:[\s-]+(?:"# + digit + #"))+(?![\p{L}\p{N}_])"#
+        )
+    }()
+
+    private static let percentageRegex: NSRegularExpression? = {
+        let tens = percentValues.keys.sorted { $0.count > $1.count }.joined(separator: "|")
+        let units = percentUnits.keys.sorted().joined(separator: "|")
+        return compiled(
+            #"(?i)(?<![\p{L}\p{N}_])("# + tens + #")(?:[-\s]+("# + units
+                + #"))?\s+(?:percent|per\s+cent)(?![\p{L}\p{N}_])"#
+        )
     }()
 
     private static func spokenDecimal(_ match: String) -> String {
@@ -194,12 +259,12 @@ public enum SpokenTechnicalTextNormalizer {
     private static func tildePath(_ match: String) -> String {
         let withoutPrefix = replaceMatches(
             in: match,
-            pattern: #"(?i)^tilde\s+slash\s+"#,
+            using: tildePathPrefixRegex,
             with: { _ in "" }
         )
         let path = replaceMatches(
             in: withoutPrefix,
-            pattern: #"(?i)\s+slash\s+"#,
+            using: slashSeparatorRegex,
             with: { _ in "/" }
         )
         return "~/" + path
@@ -208,7 +273,7 @@ public enum SpokenTechnicalTextNormalizer {
     private static func emailAddress(_ match: String) -> String {
         replaceMatches(
             in: match,
-            pattern: #"(?i)\s+at\s+"#,
+            using: atSeparatorRegex,
             with: { _ in "@" }
         ).lowercased()
     }
@@ -232,39 +297,27 @@ public enum SpokenTechnicalTextNormalizer {
     }
 
     private static func replaceSpelledLetterSequences(in text: String) -> String {
-        var result = replaceMatches(
-            in: text,
-            pattern: #"(?i)\blowercase\s+((?:[a-z]\s+){2,}[a-z])\b"#
-        ) { match in
+        var result = replaceMatches(in: text, using: spelledLowercaseRegex) { match in
             match.split(whereSeparator: \.isWhitespace)
                 .dropFirst()
                 .joined()
                 .lowercased()
         }
-        result = replaceMatches(
-            in: result,
-            pattern: #"(?<![\p{L}\p{N}])(?:[A-Z]\s+){2,}[A-Z](?![\p{L}\p{N}])"#
-        ) { match in
+        result = replaceMatches(in: result, using: spelledUppercaseRegex) { match in
             let letters = match.filter(\.isLetter)
             guard Set(letters.map { String($0).uppercased() }).count > 1 else {
                 return match
             }
             return String(letters)
         }
-        result = replaceMatches(
-            in: result,
-            pattern: #"(?<![\p{L}\p{N}])(?:[A-Za-z]-){2,}[A-Za-z](?![\p{L}\p{N}])"#
-        ) { match in
+        result = replaceMatches(in: result, using: spelledHyphenatedRegex) { match in
             match.filter(\.isLetter)
         }
         return result
     }
 
     private static func replaceDigitSequences(in text: String) -> String {
-        let digit = digitWords.keys.sorted().joined(separator: "|")
-        let pattern = #"(?i)(?<![\p{L}\p{N}_])(?:"# + digit
-            + #")(?:[\s-]+(?:"# + digit + #"))+(?![\p{L}\p{N}_])"#
-        return replaceMatches(in: text, pattern: pattern) { match in
+        replaceMatches(in: text, using: digitSequenceRegex) { match in
             match.lowercased()
                 .split(whereSeparator: { $0 == " " || $0 == "-" })
                 .compactMap { digitWords[String($0)] }
@@ -273,12 +326,7 @@ public enum SpokenTechnicalTextNormalizer {
     }
 
     private static func replacePercentages(in text: String) -> String {
-        let tens = percentValues.keys.sorted { $0.count > $1.count }.joined(separator: "|")
-        let units = percentUnits.keys.sorted().joined(separator: "|")
-        let pattern = #"(?i)(?<![\p{L}\p{N}_])("# + tens + #")(?:[-\s]+("# + units
-            + #"))?\s+(?:percent|per\s+cent)(?![\p{L}\p{N}_])"#
-
-        guard let regex = try? NSRegularExpression(pattern: pattern) else { return text }
+        guard let regex = percentageRegex else { return text }
         var result = text
         let matches = regex.matches(in: result, range: NSRange(result.startIndex..., in: result))
         for match in matches.reversed() {
@@ -298,12 +346,16 @@ public enum SpokenTechnicalTextNormalizer {
         return result
     }
 
+    private static func compiled(_ pattern: String) -> NSRegularExpression? {
+        try? NSRegularExpression(pattern: pattern)
+    }
+
     private static func replaceMatches(
         in text: String,
-        pattern: String,
+        using regex: NSRegularExpression?,
         with transform: (String) -> String
     ) -> String {
-        guard let regex = try? NSRegularExpression(pattern: pattern) else { return text }
+        guard let regex else { return text }
         var result = text
         let matches = regex.matches(in: result, range: NSRange(result.startIndex..., in: result))
         for match in matches.reversed() {
@@ -311,15 +363,5 @@ public enum SpokenTechnicalTextNormalizer {
             result.replaceSubrange(range, with: transform(String(result[range])))
         }
         return result
-    }
-
-    private static func replaceMatches(
-        in text: String,
-        pattern: String,
-        withTemplate template: String
-    ) -> String {
-        guard let regex = try? NSRegularExpression(pattern: pattern) else { return text }
-        let range = NSRange(text.startIndex..., in: text)
-        return regex.stringByReplacingMatches(in: text, range: range, withTemplate: template)
     }
 }
