@@ -60,7 +60,7 @@ struct OverlayView: View {
     private var compactOverlay: some View {
         HStack(spacing: 10) {
             if canCancel, wordCount > 0 {
-                Text("\(wordCount)w")
+                Text("\(wordCount) words")
                     .font(.system(size: 11, weight: .medium))
                     .monospacedDigit()
                     .foregroundStyle(.tertiary)
@@ -98,7 +98,7 @@ struct OverlayView: View {
             }
             Spacer()
             if canCancel, wordCount > 0 {
-                Text("\(wordCount)w")
+                Text("\(wordCount) words")
                     .font(.system(size: 11, weight: .medium))
                     .monospacedDigit()
                     .foregroundStyle(.tertiary)
