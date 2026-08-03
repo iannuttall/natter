@@ -19,6 +19,11 @@ public struct PersonalCorrection: Equatable, Identifiable, Sendable {
     public let replacement: String
     public let scope: PersonalCorrectionScope
 
+    // Built once per rule so applying a rule set to every partial transcript does
+    // not recompile the pattern. Rules are rebuilt whenever the markdown changes.
+    private let matcher: NSRegularExpression?
+    private let template: String
+
     public var id: String { scope.rawValue + "\u{0}" + heard.lowercased() }
 
     public init(
@@ -29,6 +34,26 @@ public struct PersonalCorrection: Equatable, Identifiable, Sendable {
         self.heard = heard
         self.replacement = replacement
         self.scope = scope
+        let escaped = NSRegularExpression.escapedPattern(for: heard)
+        matcher = try? NSRegularExpression(
+            pattern: #"(?i)(?<![\p{L}\p{N}_])"# + escaped + #"(?![\p{L}\p{N}_])"#
+        )
+        template = NSRegularExpression.escapedTemplate(for: replacement)
+    }
+
+    public static func == (lhs: PersonalCorrection, rhs: PersonalCorrection) -> Bool {
+        lhs.heard == rhs.heard
+            && lhs.replacement == rhs.replacement
+            && lhs.scope == rhs.scope
+    }
+
+    fileprivate func applied(to text: String) -> String {
+        guard let matcher else { return text }
+        return matcher.stringByReplacingMatches(
+            in: text,
+            range: NSRange(text.startIndex..., in: text),
+            withTemplate: template
+        )
     }
 }
 
@@ -53,15 +78,7 @@ public enum PersonalCorrections {
         corrections.filter {
             $0.scope == .everywhere || $0.scope == scope
         }.reduce(text) { result, correction in
-            let escaped = NSRegularExpression.escapedPattern(for: correction.heard)
-            let pattern = #"(?i)(?<![\p{L}\p{N}_])"# + escaped + #"(?![\p{L}\p{N}_])"#
-            guard let regex = try? NSRegularExpression(pattern: pattern) else { return result }
-            let range = NSRange(result.startIndex..., in: result)
-            return regex.stringByReplacingMatches(
-                in: result,
-                range: range,
-                withTemplate: NSRegularExpression.escapedTemplate(for: correction.replacement)
-            )
+            correction.applied(to: result)
         }
     }
 
@@ -201,7 +218,7 @@ public enum SpokenCorrectionCommand {
             .map(NSRegularExpression.escapedPattern)
             .joined(separator: "|")
         let pattern = #"(?i)^(\s*hey\s+)(?:"# + names + #")(?=\b|[\s,])"#
-        guard let regex = try? NSRegularExpression(pattern: pattern) else { return transcript }
+        guard let regex = WakeWordPatternCache.regex(for: pattern) else { return transcript }
         return regex.stringByReplacingMatches(
             in: transcript,
             range: NSRange(transcript.startIndex..., in: transcript),
@@ -245,10 +262,35 @@ public enum SpokenCorrectionCommand {
         return correction
     }
 
+    private static let separatorRegex = try? NSRegularExpression(pattern: #"[^\p{L}\p{N}]+"#)
+
     private static func normalizedWakeText(_ text: String) -> String {
-        text.lowercased()
-            .trimmingCharacters(in: .whitespacesAndNewlines)
-            .replacingOccurrences(of: #"[^\p{L}\p{N}]+"#, with: " ", options: .regularExpression)
-            .trimmingCharacters(in: .whitespaces)
+        let trimmed = text.lowercased().trimmingCharacters(in: .whitespacesAndNewlines)
+        guard let separatorRegex else { return trimmed.trimmingCharacters(in: .whitespaces) }
+        return separatorRegex.stringByReplacingMatches(
+            in: trimmed,
+            range: NSRange(trimmed.startIndex..., in: trimmed),
+            withTemplate: " "
+        ).trimmingCharacters(in: .whitespaces)
+    }
+}
+
+/// Wake-word patterns depend on the configured app names, so they cannot be a
+/// literal `static let`. They change only when those names change, so a small
+/// bounded cache keyed by the built pattern keeps the per-partial cost to a
+/// dictionary lookup.
+private enum WakeWordPatternCache {
+    private static let limit = 16
+    private static let lock = NSLock()
+    nonisolated(unsafe) private static var cache: [String: NSRegularExpression] = [:]
+
+    static func regex(for pattern: String) -> NSRegularExpression? {
+        lock.lock()
+        defer { lock.unlock() }
+        if let cached = cache[pattern] { return cached }
+        guard let regex = try? NSRegularExpression(pattern: pattern) else { return nil }
+        if cache.count >= limit { cache.removeAll() }
+        cache[pattern] = regex
+        return regex
     }
 }

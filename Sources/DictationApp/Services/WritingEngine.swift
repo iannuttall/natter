@@ -1,6 +1,7 @@
 import DictationCore
 import Foundation
 import HuggingFace
+import MLX
 import MLXGuidedGeneration
 import MLXHuggingFace
 import MLXLLM
@@ -8,22 +9,24 @@ import MLXLMCommon
 import Tokenizers
 
 actor WritingEngine {
-    private var container: ModelContainer?
-    private var loadedDirectory: URL?
+    private var containers: [URL: ModelContainer] = [:]
+    private var containerOrder: [URL] = []
     private var loadingTask: Task<ModelContainer, Error>?
     private var loadingDirectory: URL?
-    private var agentGrammar: AgentGrammar?
+    private var agentGrammar: (directory: URL, grammar: AgentGrammar)?
+    private var configuredGPULimits = false
     private var inferenceBusy = false
     private var inferenceWaiters: [CheckedContinuation<Void, Never>] = []
+
+    /// With enough unified memory both Qwen packs stay resident; alternating
+    /// Agent and Email otherwise reloads 3–6 GB from disk inside the
+    /// user-visible stop path. Below that, keep the old single-slot behavior.
+    private static let maximumResidentContainers =
+        ProcessInfo.processInfo.physicalMemory >= 24 * 1_073_741_824 ? 2 : 1
 
     private struct AgentGrammar: @unchecked Sendable {
         let tokenizer: GrammarTokenizer
         let hostTokenizer: any MLXLMCommon.Tokenizer
-    }
-
-    private struct AgentChunkResult: Sendable {
-        let output: String
-        let reusableBulkEdits: [TranscriptEdit]
     }
 
     func warmAgent(modelDirectory: URL) async {
@@ -45,6 +48,34 @@ actor WritingEngine {
         )
     }
 
+    /// Loads and touches the 9B writing model so the first Email or Article
+    /// after launch doesn't pay the multi-second cold load synchronously.
+    /// Only runs on machines with room for both packs, since warming the 9B
+    /// on a single-slot machine would evict the far more frequently used 4B.
+    func warmWriting(modelDirectory: URL) async {
+        guard Self.maximumResidentContainers > 1 else { return }
+        await acquireInference()
+        defer { releaseInference() }
+        let startedAt = ProcessInfo.processInfo.systemUptime
+        do {
+            let container = try await loadIfNeeded(from: modelDirectory)
+            let session = ChatSession(
+                container,
+                generateParameters: GenerateParameters(maxTokens: 1, temperature: 0),
+                additionalContext: ["enable_thinking": false]
+            )
+            _ = try await session.respond(to: "Ready.")
+            let milliseconds = (ProcessInfo.processInfo.systemUptime - startedAt) * 1_000
+            NatterLog.model.notice(
+                "writing model warm elapsed_ms=\(String(format: "%.1f", milliseconds), privacy: .public)"
+            )
+        } catch {
+            NatterLog.model.error(
+                "writing model warm-up failed error=\(error.localizedDescription, privacy: .public)"
+            )
+        }
+    }
+
     func extractPersonalCorrection(
         command: String,
         previousTranscript: String,
@@ -53,7 +84,10 @@ actor WritingEngine {
         await acquireInference()
         defer { releaseInference() }
         let container = try await loadIfNeeded(from: modelDirectory)
-        let grammar = try await loadAgentGrammarIfNeeded(container: container)
+        let grammar = try await loadAgentGrammarIfNeeded(
+            container: container,
+            directory: modelDirectory
+        )
         let constraint = try GrammarConstraint(
             tokenizer: grammar.tokenizer,
             jsonSchema: SpokenCorrectionCommand.jsonSchema,
@@ -130,14 +164,14 @@ actor WritingEngine {
 
         guard let modelDirectory else { throw WritingEngineError.modelMissing }
         let container = try await loadIfNeeded(from: modelDirectory)
+        // 8-bit KV keeps the 9B's cache memory in check on long Article
+        // generations at negligible quality cost.
+        var writingParameters = GenerateParameters(maxTokens: 1_800, temperature: 0)
+        writingParameters.kvBits = 8
         let session = ChatSession(
             container,
             instructions: WritingBenchmark.baseInstructions,
-            generateParameters: GenerateParameters(
-                maxTokens: 1_800,
-                temperature: 0,
-                seed: 42
-            ),
+            generateParameters: writingParameters,
             additionalContext: ["enable_thinking": false]
         )
         let response = try await session.respond(
@@ -169,8 +203,7 @@ actor WritingEngine {
             instructions: WritingBenchmark.agentSelfEditInstructions,
             generateParameters: GenerateParameters(
                 maxTokens: AgentEditGenerationBudget.maximumTokens(for: transcript),
-                temperature: 0,
-                seed: 42
+                temperature: 0
             ),
             additionalContext: ["enable_thinking": false]
         )
@@ -223,8 +256,7 @@ actor WritingEngine {
                 instructions: WritingBenchmark.selectiveAgentRewriteInstructions,
                 generateParameters: GenerateParameters(
                     maxTokens: 1_200,
-                    temperature: 0,
-                    seed: 42
+                    temperature: 0
                 ),
                 additionalContext: ["enable_thinking": false]
             )
@@ -275,176 +307,13 @@ actor WritingEngine {
         return output
     }
 
-    private func transformAgent(
-        transcript: String,
-        markdownRules: String,
-        context: AgentWritingContext,
-        container: ModelContainer
-    ) async throws -> String {
-        let grammar = try await loadAgentGrammarIfNeeded(container: container)
-        let chunks = AgentTranscriptChunker.chunks(transcript)
-        var output = ""
-        var reusableBulkEdits: [TranscriptEdit] = []
-        for chunk in chunks {
-            let result = await transformAgentChunk(
-                chunk,
-                markdownRules: markdownRules,
-                context: context,
-                container: container,
-                grammar: grammar
-            )
-            output += result.output
-            for edit in result.reusableBulkEdits {
-                let isDuplicate = reusableBulkEdits.contains {
-                    $0.source == edit.source && $0.replacement == edit.replacement
-                }
-                let reversesLearnedEdit = reusableBulkEdits.contains {
-                    $0.source == edit.replacement && $0.replacement == edit.source
-                }
-                if !isDuplicate, !reversesLearnedEdit {
-                    reusableBulkEdits.append(edit)
-                }
-            }
-        }
-        if !reusableBulkEdits.isEmpty {
-            output = TranscriptEditApplier.applyRecovering(
-                TranscriptEditPlan(edits: reusableBulkEdits),
-                to: output,
-                protectedTerms: context.protectedSpellings
-            ).output
-        }
-        guard TranscriptFactGuard.preservesFacts(from: transcript, in: output) else {
-            throw WritingEngineError.droppedProtectedFact
-        }
-        return output
-    }
-
-    private func transformAgentChunk(
-        _ transcript: String,
-        markdownRules: String,
-        context: AgentWritingContext,
-        container: ModelContainer,
-        grammar: AgentGrammar
-    ) async -> AgentChunkResult {
-        do {
-            return try await generateAgentChunk(
-                transcript,
-                markdownRules: markdownRules,
-                context: context,
-                container: container,
-                grammar: grammar
-            )
-        } catch {
-            let words = AgentTranscriptChunker.wordCount(transcript)
-            if words > AgentTranscriptChunker.minimumRetryWords {
-                let retrySize = max(
-                    AgentTranscriptChunker.minimumRetryWords,
-                    words / 2
-                )
-                let chunks = AgentTranscriptChunker.chunks(
-                    transcript,
-                    maximumWords: retrySize
-                )
-                if chunks.count > 1 {
-                    NatterLog.model.notice(
-                        "structured Agent chunk rejected; retrying smaller chunks words=\(words, privacy: .public) error=\(error.localizedDescription, privacy: .public)"
-                    )
-                    var output = ""
-                    var reusableBulkEdits: [TranscriptEdit] = []
-                    for chunk in chunks {
-                        let result = await transformAgentChunk(
-                            chunk,
-                            markdownRules: markdownRules,
-                            context: context,
-                            container: container,
-                            grammar: grammar
-                        )
-                        output += result.output
-                        reusableBulkEdits += result.reusableBulkEdits
-                    }
-                    return AgentChunkResult(
-                        output: output,
-                        reusableBulkEdits: reusableBulkEdits
-                    )
-                }
-            }
-            NatterLog.model.error(
-                "structured Agent leaf rejected; preserving safe chunk words=\(words, privacy: .public) error=\(error.localizedDescription, privacy: .public)"
-            )
-            return AgentChunkResult(output: transcript, reusableBulkEdits: [])
-        }
-    }
-
-    private func generateAgentChunk(
-        _ transcript: String,
-        markdownRules: String,
-        context: AgentWritingContext,
-        container: ModelContainer,
-        grammar: AgentGrammar
-    ) async throws -> AgentChunkResult {
-        let constraint = try GrammarConstraint(
-            tokenizer: grammar.tokenizer,
-            jsonSchema: WritingBenchmark.agentEditJSONSchema,
-            fastForward: true,
-            hostTokenizer: grammar.hostTokenizer
-        )
-        let prompt = WritingBenchmark.agentEditPrompt(
-            transcript: transcript,
-            markdownRules: markdownRules,
-            context: context
-        )
-        let rawPlan = try await container.perform { modelContext in
-            let input = try await modelContext.processor.prepare(input: UserInput(
-                chat: [
-                    .system(WritingBenchmark.agentEditInstructions),
-                    .user(prompt)
-                ],
-                additionalContext: ["enable_thinking": false]
-            ))
-            var output = ""
-            try GuidedGenerationLoop.run(
-                input: input,
-                context: modelContext,
-                constraint: constraint,
-                maxTokens: AgentEditGenerationBudget.maximumTokens(for: transcript),
-                vocabSize: grammar.tokenizer.vocabSize
-            ) { delta in
-                output += delta
-                return true
-            }
-            return output
-        }
-        let plan = try JSONDecoder().decode(
-            TranscriptEditPlan.self,
-            from: Data(rawPlan.utf8)
-        )
-        let application = TranscriptEditApplier.applyRecovering(
-            plan,
-            to: transcript,
-            protectedTerms: context.protectedSpellings
-        )
-        if application.rejectedEdits > 0 {
-            NatterLog.model.notice(
-                "structured Agent discarded unsafe edits count=\(application.rejectedEdits, privacy: .public)"
-            )
-        }
-        let output = application.output
-        guard TranscriptFactGuard.preservesFacts(from: transcript, in: output) else {
-            throw WritingEngineError.droppedProtectedFact
-        }
-        return AgentChunkResult(
-            output: output,
-            reusableBulkEdits: application.acceptedPlan.edits.filter {
-                $0.allOccurrences == true
-                    && $0.source.split(whereSeparator: \.isWhitespace).count >= 2
-            }
-        )
-    }
-
     private func loadAgentGrammarIfNeeded(
-        container: ModelContainer
+        container: ModelContainer,
+        directory: URL
     ) async throws -> AgentGrammar {
-        if let agentGrammar { return agentGrammar }
+        if let agentGrammar, agentGrammar.directory == directory {
+            return agentGrammar.grammar
+        }
         let loaded = try await container.perform { context in
             let vocabulary = TokenizerVocabExtractor.extractForGrammar(
                 from: context.tokenizer
@@ -456,15 +325,26 @@ actor WritingEngine {
             )
             return AgentGrammar(tokenizer: tokenizer, hostTokenizer: context.tokenizer)
         }
-        agentGrammar = loaded
+        agentGrammar = (directory, loaded)
         return loaded
     }
 
     private func loadIfNeeded(from directory: URL) async throws -> ModelContainer {
-        if let container, loadedDirectory == directory { return container }
+        if let cached = containers[directory] {
+            containerOrder.removeAll { $0 == directory }
+            containerOrder.append(directory)
+            return cached
+        }
 
         if let loadingTask, loadingDirectory == directory {
             return try await loadingTask.value
+        }
+
+        if !configuredGPULimits {
+            configuredGPULimits = true
+            // Bound MLX's buffer-recycling pool; the process default lets it
+            // grow with the largest generation seen.
+            MLX.GPU.set(cacheLimit: 512 * 1_024 * 1_024)
         }
 
         let configuration = ModelConfiguration(
@@ -480,12 +360,10 @@ actor WritingEngine {
         do {
             let loaded = try await task.value
             if loadingDirectory == directory {
-                container = loaded
-                loadedDirectory = directory
                 loadingTask = nil
                 loadingDirectory = nil
-                agentGrammar = nil
             }
+            store(loaded, for: directory)
             return loaded
         } catch {
             if loadingDirectory == directory {
@@ -493,6 +371,20 @@ actor WritingEngine {
                 loadingDirectory = nil
             }
             throw error
+        }
+    }
+
+    private func store(_ container: ModelContainer, for directory: URL) {
+        containers[directory] = container
+        containerOrder.removeAll { $0 == directory }
+        containerOrder.append(directory)
+        while containerOrder.count > Self.maximumResidentContainers {
+            let evicted = containerOrder.removeFirst()
+            containers[evicted] = nil
+            if agentGrammar?.directory == evicted { agentGrammar = nil }
+            NatterLog.model.notice(
+                "writing model evicted directory=\(evicted.lastPathComponent, privacy: .public)"
+            )
         }
     }
 

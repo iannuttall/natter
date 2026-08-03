@@ -6,6 +6,8 @@ public enum TranscriptStabilization: Equatable, Sendable {
 }
 
 public struct StableTranscriptStabilizer: Sendable {
+    private static let tokenRegex = try? NSRegularExpression(pattern: #"\S+"#)
+
     private let trailingTokenCount: Int
     private var previousHypothesis = ""
     public private(set) var stablePrefix = ""
@@ -33,10 +35,7 @@ public struct StableTranscriptStabilizer: Sendable {
     }
 
     private func droppingTrailingTokens(from text: String, count: Int) -> String {
-        guard count > 0,
-              let regex = try? NSRegularExpression(pattern: #"\S+"#) else {
-            return text
-        }
+        guard count > 0, let regex = Self.tokenRegex else { return text }
         let matches = regex.matches(in: text, range: NSRange(text.startIndex..., in: text))
         guard matches.count > count,
               let cutoff = Range(matches[matches.count - count].range, in: text)?.lowerBound else {
