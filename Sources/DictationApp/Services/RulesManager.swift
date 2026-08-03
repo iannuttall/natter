@@ -54,6 +54,20 @@ final class RulesManager {
         save()
     }
 
+    func setScope(_ scope: PersonalCorrectionScope, for correction: PersonalCorrection) {
+        guard correction.scope != scope else { return }
+        personalMarkdown = PersonalCorrections.removing(correction, from: personalMarkdown)
+        personalMarkdown = PersonalCorrections.appending(
+            PersonalCorrection(
+                heard: correction.heard,
+                replacement: correction.replacement,
+                scope: scope
+            ),
+            to: personalMarkdown
+        )
+        save()
+    }
+
     func reload() {
         do {
             try paths.createRequiredDirectories()

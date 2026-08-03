@@ -13,7 +13,7 @@ enum RulesDocument: String, CaseIterable, Identifiable {
 
     var label: String {
         switch self {
-        case .personal: "Corrections"
+        case .personal: "Dictionary"
         case .agent: "Agent"
         case .clean: "Clean"
         case .email: "Email"
@@ -32,7 +32,7 @@ struct RulesEditorView: View {
                 VStack(alignment: .leading, spacing: 3) {
                     Text("Rules")
                         .font(.system(size: 22, weight: .semibold))
-                    Text("Plain Markdown, stored locally and applied on every dictation.")
+                    Text(documentDescription)
                         .foregroundStyle(.secondary)
                 }
                 Spacer()
@@ -42,6 +42,7 @@ struct RulesEditorView: View {
                     }
                 }
                 .pickerStyle(.segmented)
+                .labelsHidden()
                 .frame(width: 380)
             }
 
@@ -71,6 +72,15 @@ struct RulesEditorView: View {
         .padding(24)
         .frame(maxWidth: .infinity, maxHeight: .infinity)
         .background(Theme.Colour.panel)
+    }
+
+    private var documentDescription: String {
+        switch document {
+        case .personal:
+            "The same corrections shown in Dictionary, as local Markdown."
+        case .agent, .clean, .email, .article:
+            "Mode-specific Markdown instructions, stored locally."
+        }
     }
 
     private var markdownBinding: Binding<String> {

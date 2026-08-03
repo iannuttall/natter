@@ -146,6 +146,17 @@ final class AppDelegate: NSObject, NSApplicationDelegate {
             )
         }
 
+        if let command = ProcessInfo.processInfo.environment[
+            "DICTATION_TEST_CORRECTION_ON_LAUNCH"
+        ], let previousTranscript = ProcessInfo.processInfo.environment[
+            "DICTATION_TEST_CORRECTION_PREVIOUS"
+        ] {
+            coordinator.testCorrectionForDebug(
+                command: command,
+                previousTranscript: previousTranscript
+            )
+        }
+
         if let insertionSmokeText {
             let delayMilliseconds = ProcessInfo.processInfo.environment[
                 "NATTER_TEST_INSERT_DELAY_MS"

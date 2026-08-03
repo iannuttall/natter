@@ -136,7 +136,44 @@ public enum PersonalCorrections {
     }
 }
 
-public enum SpokenCorrectionParser {
+public struct SpokenCorrectionExtraction: Codable, Equatable, Sendable {
+    public let isCorrection: Bool
+    public let heard: String
+    public let replacement: String
+
+    public init(isCorrection: Bool, heard: String, replacement: String) {
+        self.isCorrection = isCorrection
+        self.heard = heard
+        self.replacement = replacement
+    }
+}
+
+public enum SpokenCorrectionCommand {
+    public static let instructions = """
+    Interpret a spoken request to remember a personal speech-recognition correction.
+    Return only the requested JSON object. The previous transcript is authoritative evidence for
+    the exact text that was heard incorrectly. Copy `heard` exactly from that transcript, excluding
+    unrelated surrounding words. Set `replacement` to the spelling or phrase the speaker requests.
+    Speech recognition may collapse a distinction inside the command itself, so use its meaning and
+    any explicit spelling together with the previous transcript. Never invent a correction. If the
+    request is not clearly a correction, set isCorrection to false and both strings to empty.
+
+    Example: previous transcript `I spoke to port man yesterday`; command `Hey Nata, you just
+    transcribed it as Portman, but what I said was Portman Portman. Add that to my rules.`; output
+    `{"isCorrection":true,"heard":"port man","replacement":"Portman"}`. The command lost the
+    spacing distinction, but the requested correction and previous transcript make it recoverable.
+
+    Example: previous transcript `Send it to en.is`; command `Hey Natter, that should be ian.is,
+    i-a-n. Remember that correction.`; output
+    `{"isCorrection":true,"heard":"en.is","replacement":"ian.is"}`.
+
+    Example: there is no previous transcript; command `Hey Nata, add a rule to my profile to change
+    en to en an`; output `{"isCorrection":true,"heard":"en","replacement":"ian"}`. In this common
+    speech-recognition error, `en an` is a mangled letter-by-letter spelling of the name Ian.
+    """
+
+    public static let jsonSchema = #"{"type":"object","properties":{"isCorrection":{"type":"boolean"},"heard":{"type":"string"},"replacement":{"type":"string"}},"required":["isCorrection","heard","replacement"],"additionalProperties":false}"#
+
     public static func couldBeCommand(_ transcript: String, appNames: [String]) -> Bool {
         let spoken = normalizedWakeText(transcript)
         guard !spoken.isEmpty else { return false }
@@ -147,62 +184,65 @@ public enum SpokenCorrectionParser {
         }
     }
 
-    public static func parse(
-        _ transcript: String,
-        appNames: [String]
-    ) -> PersonalCorrection? {
-        let escapedNames = appNames
+    public static func looksLikeRuleRequest(_ transcript: String) -> Bool {
+        let words = Set(normalizedWakeText(transcript).split(separator: " ").map(String.init))
+        return (words.contains("rule") || words.contains("rules"))
+            && ["add", "remember", "correct", "correction", "transcribed"].contains {
+                words.contains($0)
+            }
+    }
+
+    public static func canonicalizingWakeWord(
+        in transcript: String,
+        canonicalName: String,
+        aliases: [String]
+    ) -> String {
+        let names = Set(aliases + [canonicalName])
             .map(NSRegularExpression.escapedPattern)
             .joined(separator: "|")
-        let pattern = #"(?is)^\s*hey\s+(?:"# + escapedNames
-            + #")\s*,?\s+(?:you\s+)?(?:just\s+)?transcribed(?:\s+it)?\s+as\s+(.+?)\s+(?:but|for)\s+(?:what\s+)?i\s+actually\s+said\s+was\s+(.+?)(?:\s+[a-z](?:-[a-z]){1,})?(?:\s+can\s+you\s+add\b.*)?\s*[.?!]?\s*$"#
-        guard let regex = try? NSRegularExpression(pattern: pattern),
-              let match = regex.firstMatch(
-                  in: transcript,
-                  range: NSRange(transcript.startIndex..., in: transcript)
-              ),
-              let heardRange = Range(match.range(at: 1), in: transcript),
-              let replacementRange = Range(match.range(at: 2), in: transcript) else {
+        let pattern = #"(?i)^(\s*hey\s+)(?:"# + names + #")(?=\b|[\s,])"#
+        guard let regex = try? NSRegularExpression(pattern: pattern) else { return transcript }
+        return regex.stringByReplacingMatches(
+            in: transcript,
+            range: NSRange(transcript.startIndex..., in: transcript),
+            withTemplate: "$1" + NSRegularExpression.escapedTemplate(for: canonicalName)
+        )
+    }
+
+    public static func prompt(command: String, previousTranscript: String) -> String {
+        let evidence = previousTranscript.isEmpty ? "(none)" : previousTranscript
+        return """
+        Previous transcript:
+        <previous_transcript>
+        \(evidence)
+        </previous_transcript>
+
+        Spoken command:
+        <command>
+        \(command)
+        </command>
+        """
+    }
+
+    public static func validatedCorrection(
+        from extraction: SpokenCorrectionExtraction,
+        command: String,
+        previousTranscript: String
+    ) -> PersonalCorrection? {
+        let heard = extraction.heard.trimmingCharacters(in: .whitespacesAndNewlines)
+        let replacement = extraction.replacement.trimmingCharacters(in: .whitespacesAndNewlines)
+        guard extraction.isCorrection,
+              !heard.isEmpty,
+              !replacement.isEmpty,
+              heard != replacement else {
             return nil
         }
-
-        let punctuation = CharacterSet.whitespacesAndNewlines.union(
-            CharacterSet(charactersIn: ",.;:!?\"")
-        )
-        let heard = transcript[heardRange].trimmingCharacters(in: punctuation)
-        let capturedReplacement = transcript[replacementRange].trimmingCharacters(in: punctuation)
-        let replacement = cleanReplacement(capturedReplacement, heard: heard)
-        guard !heard.isEmpty, !replacement.isEmpty else { return nil }
-        return PersonalCorrection(heard: heard, replacement: replacement)
-    }
-
-    private static func cleanReplacement(_ phrase: String, heard: String) -> String {
-        let collapsed = collapseRepeatedPhrase(phrase)
-        let words = collapsed.split(whereSeparator: \.isWhitespace).map(String.init)
-
-        // Streaming ASR sometimes turns a trailing letter-by-letter spelling hint into
-        // stray phonetic fragments. If the replacement itself is already the same
-        // single word, keep that word and discard the fragments.
-        if !heard.contains(where: \.isWhitespace),
-           let first = words.first,
-           first.caseInsensitiveCompare(heard) == .orderedSame {
-            return heard
+        let correction = PersonalCorrection(heard: heard, replacement: replacement)
+        let evidence = previousTranscript + "\n" + command
+        guard PersonalCorrections.apply([correction], to: evidence) != evidence else {
+            return nil
         }
-        return collapsed
-    }
-
-    private static func collapseRepeatedPhrase(_ phrase: String) -> String {
-        let words = phrase.split(whereSeparator: \.isWhitespace).map(String.init)
-        guard words.count.isMultiple(of: 2) else { return phrase }
-        let midpoint = words.count / 2
-        let first = words[..<midpoint]
-        let second = words[midpoint...]
-        guard zip(first, second).allSatisfy({
-            $0.0.caseInsensitiveCompare($0.1) == .orderedSame
-        }) else {
-            return phrase
-        }
-        return first.joined(separator: " ")
+        return correction
     }
 
     private static func normalizedWakeText(_ text: String) -> String {

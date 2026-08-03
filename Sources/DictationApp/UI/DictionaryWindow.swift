@@ -70,10 +70,17 @@ struct DictionaryView: View {
                                 Text(correction.replacement)
                                     .fontWeight(.medium)
                                     .frame(maxWidth: .infinity, alignment: .leading)
-                                Text(correction.scope.label)
-                                    .font(.caption)
-                                    .foregroundStyle(.secondary)
-                                    .frame(width: 80, alignment: .leading)
+                                Picker("Scope", selection: Binding(
+                                    get: { correction.scope },
+                                    set: { rules.setScope($0, for: correction) }
+                                )) {
+                                    ForEach(PersonalCorrectionScope.allCases) { scope in
+                                        Text(scope.label).tag(scope)
+                                    }
+                                }
+                                .labelsHidden()
+                                .controlSize(.small)
+                                .frame(width: 105)
                                 Button {
                                     rules.remove(correction)
                                 } label: {

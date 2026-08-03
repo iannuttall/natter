@@ -27,6 +27,7 @@ final class DictationCoordinator {
     private var liveTranscriptConflict = false
     private var sessionCorrections: [PersonalCorrection] = []
     private var commandCandidate = false
+    private var previousTranscript: String?
     private var recordingStartedAt: Date?
     private var recordingStoppedAt: Date?
     private var historyWasRecorded = false
@@ -213,6 +214,35 @@ final class DictationCoordinator {
         }
     }
 
+    func testCorrectionForDebug(command: String, previousTranscript: String) {
+        sessionTask?.cancel()
+        sessionTask = Task {
+            do {
+                let paths = AppPaths.live(bundleIdentifier: AppInfo.bundleIdentifier)
+                guard let modelDirectory = WritingModelLocation.resolve(in: paths)
+                    ?? AgentWritingModelLocation.resolve(in: paths) else {
+                    throw WritingEngineError.modelMissing
+                }
+                let correction = try await writingEngine.extractPersonalCorrection(
+                    command: command,
+                    previousTranscript: previousTranscript,
+                    modelDirectory: modelDirectory
+                )
+                let result = correction.map { "\($0.heard) -> \($0.replacement)" } ?? "none"
+                FileHandle.standardError.write(
+                    Data("DICTATION_CORRECTION_RESULT: \(result)\n".utf8)
+                )
+            } catch {
+                FileHandle.standardError.write(
+                    Data("DICTATION_CORRECTION_ERROR: \(error.localizedDescription)\n".utf8)
+                )
+            }
+            if ProcessInfo.processInfo.environment["DICTATION_EXIT_AFTER_CORRECTION"] == "1" {
+                NSApp.terminate(nil)
+            }
+        }
+    }
+
     func testInsertionForDebug(_ text: String, delay: Duration = .seconds(2)) {
         sessionTask?.cancel()
         sessionTask = Task {
@@ -275,6 +305,7 @@ final class DictationCoordinator {
     }
 
     private func beginSession() async {
+        previousTranscript = store.finalTranscript.isEmpty ? nil : store.finalTranscript
         store.resetSession()
         emitter.reset()
         deliveryIssue = nil
@@ -376,8 +407,8 @@ final class DictationCoordinator {
                 performanceTrace?.mark(.finalTranscript)
                 store.rawTranscript = rawTranscript
 
-                if handleCorrectionCommand(rawTranscript) {
-                    await hideOverlayAfterResult()
+                if await handleCorrectionCommand(rawTranscript) {
+                    await hideOverlayAfterResult(delay: .milliseconds(1_500))
                     return
                 }
 
@@ -493,12 +524,15 @@ final class DictationCoordinator {
     }
 
     private func handlePartial(_ rawTranscript: String) async {
-        if commandCandidate || SpokenCorrectionParser.couldBeCommand(
+        if commandCandidate || SpokenCorrectionCommand.couldBeCommand(
             rawTranscript,
             appNames: correctionAppNames
         ) {
             commandCandidate = true
-            store.liveTranscript = rawTranscript
+            store.liveTranscript = visibleCorrectionCommand(rawTranscript)
+            if SpokenCorrectionCommand.looksLikeRuleRequest(rawTranscript) {
+                store.statusMessage = "Rule command detected · keep speaking"
+            }
             return
         }
 
@@ -561,7 +595,11 @@ final class DictationCoordinator {
         }
     }
 
-    private func recoverTranscript(_ transcript: String, reason: String) {
+    private func recoverTranscript(
+        _ transcript: String,
+        reason: String,
+        statusMessage: String? = nil
+    ) {
         let record = RecoveryRecord(
             transcript: transcript,
             deliveredPrefix: emitter.delivered,
@@ -572,7 +610,9 @@ final class DictationCoordinator {
         do {
             store.latestRecoveryURL = try recovery.saveAndCopy(record)
             recordHistory(transcript, outcome: .recovered)
-            if reason == FocusedTextInsertionError.accessibilityPermissionRequired
+            if let statusMessage {
+                store.statusMessage = statusMessage
+            } else if reason == FocusedTextInsertionError.accessibilityPermissionRequired
                 .localizedDescription {
                 store.statusMessage = "Allow Accessibility in Settings · transcript copied"
             } else {
@@ -584,25 +624,66 @@ final class DictationCoordinator {
         }
     }
 
-    private func handleCorrectionCommand(_ rawTranscript: String) -> Bool {
+    private func handleCorrectionCommand(_ rawTranscript: String) async -> Bool {
         guard commandCandidate,
-              let correction = SpokenCorrectionParser.parse(
-                  rawTranscript,
-                  appNames: correctionAppNames
-              ) else {
+              SpokenCorrectionCommand.looksLikeRuleRequest(rawTranscript) else {
             return false
         }
+        let visibleCommand = visibleCorrectionCommand(rawTranscript)
+        store.liveTranscript = visibleCommand
 
-        rules.add(PersonalCorrection(
-            heard: correction.heard,
-            replacement: correction.replacement,
-            scope: correctionScope
-        ))
-        store.liveTranscript = "Remembered “\(correction.heard)” → “\(correction.replacement)”"
-        store.finalTranscript = ""
-        store.statusMessage = "Personal correction saved locally"
-        store.phase = .idle
+        let paths = AppPaths.live(bundleIdentifier: AppInfo.bundleIdentifier)
+        guard let modelDirectory = WritingModelLocation.resolve(in: paths)
+            ?? AgentWritingModelLocation.resolve(in: paths) else {
+            recoverTranscript(
+                visibleCommand,
+                reason: "Install a writing model to add corrections by voice.",
+                statusMessage: "Couldn’t add rule · writing model required · command copied"
+            )
+            return true
+        }
+
+        store.statusMessage = "Natter is checking that rule locally…"
+        do {
+            guard let correction = try await writingEngine.extractPersonalCorrection(
+                command: rawTranscript,
+                previousTranscript: previousTranscript ?? "",
+                modelDirectory: modelDirectory
+            ) else {
+                recoverTranscript(
+                    visibleCommand,
+                    reason: "Couldn’t verify a personal correction from the spoken command.",
+                    statusMessage: "Couldn’t add rule · command copied"
+                )
+                return true
+            }
+
+            rules.add(PersonalCorrection(
+                heard: correction.heard,
+                replacement: correction.replacement,
+                scope: .everywhere
+            ))
+            store.liveTranscript = "Added “\(correction.heard)” → “\(correction.replacement)”"
+            store.finalTranscript = ""
+            store.statusMessage = "Rule added everywhere"
+            store.phase = .idle
+            recordHistory(visibleCommand, outcome: .delivered)
+        } catch {
+            recoverTranscript(
+                visibleCommand,
+                reason: error.localizedDescription,
+                statusMessage: "Couldn’t add rule · command copied"
+            )
+        }
         return true
+    }
+
+    private func visibleCorrectionCommand(_ rawTranscript: String) -> String {
+        SpokenCorrectionCommand.canonicalizingWakeWord(
+            in: rawTranscript,
+            canonicalName: AppInfo.displayName,
+            aliases: correctionAppNames
+        )
     }
 
     private func deliverWritingMode(_ transcript: String) async {
@@ -714,8 +795,8 @@ final class DictationCoordinator {
         historyWasRecorded = true
     }
 
-    private func hideOverlayAfterResult() async {
-        try? await Task.sleep(for: .milliseconds(450))
+    private func hideOverlayAfterResult(delay: Duration = .milliseconds(450)) async {
+        try? await Task.sleep(for: delay)
         if store.phase == .idle || store.isRecoverable { overlay.hide() }
         if store.phase == .idle {
             store.restoreIdleMode(profiles.resolution(
@@ -744,7 +825,7 @@ final class DictationCoordinator {
     }
 
     private var correctionAppNames: [String] {
-        Array(Set([AppInfo.displayName, "Dictation"]))
+        Array(Set([AppInfo.displayName, "Nata", "Dictation"]))
     }
 
     private var spokenFormattingContext: SpokenFormattingContext {

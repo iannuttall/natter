@@ -245,7 +245,11 @@ public enum SpokenTechnicalTextNormalizer {
             in: result,
             pattern: #"(?<![\p{L}\p{N}])(?:[A-Z]\s+){2,}[A-Z](?![\p{L}\p{N}])"#
         ) { match in
-            match.filter(\.isLetter)
+            let letters = match.filter(\.isLetter)
+            guard Set(letters.map { String($0).uppercased() }).count > 1 else {
+                return match
+            }
+            return String(letters)
         }
         result = replaceMatches(
             in: result,

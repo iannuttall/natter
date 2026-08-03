@@ -13,6 +13,8 @@ actor WritingEngine {
     private var loadingTask: Task<ModelContainer, Error>?
     private var loadingDirectory: URL?
     private var agentGrammar: AgentGrammar?
+    private var inferenceBusy = false
+    private var inferenceWaiters: [CheckedContinuation<Void, Never>] = []
 
     private struct AgentGrammar: @unchecked Sendable {
         let tokenizer: GrammarTokenizer
@@ -43,6 +45,56 @@ actor WritingEngine {
         )
     }
 
+    func extractPersonalCorrection(
+        command: String,
+        previousTranscript: String,
+        modelDirectory: URL
+    ) async throws -> PersonalCorrection? {
+        await acquireInference()
+        defer { releaseInference() }
+        let container = try await loadIfNeeded(from: modelDirectory)
+        let grammar = try await loadAgentGrammarIfNeeded(container: container)
+        let constraint = try GrammarConstraint(
+            tokenizer: grammar.tokenizer,
+            jsonSchema: SpokenCorrectionCommand.jsonSchema,
+            fastForward: true,
+            hostTokenizer: grammar.hostTokenizer
+        )
+        let rawExtraction = try await container.perform { modelContext in
+            let input = try await modelContext.processor.prepare(input: UserInput(
+                chat: [
+                    .system(SpokenCorrectionCommand.instructions),
+                    .user(SpokenCorrectionCommand.prompt(
+                        command: command,
+                        previousTranscript: previousTranscript
+                    ))
+                ],
+                additionalContext: ["enable_thinking": false]
+            ))
+            var output = ""
+            try GuidedGenerationLoop.run(
+                input: input,
+                context: modelContext,
+                constraint: constraint,
+                maxTokens: 160,
+                vocabSize: grammar.tokenizer.vocabSize
+            ) { delta in
+                output += delta
+                return true
+            }
+            return output
+        }
+        let extraction = try JSONDecoder().decode(
+            SpokenCorrectionExtraction.self,
+            from: Data(rawExtraction.utf8)
+        )
+        return SpokenCorrectionCommand.validatedCorrection(
+            from: extraction,
+            command: command,
+            previousTranscript: previousTranscript
+        )
+    }
+
     func transform(
         transcript: String,
         mode: DictationMode,
@@ -51,6 +103,8 @@ actor WritingEngine {
         agentModelDirectory: URL? = nil,
         agentContext: AgentWritingContext = AgentWritingContext()
     ) async throws -> String {
+        await acquireInference()
+        defer { releaseInference() }
         let deterministicInput = DeterministicTranscriptCleaner.clean(transcript)
         if mode == .agent {
             let correctedInput = ContextualTranscriptCorrector.correct(
@@ -404,6 +458,24 @@ actor WritingEngine {
             }
             throw error
         }
+    }
+
+    private func acquireInference() async {
+        guard inferenceBusy else {
+            inferenceBusy = true
+            return
+        }
+        await withCheckedContinuation { continuation in
+            inferenceWaiters.append(continuation)
+        }
+    }
+
+    private func releaseInference() {
+        guard !inferenceWaiters.isEmpty else {
+            inferenceBusy = false
+            return
+        }
+        inferenceWaiters.removeFirst().resume()
     }
 }
 

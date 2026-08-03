@@ -618,26 +618,93 @@ import Testing
     ])
 }
 
-@Test func spokenCorrectionCommandExtractsRuleAndSpellingHint() {
-    let transcript = """
-    Hey Natter, you just transcribed it as en.is but what I actually said was ian.is \
-    i-a-n can you add that to my rules so you remember for next time
-    """
-    let correction = SpokenCorrectionParser.parse(transcript, appNames: ["Natter"])
-
-    #expect(correction == PersonalCorrection(heard: "en.is", replacement: "ian.is"))
-    #expect(SpokenCorrectionParser.couldBeCommand("hey natt", appNames: ["Natter"]))
-    #expect(!SpokenCorrectionParser.couldBeCommand("here is the build", appNames: ["Natter"]))
+@Test func spokenCorrectionCommandRoutesWakeWordsAndRuleRequests() {
+    #expect(SpokenCorrectionCommand.couldBeCommand("hey natt", appNames: ["Natter"]))
+    #expect(SpokenCorrectionCommand.couldBeCommand("Hey Nata, add this", appNames: ["Nata"]))
+    #expect(!SpokenCorrectionCommand.couldBeCommand(
+        "here is the build",
+        appNames: ["Natter"]
+    ))
+    #expect(SpokenCorrectionCommand.looksLikeRuleRequest(
+        "Hey Nata, add that correction to my rules"
+    ))
+    #expect(!SpokenCorrectionCommand.looksLikeRuleRequest("Hey Nata, open settings"))
+    #expect(SpokenCorrectionCommand.canonicalizingWakeWord(
+        in: "Hey Nata, add that correction to my rules",
+        canonicalName: "Natter",
+        aliases: ["Nata", "Dictation"]
+    ) == "Hey Natter, add that correction to my rules")
+    #expect(SpokenCorrectionCommand.canonicalizingWakeWord(
+        in: "Hey Natter, add that correction to my rules",
+        canonicalName: "Natter",
+        aliases: ["Nata", "Dictation"]
+    ) == "Hey Natter, add that correction to my rules")
 }
 
-@Test func spokenCorrectionCommandCleansObservedPunctuationAndRepeatedSpelling() {
-    let transcript = """
-    Hey Natter, you just transcribed it as Port Man, but what I actually said was \
-    Portman Portman. Can you add that to my rules so you remember for next time.
-    """
-    let correction = SpokenCorrectionParser.parse(transcript, appNames: ["Natter"])
+@Test func spokenCorrectionExtractionRequiresEvidenceFromPreviousTranscript() {
+    let extraction = SpokenCorrectionExtraction(
+        isCorrection: true,
+        heard: "port man",
+        replacement: "Portman"
+    )
+    let correction = SpokenCorrectionCommand.validatedCorrection(
+        from: extraction,
+        command: "Remember that correction",
+        previousTranscript: "I spoke to port man yesterday."
+    )
 
-    #expect(correction == PersonalCorrection(heard: "Port Man", replacement: "Portman"))
+    #expect(correction == PersonalCorrection(heard: "port man", replacement: "Portman"))
+    #expect(SpokenCorrectionCommand.validatedCorrection(
+        from: extraction,
+        command: "Remember that correction",
+        previousTranscript: "I spoke to somebody yesterday."
+    ) == nil)
+    #expect(PersonalCorrections.apply([correction!], to: "Ask port man tomorrow") ==
+        "Ask Portman tomorrow")
+}
+
+@Test func spokenCorrectionExtractionRejectsNoOpsAndNonCorrections() {
+    #expect(SpokenCorrectionCommand.validatedCorrection(
+        from: SpokenCorrectionExtraction(
+            isCorrection: true,
+            heard: "Portman",
+            replacement: "Portman"
+        ),
+        command: "Remember that correction",
+        previousTranscript: "Portman"
+    ) == nil)
+    #expect(SpokenCorrectionCommand.validatedCorrection(
+        from: SpokenCorrectionExtraction(
+            isCorrection: false,
+            heard: "port man",
+            replacement: "Portman"
+        ),
+        command: "Remember that correction",
+        previousTranscript: "port man"
+    ) == nil)
+    #expect(SpokenCorrectionCommand.validatedCorrection(
+        from: SpokenCorrectionExtraction(
+            isCorrection: true,
+            heard: "portman",
+            replacement: "Portman"
+        ),
+        command: "Change portman to Portman",
+        previousTranscript: "Ask portman tomorrow."
+    ) == PersonalCorrection(heard: "portman", replacement: "Portman"))
+}
+
+@Test func spokenCorrectionExtractionSupportsExplicitCommandsWithoutHistory() {
+    let correction = SpokenCorrectionCommand.validatedCorrection(
+        from: SpokenCorrectionExtraction(
+            isCorrection: true,
+            heard: "en",
+            replacement: "ian"
+        ),
+        command: "Hey Nata, add a rule to my profile to change en to en an",
+        previousTranscript: ""
+    )
+
+    #expect(correction == PersonalCorrection(heard: "en", replacement: "ian"))
 }
 
 @Test func spokenTechnicalTokensBecomeLiteralWithoutAnLLM() {
@@ -704,6 +771,17 @@ import Testing
         "Use lowercase C O D E X",
         context: .technical
     ) == "Use codex")
+}
+
+@Test func repeatedPronounIsRemainSeparateForDeterministicCleanup() {
+    let normalized = SpokenTechnicalTextNormalizer.normalize(
+        "Yeah I I I don't think that like like works",
+        context: .technical
+    )
+
+    #expect(normalized == "Yeah I I I don't think that like like works")
+    #expect(DeterministicTranscriptCleaner.clean(normalized) ==
+        "Yeah I don't think that like works")
 }
 
 @Test func agentModeAcceptsCommonDoubleHyphenPhrases() {
@@ -862,16 +940,6 @@ import Testing
     #expect(emitter.finish(final) != .conflict)
     #expect(emitter.delivered ==
         "Send the result to ian@example.com keep the threshold at 70% and continue")
-}
-
-@Test func observedCorrectionCommandVariantIsConsumedSafely() {
-    let transcript = """
-    Hey dictation, you just transcribed as Portman for what I actually said was portman por \
-    tna. Can you add that to my rules so you remember for next time.
-    """
-
-    #expect(SpokenCorrectionParser.parse(transcript, appNames: ["Dictation"]) ==
-        PersonalCorrection(heard: "Portman", replacement: "Portman"))
 }
 
 @Test func deterministicCleanerRemovesOnlyExplicitFillers() {

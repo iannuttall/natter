@@ -135,7 +135,7 @@ struct OverlayView: View {
         case .preparing, .listening:
             "Tab: switch mode · tap \(store.selectedHotKey.label): stop · Right Option + Right Control: cancel"
         case .recoverable:
-            "The complete transcript is on your clipboard"
+            store.statusMessage ?? "The complete transcript is on your clipboard"
         case .failed:
             "Open Settings to fix this"
         default:
