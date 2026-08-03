@@ -21,9 +21,10 @@ types into the app you were already using.
 Double-tap Right Option and start talking. Natter listens through a local speech model and
 shows the live transcript in a small overlay. Tap Right Option once to stop.
 
-Raw mode types stable words as you speak. Agent mode waits until you stop, fixes technical
-terms and sentence boundaries, then types the finished result. Press Tab while listening to
-switch mode without moving focus out of the text field.
+Raw mode shows the live transcript in the overlay, then types it after you stop. Agent mode
+also waits until you stop, fixes technical terms and sentence boundaries, then types the
+finished result. Press Tab while listening to switch mode without moving focus out of the
+text field. Double-tap Left Option to cancel a recording.
 
 The app is designed for the awkward dictation that ordinary macOS speech tools tend to
 mangle: GitHub, SwiftPM, `--flags`, file paths, version numbers, terminal commands, and names

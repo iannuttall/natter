@@ -125,7 +125,7 @@ private struct OnboardingView: View {
             symbol: "lock.laptopcomputer"
         ) {
             VStack(alignment: .leading, spacing: 12) {
-                feature("Fast live Raw dictation", symbol: "bolt.fill")
+                feature("Fast local Raw dictation", symbol: "bolt.fill")
                 feature("Agent, Clean, Email and Article modes", symbol: "slider.horizontal.3")
                 feature("Private local history and dictionary", symbol: "externaldrive.fill")
             }

@@ -22,7 +22,7 @@ public enum DictationMode: String, Codable, CaseIterable, Identifiable, Sendable
     public var detail: String {
         switch self {
         case .raw:
-            "Fast live dictation with personal corrections only."
+            "Direct dictation with personal corrections, typed after you stop."
         case .agent:
             "Format technical dictation after you stop, then type it visibly."
         case .clean:
@@ -42,10 +42,7 @@ public enum DictationMode: String, Codable, CaseIterable, Identifiable, Sendable
     }
 
     public var typesIncrementally: Bool {
-        switch self {
-        case .raw: true
-        case .agent, .clean, .email, .article: false
-        }
+        false
     }
 
     public var next: Self {

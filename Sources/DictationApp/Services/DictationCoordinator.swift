@@ -815,7 +815,7 @@ final class DictationCoordinator {
     }
 
     private var sessionTypesIncrementally: Bool {
-        store.selectedMode == .raw
+        store.selectedMode.typesIncrementally
             || (store.selectedMode == .agent && store.agentTypesLive)
     }
 

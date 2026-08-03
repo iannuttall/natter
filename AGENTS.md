@@ -7,7 +7,7 @@ AppKit lifecycle/panels and SwiftUI views.
 
 - No account, cloud inference, telemetry, Ollama, Homebrew helper or localhost service.
 - Speech uses one engine: FluidAudio Nemotron Streaming 560 ms.
-- Raw types stable text incrementally. Agent buffers by default, applies technical formatting after stop and then types visibly; advanced live Agent delivery is optional.
+- Raw buffers by default and types after stop. Agent buffers by default, applies technical formatting after stop and then types visibly; advanced live Agent delivery is optional.
 - Clean performs deterministic filler and repetition cleanup after stop without a model.
 - Agent can use the optional local Qwen 3.5 4B model after stop. Email and Article use the optional Qwen 3.5 9B model.
 - Raw text must survive every insertion or transformation failure.

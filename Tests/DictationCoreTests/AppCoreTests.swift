@@ -65,7 +65,7 @@ import Testing
 }
 
 @Test func modesSeparateLiveAndGenerativeDelivery() {
-    #expect(DictationMode.raw.typesIncrementally)
+    #expect(!DictationMode.raw.typesIncrementally)
     #expect(!DictationMode.agent.typesIncrementally)
     #expect(!DictationMode.clean.typesIncrementally)
     #expect(!DictationMode.clean.isGenerative)
