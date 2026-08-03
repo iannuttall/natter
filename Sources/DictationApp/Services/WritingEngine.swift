@@ -236,7 +236,11 @@ actor WritingEngine {
         }
         var output = ""
         for segment in AgentRewriteSegmenter.segments(transcript) {
-            guard segment.requiresRewrite else {
+            // A false-start cue makes an otherwise-clean segment eligible so
+            // abandoned thoughts inside well-punctuated text can be removed.
+            let removesFalseStarts = context.removesFalseStarts
+                && FalseStartCues.containsCue(segment.text)
+            guard segment.requiresRewrite || removesFalseStarts else {
                 output += segment.text
                 continue
             }
@@ -264,15 +268,19 @@ actor WritingEngine {
                 let response = try await session.respond(to: WritingBenchmark.selectiveAgentRewritePrompt(
                     transcript: body,
                     markdownRules: markdownRules,
-                    context: context
+                    context: context,
+                    allowsFalseStartRemoval: removesFalseStarts
                 ))
                 let cleaned = WritingBenchmark.cleanMinimalFormattingEnvelope(response)
                 let rewritten = WritingOutputPolicy.enforce(
                     cleaned,
                     markdownRules: markdownRules
                 )
+                let wordingHolds = removesFalseStarts
+                    ? TranscriptWordingGuard.allowsOnlyDeletions(from: body, in: rewritten)
+                    : TranscriptWordingGuard.preservesWords(from: body, in: rewritten)
                 guard !rewritten.isEmpty,
-                      TranscriptWordingGuard.preservesWords(from: body, in: rewritten),
+                      wordingHolds,
                       TranscriptFactGuard.preservesFacts(from: body, in: rewritten),
                       TranscriptTerminologyGuard.preserves(
                         context.protectedSpellings,
@@ -295,7 +303,10 @@ actor WritingEngine {
         }
 
         output = ContextualTranscriptCorrector.correct(output, context: context)
-        guard TranscriptWordingGuard.preservesWords(from: transcript, in: output),
+        let transcriptWordingHolds = context.removesFalseStarts
+            ? TranscriptWordingGuard.allowsOnlyDeletions(from: transcript, in: output)
+            : TranscriptWordingGuard.preservesWords(from: transcript, in: output)
+        guard transcriptWordingHolds,
               TranscriptFactGuard.preservesFacts(from: transcript, in: output),
               TranscriptTerminologyGuard.preserves(
                 context.protectedSpellings,

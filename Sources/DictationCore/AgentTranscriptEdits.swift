@@ -19,18 +19,25 @@ public struct TranscriptTerminology: Codable, Equatable, Sendable {
 public struct AgentWritingContext: Equatable, Sendable {
     public let destinationApplicationName: String?
     public let terminology: [TranscriptTerminology]
+    /// Opt-in: lets the model delete abandoned false starts ("what am I—")
+    /// from segments that contain a spoken-aside cue. Deletion-only — the
+    /// wording guard still rejects any added or reordered word.
+    public let removesFalseStarts: Bool
 
     public init(
         destinationApplicationName: String? = nil,
-        terminology: [TranscriptTerminology] = []
+        terminology: [TranscriptTerminology] = [],
+        removesFalseStarts: Bool = false
     ) {
         self.destinationApplicationName = destinationApplicationName
         self.terminology = terminology
+        self.removesFalseStarts = removesFalseStarts
     }
 
     public static func production(
         destinationApplicationName: String?,
-        corrections: [PersonalCorrection]
+        corrections: [PersonalCorrection],
+        removesFalseStarts: Bool = false
     ) -> AgentWritingContext {
         var terms = builtInTerminology
         terms.append(contentsOf: corrections.map {
@@ -49,7 +56,8 @@ public struct AgentWritingContext: Equatable, Sendable {
         }
         return AgentWritingContext(
             destinationApplicationName: destinationApplicationName,
-            terminology: terms
+            terminology: terms,
+            removesFalseStarts: removesFalseStarts
         )
     }
 
@@ -1000,6 +1008,62 @@ public enum TranscriptWordingGuard {
             source == replacement
                 || allowedGrammarChanges.contains(source + "\u{0}" + replacement)
         }
+    }
+
+    /// Deletion-only variant for false-start cleanup: the output's words must
+    /// appear in the input in the same order (each kept word unchanged, apart
+    /// from the same one-word agreement whitelist). A short abandoned thought
+    /// can dominate a short segment, so segments up to 24 words may lose half
+    /// their words; longer text is capped at 35% so the model can never
+    /// hollow out a long transcript.
+    public static func allowsOnlyDeletions(
+        from input: String,
+        in output: String
+    ) -> Bool {
+        let inputWords = WritingBenchmark.normalizedWords(input)
+        let outputWords = WritingBenchmark.normalizedWords(output)
+        guard !inputWords.isEmpty, outputWords.count <= inputWords.count else {
+            return outputWords.isEmpty
+        }
+        let deleted = inputWords.count - outputWords.count
+        let maximumDeletedFraction = inputWords.count <= 24 ? 0.5 : 0.35
+        guard Double(deleted) / Double(inputWords.count) <= maximumDeletedFraction else {
+            return false
+        }
+
+        var inputIndex = 0
+        for word in outputWords {
+            var matched = false
+            while inputIndex < inputWords.count {
+                let source = inputWords[inputIndex]
+                inputIndex += 1
+                if source == word
+                    || allowedGrammarChanges.contains(source + "\u{0}" + word) {
+                    matched = true
+                    break
+                }
+            }
+            guard matched else { return false }
+        }
+        return true
+    }
+}
+
+/// Spoken asides that mark a self-interrupted thought worth cleaning up.
+/// Only segments containing one of these cues are ever offered to the model
+/// with deletion permission, so clean speech costs nothing.
+public enum FalseStartCues {
+    private static let cues = [
+        "what am i", "what was i", "where was i",
+        "no wait", "wait no", "actually no", "no sorry",
+        "scratch that", "strike that", "forget that",
+        "let me start again", "let me start over", "start that again",
+        "i mean", "hang on", "hold on what"
+    ]
+
+    public static func containsCue(_ text: String) -> Bool {
+        let folded = " " + WritingBenchmark.normalizedWords(text).joined(separator: " ") + " "
+        return cues.contains { folded.contains(" \($0) ") }
     }
 }
 

@@ -752,7 +752,8 @@ final class DictationCoordinator {
                 agentModelDirectory: agentModelDirectory,
                 agentContext: AgentWritingContext.production(
                     destinationApplicationName: sourceApplicationName,
-                    corrections: sessionCorrections
+                    corrections: sessionCorrections,
+                    removesFalseStarts: store.agentRemovesFalseStarts
                 )
             )
             if store.selectedMode == .agent {
