@@ -7,6 +7,29 @@
 
     <!-- Newest release first. scripts/release-app.sh prints a complete item. -->
     <item>
+      <title>0.2.0</title>
+      <sparkle:version>2</sparkle:version>
+      <sparkle:shortVersionString>0.2.0</sparkle:shortVersionString>
+      <sparkle:minimumSystemVersion>15.0</sparkle:minimumSystemVersion>
+      <description><![CDATA[
+        <h2>Faster, more accurate speech</h2>
+        <ul>
+          <li>New speech engine (Parakeet Unified 0.6B): live preview while you talk, higher-accuracy batch decode when you stop. Roughly a quarter fewer errors overall, 80% fewer on short dictations.</li>
+          <li>Final text lands well under a second after you stop, even for multi-minute dictations.</li>
+          <li>Multi-line text is inserted in one operation instead of line by line.</li>
+          <li>Overlay shows a live word count, and the level meter is now a real frequency spectrum of your voice.</li>
+          <li>Agent mode ends sentences with proper punctuation, and an optional "Tidy false starts" setting removes abandoned thoughts spoken out loud (off by default; words are only ever deleted, never added).</li>
+          <li>The speech model download is now 1.16 GB; Natter asks once and removes the old model automatically.</li>
+        </ul>
+      ]]></description>
+      <enclosure
+        url="https://github.com/iannuttall/natter/releases/download/v0.2.0/Natter-0.2.0.dmg"
+        length="35256433"
+        type="application/octet-stream"
+        sparkle:edSignature="oz4n1MWX0lSJs/rNsf2Zc/IrxAdJ2PGeDvzxoEc+DuV+GXx5g50cxxK5EytlnIckVQBRixnQOJ9/pJTIJq5hBA==" />
+    </item>
+
+    <item>
       <title>0.1.0</title>
       <sparkle:version>1</sparkle:version>
       <sparkle:shortVersionString>0.1.0</sparkle:shortVersionString>
