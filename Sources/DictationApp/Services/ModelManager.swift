@@ -145,6 +145,8 @@ final class ModelManager {
                 self?.status = Self.label(for: progress.phase)
             }
         }
+        // A pre-Parakeet install leaves the old Nemotron pack orphaned on disk.
+        try? removeIfPresent(SpeechModelLocation.legacyInstalledRoot(in: paths))
     }
 
     private func installWriting() async throws {

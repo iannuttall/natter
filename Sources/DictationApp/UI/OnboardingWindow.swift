@@ -142,7 +142,7 @@ private struct OnboardingView: View {
     private var speechModel: some View {
         setupPage(
             title: "Install live speech",
-            detail: "Nemotron Streaming 560 ms powers every mode. It is required and downloads directly to this Mac.",
+            detail: "Parakeet Unified 0.6B powers every mode. It is required and downloads directly to this Mac.",
             symbol: "waveform.badge.mic"
         ) {
             modelCard(

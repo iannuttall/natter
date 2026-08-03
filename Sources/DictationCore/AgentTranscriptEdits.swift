@@ -95,6 +95,7 @@ public struct AgentWritingContext: Equatable, Sendable {
         TranscriptTerminology(preferred: "FluidAudio"),
         TranscriptTerminology(preferred: "Qwen"),
         TranscriptTerminology(preferred: "Nemotron"),
+        TranscriptTerminology(preferred: "Parakeet"),
         TranscriptTerminology(preferred: "Monologue"),
         TranscriptTerminology(preferred: "Keep"),
         TranscriptTerminology(preferred: "Tauri", variants: ["Tori", "Torii"]),

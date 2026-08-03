@@ -315,10 +315,11 @@ import Testing
     defer { try? FileManager.default.removeItem(at: directory) }
 
     for relativePath in [
-        "encoder/encoder_int8.mlmodelc",
-        "decoder.mlmodelc",
-        "joint.mlmodelc",
-        "tokenizer.json"
+        "parakeet_unified_encoder_int8.mlmodelc",
+        "parakeet_unified_encoder_streaming_70_7_1_int8.mlmodelc",
+        "parakeet_unified_decoder.mlmodelc",
+        "parakeet_unified_joint_decision_single_step.mlmodelc",
+        "vocab.json"
     ] {
         let file = directory.appendingPathComponent(relativePath)
         try FileManager.default.createDirectory(
@@ -330,7 +331,7 @@ import Testing
 
     #expect(SpeechModelLocation.isComplete(at: directory))
     try FileManager.default.removeItem(
-        at: directory.appendingPathComponent("tokenizer.json")
+        at: directory.appendingPathComponent("vocab.json")
     )
     #expect(!SpeechModelLocation.isComplete(at: directory))
 }
@@ -381,34 +382,38 @@ import Testing
         == "ian.is is the site.")
 }
 
-@Test func textInsertionPlanPreservesStandardLineBreaks() {
-    #expect(TextInsertionPlan.segments(
+@Test func textInsertionPlanKeepsStandardLineBreaksInOnePayload() {
+    #expect(TextInsertionPlan.insertionText(
         for: "# Heading\n\nThe first paragraph.",
         destination: .standard
-    ) == [
-        .text("# Heading"),
-        .lineBreak,
-        .lineBreak,
-        .text("The first paragraph.")
-    ])
+    ) == "# Heading\n\nThe first paragraph.")
+    #expect(TextInsertionPlan.insertionText(
+        for: "First line\r\nSecond line\rThird line",
+        destination: .standard
+    ) == "First line\nSecond line\nThird line")
 }
 
 @Test func textInsertionPlanFlattensTerminalLineBreaksWithoutJoiningWords() {
-    #expect(TextInsertionPlan.segments(
+    #expect(TextInsertionPlan.insertionText(
         for: "First line\n\nSecond line",
         destination: .terminal
-    ) == [.text("First line Second line")])
+    ) == "First line Second line")
 }
 
 @Test func textInsertionPlanPreservesStreamingBoundarySpacesInTerminals() {
-    #expect(TextInsertionPlan.segments(
+    #expect(TextInsertionPlan.insertionText(
         for: " left the room ",
         destination: .terminal
-    ) == [.text(" left the room ")])
-    #expect(TextInsertionPlan.segments(
+    ) == " left the room ")
+    #expect(TextInsertionPlan.insertionText(
         for: "\nNext paragraph",
         destination: .terminal
-    ) == [.text(" Next paragraph")])
+    ) == " Next paragraph")
+}
+
+@Test func textInsertionPlanReturnsEmptyPayloadForEmptyText() {
+    #expect(TextInsertionPlan.insertionText(for: "", destination: .standard).isEmpty)
+    #expect(TextInsertionPlan.insertionText(for: "", destination: .terminal).isEmpty)
 }
 
 @Test func textInsertionChunksPreserveComposedCharacters() {
@@ -520,7 +525,7 @@ import Testing
     let paths = AppPaths(root: URL(fileURLWithPath: "/tmp/dictation-models"))
 
     #expect(SpeechModelLocation.installedDirectory(in: paths).path
-        == "/tmp/dictation-models/Models/nemotron-streaming/560ms")
+        == "/tmp/dictation-models/Models/parakeet-unified-en-0.6b")
     #expect(AgentWritingModelLocation.installedDirectory(in: paths).path
         == "/tmp/dictation-models/Models/agent-writing/models/mlx-community/Qwen3.5-4B-MLX-4bit")
     #expect(WritingModelLocation.installedDirectory(in: paths).path

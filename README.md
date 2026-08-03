@@ -40,7 +40,7 @@ Application Support and are never bundled into the app or this repository.
 
 | Model | Used for | Download |
 |---|---|---:|
-| FluidAudio Nemotron Streaming 560 ms | Required live speech | 613 MB |
+| FluidAudio Parakeet Unified 0.6B | Required live speech | 1.16 GB |
 | Qwen 3.5 4B MLX 4-bit | Optional fast Agent cleanup | 3.03 GB |
 | Qwen 3.5 9B MLX 4-bit | Optional Email and Article rewriting | 5.95 GB |
 
