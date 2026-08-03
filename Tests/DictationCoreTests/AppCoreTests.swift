@@ -356,6 +356,31 @@ import Testing
     #expect(emitter.finish("skip the build now") == .conflict)
 }
 
+@Test func tolerantRemainderAcceptsPunctuationAndCaseDisagreements() {
+    var emitter = StableTranscriptEmitter()
+    _ = emitter.observe("okay so the parakeet model is")
+
+    // The batch decode agrees on every word but adds caps and punctuation.
+    #expect(emitter.tolerantRemainder(
+        in: "Okay, so the Parakeet model is faster than before."
+    ) == " faster than before.")
+}
+
+@Test func tolerantRemainderStillRejectsRealWordConflicts() {
+    var emitter = StableTranscriptEmitter()
+    _ = emitter.observe("ship the build")
+
+    #expect(emitter.tolerantRemainder(in: "skip the build now") == nil)
+}
+
+@Test func tolerantRemainderPrefersExactPrefixAndHandlesEmptyDelivery() {
+    var emitter = StableTranscriptEmitter()
+    #expect(emitter.tolerantRemainder(in: "anything at all") == "anything at all")
+
+    _ = emitter.observe("hello world")
+    #expect(emitter.tolerantRemainder(in: "hello world from Ian") == " from Ian")
+}
+
 @Test func stableTranscriptReportsOnlyTextNotYetDelivered() {
     var emitter = StableTranscriptEmitter()
 
