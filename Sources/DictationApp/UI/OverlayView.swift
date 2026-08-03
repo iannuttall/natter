@@ -59,6 +59,14 @@ struct OverlayView: View {
 
     private var compactOverlay: some View {
         HStack(spacing: 10) {
+            if canCancel, wordCount > 0 {
+                Text("\(wordCount)w")
+                    .font(.system(size: 11, weight: .medium))
+                    .monospacedDigit()
+                    .foregroundStyle(.tertiary)
+                    .contentTransition(.numericText())
+                    .accessibilityLabel("\(wordCount) words dictated")
+            }
             levelMeter
             modeButton(font: .system(size: 14, weight: .semibold))
             Text(store.phase.label)
@@ -89,11 +97,23 @@ struct OverlayView: View {
                 }
             }
             Spacer()
+            if canCancel, wordCount > 0 {
+                Text("\(wordCount)w")
+                    .font(.system(size: 11, weight: .medium))
+                    .monospacedDigit()
+                    .foregroundStyle(.tertiary)
+                    .contentTransition(.numericText())
+                    .accessibilityLabel("\(wordCount) words dictated")
+            }
             levelMeter
             Text(store.phase.label)
                 .font(.system(size: 12, weight: .medium))
                 .foregroundStyle(.secondary)
         }
+    }
+
+    private var wordCount: Int {
+        store.liveTranscript.split(whereSeparator: \.isWhitespace).count
     }
 
     private var modeContext: String? {
@@ -112,7 +132,7 @@ struct OverlayView: View {
     }
 
     private var levelMeter: some View {
-        LiveVoiceMeter(level: store.audioLevel, isActive: canCancel)
+        LiveVoiceMeter(level: store.audioLevel, bands: store.audioBands, isActive: canCancel)
     }
 
     private func modeButton(font: Font) -> some View {
@@ -145,12 +165,17 @@ struct OverlayView: View {
 
 }
 
+/// Spectrum meter: each bar tracks a real log-spaced frequency band from the
+/// capture path, so the display follows the shape of the sound rather than
+/// pulsing every bar from one loudness value. Bars start flat and rise with
+/// fast attack and slower release. Falls back to the overall level (uniform
+/// pulse) only until the first spectrum frame arrives.
 private struct LiveVoiceMeter: View {
     let level: Float
+    let bands: [Float]
     let isActive: Bool
     @State private var bars = Array(repeating: CGFloat.zero, count: 7)
 
-    private let heightProfile: [CGFloat] = [0.46, 0.72, 0.9, 1, 0.84, 0.64, 0.42]
     private let releaseProfile: [CGFloat] = [0.62, 0.68, 0.72, 0.76, 0.7, 0.66, 0.6]
 
     var body: some View {
@@ -162,14 +187,13 @@ private struct LiveVoiceMeter: View {
             }
         }
         .frame(width: 39, height: 20)
-        .onChange(of: level, initial: true) { _, newLevel in
+        .onChange(of: targets, initial: true) { _, newTargets in
             guard isActive else {
                 bars = Array(repeating: 0, count: bars.count)
                 return
             }
-            let measured = CGFloat(min(1, max(0, newLevel)))
             let nextBars = bars.indices.map { index in
-                let target = min(1, measured * heightProfile[index])
+                let target = newTargets[index]
                 let previous = bars[index]
                 guard target < previous else { return target }
                 let release = releaseProfile[index]
@@ -185,6 +209,15 @@ private struct LiveVoiceMeter: View {
         .accessibilityElement(children: .ignore)
         .accessibilityLabel("Microphone level")
         .accessibilityValue("\(Int(min(1, max(0, level)) * 100)) percent")
+    }
+
+    private var targets: [CGFloat] {
+        if bands.count == bars.count {
+            return bands.map { CGFloat(min(1, max(0, $0))) }
+        }
+        let measured = CGFloat(min(1, max(0, level)))
+        let heightProfile: [CGFloat] = [0.46, 0.72, 0.9, 1, 0.84, 0.64, 0.42]
+        return heightProfile.map { min(1, measured * $0) }
     }
 }
 

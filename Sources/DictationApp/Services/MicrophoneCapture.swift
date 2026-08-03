@@ -127,7 +127,7 @@ private final class AudioCaptureState: @unchecked Sendable {
     private var generation = 0
     private var preRoll: TimedPreRollBuffer<AudioChunk>
     private var continuation: AsyncStream<AudioChunk>.Continuation?
-    private var levelHandler: (@MainActor @Sendable (Float) -> Void)?
+    private var levelHandler: (@MainActor @Sendable (Float, [Float]?) -> Void)?
     private var firstBufferHandler: (@MainActor @Sendable () -> Void)?
     private var routeFailureHandler: (@MainActor @Sendable (Error) -> Void)?
     private var deliveredFirstBuffer = false
@@ -158,7 +158,7 @@ private final class AudioCaptureState: @unchecked Sendable {
 
     func begin(
         continuation: AsyncStream<AudioChunk>.Continuation,
-        levelHandler: @escaping @MainActor @Sendable (Float) -> Void,
+        levelHandler: @escaping @MainActor @Sendable (Float, [Float]?) -> Void,
         firstBufferHandler: @escaping @MainActor @Sendable () -> Void,
         routeFailureHandler: @escaping @MainActor @Sendable (Error) -> Void
     ) -> TimeInterval {
@@ -184,8 +184,8 @@ private final class AudioCaptureState: @unchecked Sendable {
         return bufferedDuration
     }
 
-    func receive(_ chunk: AudioChunk, generation: Int) {
-        var levelHandler: (@MainActor @Sendable (Float) -> Void)?
+    func receive(_ chunk: AudioChunk, bands: [Float]?, generation: Int) {
+        var levelHandler: (@MainActor @Sendable (Float, [Float]?) -> Void)?
         var firstBufferHandler: (@MainActor @Sendable () -> Void)?
         var continuation: AsyncStream<AudioChunk>.Continuation?
 
@@ -216,7 +216,7 @@ private final class AudioCaptureState: @unchecked Sendable {
         continuation?.yield(chunk)
         if let levelHandler {
             let level = chunk.level
-            Task { @MainActor in levelHandler(level) }
+            Task { @MainActor in levelHandler(level, bands) }
         }
         if let firstBufferHandler {
             Task { @MainActor in firstBufferHandler() }
@@ -293,7 +293,7 @@ final class MicrophoneCapture {
     }
 
     func start(
-        levelHandler: @escaping @MainActor @Sendable (Float) -> Void,
+        levelHandler: @escaping @MainActor @Sendable (Float, [Float]?) -> Void,
         firstBufferHandler: @escaping @MainActor @Sendable () -> Void = {},
         routeFailureHandler: @escaping @MainActor @Sendable (Error) -> Void = { _ in }
     ) throws -> AsyncStream<AudioChunk> {
@@ -387,13 +387,16 @@ final class MicrophoneCapture {
         converter: CaptureFormatConverter,
         generation: Int
     ) -> AVAudioNodeTapBlock {
-        // The tap block runs serially on the audio thread; the converter is
-        // touched nowhere else, so its single-threaded contract holds.
+        // The tap block runs serially on the audio thread; the converter and
+        // analyzer are touched nowhere else, so their single-threaded
+        // contracts hold.
         nonisolated(unsafe) let converter = converter
+        nonisolated(unsafe) let analyzer = SpectrumAnalyzer()
         return { @Sendable buffer, _ in
             guard let samples = converter.convert(buffer), !samples.isEmpty else { return }
             state.receive(
                 AudioChunk(samples: samples, sampleRate: CaptureFormatConverter.targetSampleRate),
+                bands: analyzer?.bands(appending: samples),
                 generation: generation
             )
         }
