@@ -432,22 +432,10 @@ final class DictationCoordinator {
                 let transcript: String
                 switch store.selectedMode {
                 case .raw:
-                    if !emitter.delivered.isEmpty,
-                       let remainder = emitter.tolerantRemainder(in: correctedTranscript) {
-                        let continuation = FinalTranscriptFormatter.punctuateRawProse(
-                            remainder.trimmingCharacters(in: .whitespacesAndNewlines),
-                            capitalizesInitial: false
-                        )
-                        transcript = joinedTranscript(
-                            prefix: emitter.delivered,
-                            continuation: continuation
-                        )
-                    } else {
-                        transcript = FinalTranscriptFormatter.punctuateRawProse(
-                            correctedTranscript,
-                            capitalizesInitial: spokenFormattingContext == .prose
-                        )
-                    }
+                    transcript = FinalTranscriptFormatter.punctuateRawProse(
+                        correctedTranscript,
+                        capitalizesInitial: spokenFormattingContext == .prose
+                    )
                 case .clean:
                     if !emitter.delivered.isEmpty,
                        let remainder = emitter.tolerantRemainder(in: correctedTranscript) {
@@ -843,14 +831,6 @@ final class DictationCoordinator {
     private var sessionTypesIncrementally: Bool {
         store.selectedMode.typesIncrementally
             || (store.selectedMode == .agent && store.agentTypesLive)
-            || (store.terminalStreamsLive && destinationIsTerminal
-                && !store.selectedMode.isGenerative)
-    }
-
-    private var destinationIsTerminal: Bool {
-        DestinationApplicationKind.classify(
-            bundleIdentifier: sourceBundleIdentifier
-        ) == .terminal
     }
 
     private var shouldUseWritingModel: Bool {
