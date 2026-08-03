@@ -17,7 +17,7 @@ public enum ModelPack: String, CaseIterable, Identifiable, Sendable {
 
     public var detail: String {
         switch self {
-        case .speech: "Nemotron Streaming 560 ms · required"
+        case .speech: "Parakeet Unified 0.6B · required"
         case .agentWriting: "Qwen 3.5 4B MLX 4-bit · guarded run-on cleanup"
         case .writing: "Qwen 3.5 9B MLX 4-bit · Email and Article"
         }
@@ -25,7 +25,7 @@ public enum ModelPack: String, CaseIterable, Identifiable, Sendable {
 
     public var downloadSizeBytes: Int64 {
         switch self {
-        case .speech: 613_000_000
+        case .speech: 1_160_000_000
         case .agentWriting: 3_030_000_000
         case .writing: 5_950_000_000
         }
@@ -33,7 +33,7 @@ public enum ModelPack: String, CaseIterable, Identifiable, Sendable {
 
     public var sizeLabel: String {
         switch self {
-        case .speech: "613 MB"
+        case .speech: "1.16 GB"
         case .agentWriting: "3.03 GB"
         case .writing: "5.95 GB"
         }

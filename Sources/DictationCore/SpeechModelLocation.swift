@@ -1,10 +1,20 @@
 import Foundation
 
 public enum SpeechModelLocation {
-    public static let relativePath = "nemotron-streaming/560ms"
+    public static let relativePath = "parakeet-unified-en-0.6b"
+
+    /// Streaming preview encoder context: 70 frames left, 7 chunk, 1 right
+    /// (560 ms decode cadence, 640 ms theoretical latency). The offline batch
+    /// encoder that produces the final transcript has its context baked in.
+    public static let previewContextSuffix = "70_7_1"
 
     public static func installedDirectory(in paths: AppPaths) -> URL {
         paths.models.appendingPathComponent(relativePath, isDirectory: true)
+    }
+
+    /// Legacy Nemotron install root, removed when the Parakeet pack installs.
+    public static func legacyInstalledRoot(in paths: AppPaths) -> URL {
+        paths.models.appendingPathComponent("nemotron-streaming", isDirectory: true)
     }
 
     public static func resolve(
@@ -26,10 +36,11 @@ public enum SpeechModelLocation {
         fileManager: FileManager = .default
     ) -> Bool {
         let requiredPaths = [
-            "encoder/encoder_int8.mlmodelc",
-            "decoder.mlmodelc",
-            "joint.mlmodelc",
-            "tokenizer.json"
+            "parakeet_unified_encoder_int8.mlmodelc",
+            "parakeet_unified_encoder_streaming_\(previewContextSuffix)_int8.mlmodelc",
+            "parakeet_unified_decoder.mlmodelc",
+            "parakeet_unified_joint_decision_single_step.mlmodelc",
+            "vocab.json"
         ]
         return requiredPaths.allSatisfy {
             fileManager.fileExists(atPath: directory.appendingPathComponent($0).path)

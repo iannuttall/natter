@@ -6,7 +6,7 @@ AppKit lifecycle/panels and SwiftUI views.
 ## Product rules
 
 - No account, cloud inference, telemetry, Ollama, Homebrew helper or localhost service.
-- Speech uses one engine: FluidAudio Nemotron Streaming 560 ms.
+- Speech uses one engine: FluidAudio Parakeet Unified 0.6B — a chunked streaming encoder for the live preview and the full-attention offline encoder for the batch-decoded final transcript.
 - Raw buffers by default and types after stop. Agent buffers by default, applies technical formatting after stop and then types visibly; advanced live Agent delivery is optional.
 - Clean performs deterministic filler and repetition cleanup after stop without a model.
 - Agent can use the optional local Qwen 3.5 4B model after stop. Email and Article use the optional Qwen 3.5 9B model.

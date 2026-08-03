@@ -38,9 +38,10 @@ Their complete MIT licence texts are reproduced in the app bundle.
 
 Model weights are not bundled in Natter.app. The app downloads them on the user's explicit request and stores them under the app's Application Support directory.
 
-### Nemotron Speech Streaming 0.6B Core ML
+### Parakeet Unified 0.6B Core ML
 
-- Model: `FluidInference/nemotron-speech-streaming-en-0.6b-coreml`
+- Model: `FluidInference/parakeet-unified-en-0.6b-coreml`
+- Original model: `nvidia/parakeet-unified-en-0.6b`
 - Licence: NVIDIA Open Model License Agreement, last modified 24 October 2025
 - Licence: https://www.nvidia.com/en-us/agreements/enterprise-software/nvidia-open-model-license/
 - Trustworthy AI terms: https://www.nvidia.com/en-us/agreements/trustworthy-ai/terms/
