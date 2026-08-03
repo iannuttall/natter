@@ -48,6 +48,12 @@ final class DictationStore {
         didSet { defaults.set(smartAgentEnabled, forKey: Keys.smartAgentEnabled) }
     }
 
+    var agentRemovesFalseStarts: Bool {
+        didSet {
+            defaults.set(agentRemovesFalseStarts, forKey: Keys.agentRemovesFalseStarts)
+        }
+    }
+
     var overlayStyle: OverlayStyle {
         didSet {
             defaults.set(overlayStyle.rawValue, forKey: Keys.overlayStyle)
@@ -74,6 +80,8 @@ final class DictationStore {
             ?? false
         smartAgentEnabled = defaults.object(forKey: Keys.smartAgentEnabled) as? Bool
             ?? true
+        agentRemovesFalseStarts = defaults.object(forKey: Keys.agentRemovesFalseStarts) as? Bool
+            ?? false
         overlayStyle = defaults.string(forKey: Keys.overlayStyle)
             .flatMap(OverlayStyle.init(rawValue:))
             ?? .full
@@ -164,6 +172,7 @@ final class DictationStore {
         static let terminalPacingEnabled = "terminalPacingEnabled"
         static let agentTypesLive = "agentTypesLive"
         static let smartAgentEnabled = "smartAgentEnabled"
+        static let agentRemovesFalseStarts = "agentRemovesFalseStarts"
         static let overlayStyle = "overlayStyle"
     }
 }

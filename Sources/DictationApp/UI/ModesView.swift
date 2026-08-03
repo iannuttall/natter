@@ -77,6 +77,10 @@ struct ModesView: View {
             Text("Uses the fast 4B Agent model and falls back to deterministic technical formatting when it is not installed.")
                 .font(.caption)
                 .foregroundStyle(.secondary)
+            Toggle("Tidy false starts in Agent mode", isOn: $store.agentRemovesFalseStarts)
+            Text("Removes abandoned thoughts spoken out loud, like “what am I—”. Words are only ever deleted, never added, and protected terms always survive.")
+                .font(.caption)
+                .foregroundStyle(.secondary)
         }
         .padding(Theme.Space.regular)
         .background(Theme.Colour.secondaryPanel)

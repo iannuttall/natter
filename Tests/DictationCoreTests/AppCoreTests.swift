@@ -356,6 +356,33 @@ import Testing
     #expect(emitter.finish("skip the build now") == .conflict)
 }
 
+@Test func deletionOnlyGuardAcceptsFalseStartRemoval() {
+    let input = "I'm now comparing what am I comparing Natter to Monologue."
+    let output = "I'm now comparing Natter to Monologue."
+    #expect(TranscriptWordingGuard.allowsOnlyDeletions(from: input, in: output))
+}
+
+@Test func deletionOnlyGuardRejectsAdditionsReorderingAndOverDeletion() {
+    let input = "ship the build to staging now"
+    #expect(!TranscriptWordingGuard.allowsOnlyDeletions(
+        from: input, in: "ship the new build to staging now"))
+    #expect(!TranscriptWordingGuard.allowsOnlyDeletions(
+        from: input, in: "ship to staging the build now"))
+    #expect(!TranscriptWordingGuard.allowsOnlyDeletions(
+        from: input, in: "ship now"))
+    #expect(TranscriptWordingGuard.allowsOnlyDeletions(
+        from: input, in: "ship the build to staging now"))
+}
+
+@Test func falseStartCuesMatchWholePhrasesOnly() {
+    #expect(FalseStartCues.containsCue(
+        "I'm now comparing what am I comparing Natter to Monologue"))
+    #expect(FalseStartCues.containsCue("no wait, use the other branch"))
+    #expect(FalseStartCues.containsCue("Scratch that, start with the tests."))
+    #expect(!FalseStartCues.containsCue("compare Natter to Monologue for speed"))
+    #expect(!FalseStartCues.containsCue("we should wait for the release"))
+}
+
 @Test func tolerantRemainderAcceptsPunctuationAndCaseDisagreements() {
     var emitter = StableTranscriptEmitter()
     _ = emitter.observe("okay so the parakeet model is")

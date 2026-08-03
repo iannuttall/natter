@@ -247,8 +247,16 @@ public enum WritingBenchmark {
     public static func selectiveAgentRewritePrompt(
         transcript: String,
         markdownRules: String,
-        context: AgentWritingContext
+        context: AgentWritingContext,
+        allowsFalseStartRemoval: Bool = false
     ) -> String {
+        let falseStartSection = allowsFalseStartRemoval ? """
+
+        False start cleanup: this segment contains an abandoned false start or a thought spoken
+        out loud (for example "what am I—" or "no wait"). Delete the abandoned words entirely.
+        Apart from those deletions, copy every remaining word exactly once and in order — never
+        add, replace or reorder a word.
+        """ : ""
         let trimmedRules = markdownRules.trimmingCharacters(in: .whitespacesAndNewlines)
         let rulesSection = if trimmedRules.isEmpty
             || !WritingRules.agentRulesContainCustomInstructions(trimmedRules) {
@@ -271,7 +279,7 @@ public enum WritingBenchmark {
         </context>
         """
         return """
-        \(rulesSection)\(contextSection)
+        \(rulesSection)\(contextSection)\(falseStartSection)
 
         Speech transcript:
         <transcript>
