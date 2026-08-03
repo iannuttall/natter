@@ -443,6 +443,37 @@ import Testing
     ))
 }
 
+@Test func agentSelfEditPolicyAcceptsOnlyGroundedCueEdits() {
+    let safe = TranscriptEdit(
+        source: "Q C UE delete that CUE",
+        replacement: "CUE"
+    )
+    let invented = TranscriptEdit(
+        source: "Q C UE delete that CUE",
+        replacement: "Queue"
+    )
+    let unrelated = TranscriptEdit(
+        source: "Delete the cache and restart",
+        replacement: "restart"
+    )
+
+    #expect(AgentSelfEditPolicy.containsCorrectionCue("No, delete that and use this"))
+    #expect(!AgentSelfEditPolicy.containsCorrectionCue("Delete the cache and restart"))
+    #expect(AgentSelfEditPolicy.safePlan(from: TranscriptEditPlan(
+        edits: [safe, invented, unrelated]
+    )) == TranscriptEditPlan(edits: [safe]))
+}
+
+@Test func groundedAgentSelfEditAppliesObservedCorrection() {
+    let transcript = "The queue app Q C UE delete that CUE is interesting."
+    let plan = AgentSelfEditPolicy.safePlan(from: TranscriptEditPlan(edits: [
+        TranscriptEdit(source: "Q C UE delete that CUE", replacement: "CUE")
+    ]))
+
+    #expect(TranscriptEditApplier.applyRecovering(plan, to: transcript).output ==
+        "The queue app CUE is interesting.")
+}
+
 @Test func transcriptEditPlanRejectsAmbiguousAndOversizedChanges() {
     #expect(throws: TranscriptEditApplicationError.sourceNotUnique("test", matches: 2)) {
         try TranscriptEditApplier.apply(
@@ -462,6 +493,14 @@ import Testing
             to: "Keep this complete sentence exactly as it was originally spoken."
         )
     }
+}
+
+@Test func residualAcknowledgementIsRemovedOnlyAfterAGroundedEdit() {
+    let transcript = "It might be a moot point there we go that's better."
+    #expect(
+        AgentSelfEditPolicy.removingResidualAcknowledgementCues(from: transcript)
+            == "It might be a moot point"
+    )
 }
 
 @Test func transcriptEditPlanCanTargetOneRepeatedOccurrenceExplicitly() throws {

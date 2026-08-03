@@ -166,6 +166,35 @@ public enum WritingBenchmark {
 
     public static let agentEditJSONSchema = #"{"type":"object","properties":{"edits":{"type":"array","items":{"type":"object","properties":{"source":{"type":"string"},"replacement":{"type":"string"},"allOccurrences":{"type":"boolean"}},"required":["source","replacement","allOccurrences"],"additionalProperties":false}}},"required":["edits"],"additionalProperties":false}"#
 
+    public static let agentSelfEditInstructions = """
+    Remove only explicit spoken self-corrections from a speech transcript. Return a compact JSON
+    edit plan, never rewritten prose. Each source must be one exact, case-sensitive, unique substring
+    containing the abandoned wording, its correction cue, and enough corrected wording to make the
+    intent unambiguous. Each replacement must use only words already present in that source, in the
+    same order. Set allOccurrences to false. Do not fix grammar, punctuation, names or style here.
+    Do not treat instructions such as `delete the cache` as self-edits. Do not remove passages merely
+    discussing phrases such as `delete that` or `ignore that part`. If uncertain, return {"edits":[]}.
+
+    Example: `Q C UE delete that CUE is interesting` becomes the edit
+    {"source":"Q C UE delete that CUE","replacement":"CUE","allOccurrences":false}.
+    Example: `say things wrong no delete that say things in the wrong way` becomes the edit
+    {"source":"say things wrong no delete that say things in the wrong way","replacement":"say things in the wrong way","allOccurrences":false}.
+    Example: `it is a mute point but a moot point there we go that's better` becomes the edit
+    {"source":"a mute point but a moot point there we go that's better","replacement":"a moot point","allOccurrences":false}.
+    Example: `I said the words delete that in my example` has no self-edit and returns {"edits":[]}.
+    """
+
+    public static func agentSelfEditPrompt(transcript: String) -> String {
+        """
+        Speech transcript:
+        <transcript>
+        \(transcript)
+        </transcript>
+
+        Return the JSON edit plan now.
+        """
+    }
+
     public static func agentEditPrompt(
         transcript: String,
         markdownRules: String,

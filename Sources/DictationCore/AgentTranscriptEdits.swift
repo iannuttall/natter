@@ -414,6 +414,55 @@ public struct TranscriptEditRecoveryResult: Equatable, Sendable {
     }
 }
 
+public enum AgentSelfEditPolicy {
+    private static let cuePattern = #"(?i)\b(?:delete|ignore|scratch)\s+(?:that|this|it|that\s+part)\b|\bchange\s+(?:that|this|it)\s+to\b|\bi\s+mean\b|\bthere\s+we\s+go[,]?\s+that(?:'|’)s\s+better\b"#
+
+    public static func containsCorrectionCue(_ transcript: String) -> Bool {
+        transcript.range(of: cuePattern, options: .regularExpression) != nil
+    }
+
+    public static func safePlan(from plan: TranscriptEditPlan) -> TranscriptEditPlan {
+        TranscriptEditPlan(edits: plan.edits.filter(isSafe))
+    }
+
+    public static func removingResidualAcknowledgementCues(from transcript: String) -> String {
+        let pattern = #"(?i)(?:[,;:—-]\s*)?\bthere\s+we\s+go[,]?\s+that(?:'|’)s\s+better\b[,.!?]?"#
+        guard let expression = try? NSRegularExpression(pattern: pattern) else {
+            return transcript
+        }
+        let range = NSRange(transcript.startIndex..., in: transcript)
+        let cleaned = expression.stringByReplacingMatches(
+            in: transcript,
+            range: range,
+            withTemplate: ""
+        )
+        return cleaned
+            .replacingOccurrences(of: #"\s+([,.;:!?])"#, with: "$1", options: .regularExpression)
+            .replacingOccurrences(of: #"[ \t]{2,}"#, with: " ", options: .regularExpression)
+            .trimmingCharacters(in: .whitespacesAndNewlines)
+    }
+
+    private static func isSafe(_ edit: TranscriptEdit) -> Bool {
+        guard edit.source != edit.replacement,
+              edit.occurrence == nil,
+              edit.allOccurrences != true,
+              containsCorrectionCue(edit.source),
+              AgentTranscriptChunker.wordCount(edit.source) <= 60 else {
+            return false
+        }
+        let sourceWords = WritingBenchmark.normalizedWords(edit.source)
+        let replacementWords = WritingBenchmark.normalizedWords(edit.replacement)
+        var sourceIndex = sourceWords.startIndex
+        for replacementWord in replacementWords {
+            guard let match = sourceWords[sourceIndex...].firstIndex(of: replacementWord) else {
+                return false
+            }
+            sourceIndex = sourceWords.index(after: match)
+        }
+        return true
+    }
+}
+
 public enum TranscriptEditApplicationError: LocalizedError, Equatable {
     case emptySource
     case unchangedEdit(String)
