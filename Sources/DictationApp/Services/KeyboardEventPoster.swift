@@ -47,22 +47,6 @@ final class KeyboardEventPoster {
         )
     }
 
-    func postLineBreak(
-        into element: AXUIElement?,
-        destination: DestinationApplicationKind
-    ) async throws {
-        try requirePostEventPermission()
-        if destination == .standard {
-            try await pasteTemporarily("\n")
-            return
-        }
-
-        if let element, replaceSelection(with: "\n", in: element) { return }
-
-        // Shift-Return inserts a line break in chat composers without sending.
-        try postKey(code: 36, flags: .maskShift)
-    }
-
     func postBackspace() throws {
         try requirePostEventPermission()
         try postKey(code: 51)

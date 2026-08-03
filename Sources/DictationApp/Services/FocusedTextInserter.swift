@@ -51,8 +51,6 @@ final class FocusedTextInserter {
     // Codex classifies character gaps of 8 ms or less as a paste burst.
     // Keep terminal chunks above that boundary without slowing normal fields.
     private static let terminalChunkDelay = Duration.milliseconds(12)
-    private static let standardChunkDelay = Duration.milliseconds(1)
-    private static let lineBreakDelay = Duration.milliseconds(8)
     private let eventPoster = KeyboardEventPoster()
 
     func captureTarget() throws -> FocusedTextTarget {
@@ -107,37 +105,26 @@ final class FocusedTextInserter {
             bundleIdentifier: target.bundleIdentifier
         )
 
-        let segments = TextInsertionPlan.segments(for: text, destination: applicationKind)
-        for (segmentIndex, segment) in segments.enumerated() {
-            switch segment {
-            case let .text(value):
-                let chunks = applicationKind == .standard
-                    ? [value]
-                    : TextInsertionPlan.chunks(for: value, maximumCharacterCount: 16)
-                for (chunkIndex, chunk) in chunks.enumerated() {
-                    let element = try validate(target)
-                    try await eventPoster.postText(
-                        chunk,
-                        into: element,
-                        destination: applicationKind
-                    )
+        let payload = TextInsertionPlan.insertionText(for: text, destination: applicationKind)
+        guard !payload.isEmpty else { return }
 
-                    if chunkIndex < chunks.index(before: chunks.endIndex)
-                        || segmentIndex < segments.index(before: segments.endIndex) {
-                        if paceTerminalInput, applicationKind == .terminal {
-                            try await Task.sleep(for: Self.terminalChunkDelay)
-                        } else if applicationKind == .standard {
-                            try await Task.sleep(for: Self.standardChunkDelay)
-                        }
-                    }
-                }
-            case .lineBreak:
-                let element = try validate(target)
-                try await eventPoster.postLineBreak(
-                    into: element,
-                    destination: applicationKind
-                )
-                try await Task.sleep(for: Self.lineBreakDelay)
+        // Standard apps take the whole transcript, newlines included, in a
+        // single paste. Terminals stay on the paced per-character path.
+        let chunks = applicationKind == .standard
+            ? [payload]
+            : TextInsertionPlan.chunks(for: payload, maximumCharacterCount: 16)
+        for (chunkIndex, chunk) in chunks.enumerated() {
+            let element = try validate(target)
+            try await eventPoster.postText(
+                chunk,
+                into: element,
+                destination: applicationKind
+            )
+
+            if chunkIndex < chunks.index(before: chunks.endIndex),
+               paceTerminalInput,
+               applicationKind == .terminal {
+                try await Task.sleep(for: Self.terminalChunkDelay)
             }
         }
     }
