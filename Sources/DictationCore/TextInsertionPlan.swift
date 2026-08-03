@@ -1,10 +1,5 @@
 import Foundation
 
-public enum TextInsertionSegment: Equatable, Sendable {
-    case text(String)
-    case lineBreak
-}
-
 public enum TextInsertionPlan {
     public static func chunks(
         for text: String,
@@ -28,28 +23,21 @@ public enum TextInsertionPlan {
         return chunks
     }
 
-    public static func segments(
+    public static func insertionText(
         for text: String,
         destination: DestinationApplicationKind
-    ) -> [TextInsertionSegment] {
+    ) -> String {
         let normalized = text.replacingOccurrences(of: "\r\n", with: "\n")
             .replacingOccurrences(of: "\r", with: "\n")
 
-        if destination == .terminal {
-            let flattened = normalized.replacingOccurrences(
-                of: #"[ \t]*\n+[ \t]*"#,
-                with: " ",
-                options: .regularExpression
-            )
-            return flattened.isEmpty ? [] : [.text(flattened)]
-        }
-
-        let lines = normalized.split(separator: "\n", omittingEmptySubsequences: false)
-        var segments: [TextInsertionSegment] = []
-        for (index, line) in lines.enumerated() {
-            if !line.isEmpty { segments.append(.text(String(line))) }
-            if index < lines.index(before: lines.endIndex) { segments.append(.lineBreak) }
-        }
-        return segments
+        // A shell prompt runs every newline it receives, so terminals get one
+        // flattened line. Standard apps receive newlines as pasted characters,
+        // which never fires a composer's Return-to-send handler.
+        guard destination == .terminal else { return normalized }
+        return normalized.replacingOccurrences(
+            of: #"[ \t]*\n+[ \t]*"#,
+            with: " ",
+            options: .regularExpression
+        )
     }
 }
