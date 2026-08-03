@@ -73,6 +73,7 @@ final class DictationCoordinator {
         sessionTask?.cancel()
         sessionTask = nil
         store.audioLevel = 0
+        store.audioBands = []
 
         let draft = (store.liveTranscript.isEmpty
             ? store.rawTranscript
@@ -345,7 +346,10 @@ final class DictationCoordinator {
             await transcriber.reset()
 
             let stream = try microphone.start(
-                levelHandler: { [weak store] level in store?.audioLevel = level },
+                levelHandler: { [weak store] level, bands in
+                    store?.audioLevel = level
+                    if let bands { store?.audioBands = bands }
+                },
                 firstBufferHandler: { [weak self] in
                     self?.performanceTrace?.mark(.firstAudioBuffer)
                 },
@@ -399,6 +403,7 @@ final class DictationCoordinator {
         let drainingStreamTask = streamTask
         streamTask = nil
         store.audioLevel = 0
+        store.audioBands = []
         store.phase = .finalizing
         store.statusMessage = "Finishing locally…"
 
@@ -739,7 +744,7 @@ final class DictationCoordinator {
         }
 
         do {
-            let output = try await writingEngine.transform(
+            var output = try await writingEngine.transform(
                 transcript: transformInput,
                 mode: store.selectedMode,
                 markdownRules: rules.markdown(for: store.selectedMode),
@@ -750,6 +755,17 @@ final class DictationCoordinator {
                     corrections: sessionCorrections
                 )
             )
+            if store.selectedMode == .agent {
+                // The selective rewrite preserves wording and leaves untouched
+                // segments verbatim, so a dictation that trails off mid-thought
+                // often ends without terminal punctuation. Close the final
+                // sentence deterministically, using the same technical-token
+                // guard Raw mode uses so commands and paths stay untouched.
+                output = FinalTranscriptFormatter.punctuateRawProse(
+                    output,
+                    capitalizesInitial: false
+                )
+            }
             performanceTrace?.mark(.transformFinished)
             let finalOutput = joinedTranscript(
                 prefix: lockedPrefix,
@@ -863,6 +879,7 @@ final class DictationCoordinator {
         streamTask?.cancel()
         streamTask = nil
         store.audioLevel = 0
+        store.audioBands = []
         store.statusMessage = error.localizedDescription
         store.phase = .failed(error.localizedDescription)
         overlay.show()

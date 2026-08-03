@@ -14,6 +14,7 @@ final class DictationStore {
     var rawTranscript = ""
     var finalTranscript = ""
     var audioLevel: Float = 0
+    var audioBands: [Float] = []
     var statusMessage: String?
     var latestRecoveryURL: URL?
     var activeApplicationName: String?
@@ -150,6 +151,7 @@ final class DictationStore {
         rawTranscript = ""
         finalTranscript = ""
         audioLevel = 0
+        audioBands = []
         statusMessage = nil
         activeApplicationName = nil
         activeModeSource = nil
