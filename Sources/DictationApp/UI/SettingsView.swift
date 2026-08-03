@@ -262,24 +262,13 @@ struct SettingsView: View {
     }
 
     private var terminalDelivery: some View {
-        VStack(alignment: .leading, spacing: Theme.Space.regular) {
-            Toggle(isOn: $store.terminalPacingEnabled) {
-                VStack(alignment: .leading, spacing: 2) {
-                    Text("Keep terminal dictation visible")
-                        .font(.headline)
-                    Text("Pace long input so coding agents do not collapse it into a paste block.")
-                        .font(.callout)
-                        .foregroundStyle(.secondary)
-                }
-            }
-            Toggle(isOn: $store.terminalStreamsLive) {
-                VStack(alignment: .leading, spacing: 2) {
-                    Text("Stream into terminals while speaking")
-                        .font(.headline)
-                    Text("Types words as you talk so a long dictation stays readable before you send it. Raw, Clean and Agent modes in terminal apps.")
-                        .font(.callout)
-                        .foregroundStyle(.secondary)
-                }
+        Toggle(isOn: $store.terminalPacingEnabled) {
+            VStack(alignment: .leading, spacing: 2) {
+                Text("Keep terminal dictation visible")
+                    .font(.headline)
+                Text("Pace long input so coding agents do not collapse it into a paste block.")
+                    .font(.callout)
+                    .foregroundStyle(.secondary)
             }
         }
         .disabled(store.phase.isBusy)

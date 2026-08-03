@@ -43,10 +43,6 @@ final class DictationStore {
         didSet { defaults.set(agentTypesLive, forKey: Keys.agentTypesLive) }
     }
 
-    var terminalStreamsLive: Bool {
-        didSet { defaults.set(terminalStreamsLive, forKey: Keys.terminalStreamsLive) }
-    }
-
     var smartAgentEnabled: Bool {
         didSet { defaults.set(smartAgentEnabled, forKey: Keys.smartAgentEnabled) }
     }
@@ -74,8 +70,6 @@ final class DictationStore {
         terminalPacingEnabled = defaults.object(forKey: Keys.terminalPacingEnabled) as? Bool
             ?? true
         agentTypesLive = defaults.object(forKey: Keys.agentTypesLive) as? Bool
-            ?? false
-        terminalStreamsLive = defaults.object(forKey: Keys.terminalStreamsLive) as? Bool
             ?? false
         smartAgentEnabled = defaults.object(forKey: Keys.smartAgentEnabled) as? Bool
             ?? true
@@ -167,7 +161,6 @@ final class DictationStore {
         static let selectedHotKey = "selectedHotKey"
         static let terminalPacingEnabled = "terminalPacingEnabled"
         static let agentTypesLive = "agentTypesLive"
-        static let terminalStreamsLive = "terminalStreamsLive"
         static let smartAgentEnabled = "smartAgentEnabled"
         static let overlayStyle = "overlayStyle"
     }
