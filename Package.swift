@@ -11,7 +11,8 @@ let package = Package(
         .library(name: "DictationCore", targets: ["DictationCore"]),
         .executable(name: "dictation", targets: ["DictationApp"]),
         .executable(name: "dictation-formatting-bench", targets: ["DictationFormattingBench"]),
-        .executable(name: "dictation-parity", targets: ["DictationParity"])
+        .executable(name: "dictation-parity", targets: ["DictationParity"]),
+        .executable(name: "dictation-asr-eval", targets: ["DictationAsrEval"])
     ],
     dependencies: [
         .package(url: "https://github.com/sparkle-project/Sparkle", from: "2.6.0"),
@@ -47,6 +48,12 @@ let package = Package(
         .executableTarget(
             name: "DictationFormattingBench",
             dependencies: ["DictationCore"]
+        ),
+        .executableTarget(
+            name: "DictationAsrEval",
+            dependencies: [
+                .product(name: "FluidAudio", package: "FluidAudio")
+            ]
         ),
         .executableTarget(
             name: "DictationParity",
