@@ -29,51 +29,59 @@ public enum ModifierHotKeyAction: Equatable, Sendable {
     case cancel
 }
 
-public enum CancelModifierChordEvent: Equatable, Sendable {
+public enum CancelModifierTapEvent: Equatable, Sendable {
     case passThrough
     case cancel
-    case suppress
 }
 
-public struct CancelModifierChordDetector: Sendable {
-    private var downKeyCodes: Set<UInt16> = []
-    private var chordIsActive = false
+public struct CancelModifierTapDetector: Sendable {
+    public static let leftOptionKeyCode: UInt16 = 58
 
-    public init() {}
+    public let doubleTapInterval: TimeInterval
+    private var firstTapTime: TimeInterval?
+    private var isDown = false
+
+    public init(doubleTapInterval: TimeInterval = 0.42) {
+        self.doubleTapInterval = doubleTapInterval
+    }
 
     public mutating func observe(
         keyCode: UInt16,
         isDown: Bool,
+        at time: TimeInterval,
         sessionIsActive: Bool
-    ) -> CancelModifierChordEvent {
-        guard keyCode == ModifierHotKey.rightOption.keyCode
-                || keyCode == ModifierHotKey.rightControl.keyCode else {
+    ) -> CancelModifierTapEvent {
+        guard keyCode == Self.leftOptionKeyCode else {
             return .passThrough
         }
 
-        if isDown {
-            downKeyCodes.insert(keyCode)
-        } else {
-            downKeyCodes.remove(keyCode)
+        guard sessionIsActive else {
+            reset()
+            return .passThrough
         }
 
-        if chordIsActive {
-            if downKeyCodes.isEmpty { chordIsActive = false }
-            return .suppress
+        let isPress = isDown && !self.isDown
+        self.isDown = isDown
+        guard isPress else { return .passThrough }
+
+        guard let firstTapTime else {
+            self.firstTapTime = time
+            return .passThrough
         }
 
-        if sessionIsActive,
-           downKeyCodes.contains(ModifierHotKey.rightOption.keyCode),
-           downKeyCodes.contains(ModifierHotKey.rightControl.keyCode) {
-            chordIsActive = true
+        let elapsed = time - firstTapTime
+        if elapsed >= 0, elapsed <= doubleTapInterval {
+            self.firstTapTime = nil
             return .cancel
         }
+
+        self.firstTapTime = time
         return .passThrough
     }
 
     public mutating func reset() {
-        downKeyCodes = []
-        chordIsActive = false
+        firstTapTime = nil
+        isDown = false
     }
 }
 

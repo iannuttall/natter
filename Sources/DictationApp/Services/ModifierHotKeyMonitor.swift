@@ -68,7 +68,7 @@ final class ModifierHotKeyMonitor {
     private let eventObservationHandler: () -> Void
     private var detector = ModifierTapDetector()
     private var edgeTracker = ModifierKeyEdgeTracker()
-    private var cancelChordDetector = CancelModifierChordDetector()
+    private var cancelTapDetector = CancelModifierTapDetector()
     private var eventTap: CFMachPort?
     private var runLoopSource: CFRunLoopSource?
     private var eventSinkPointer: UnsafeMutableRawPointer?
@@ -273,7 +273,7 @@ final class ModifierHotKeyMonitor {
     private func resetDetectors() {
         edgeTracker.reset()
         detector.reset()
-        cancelChordDetector.reset()
+        cancelTapDetector.reset()
         pressStartedDuringSession = false
         startTriggeredForPress = false
         suppressingModeCycleKey = false
@@ -312,16 +312,15 @@ final class ModifierHotKeyMonitor {
 
         let hotKey = store.selectedHotKey
         let sessionIsActive = store.phase == .preparing || store.phase == .listening
-        switch cancelChordDetector.observe(
+        switch cancelTapDetector.observe(
             keyCode: event.keyCode,
             isDown: eventModifierIsActive,
+            at: event.timestamp,
             sessionIsActive: sessionIsActive
         ) {
         case .cancel:
             resetDetectors()
             actionHandler(.cancel)
-            return
-        case .suppress:
             return
         case .passThrough:
             break
@@ -369,6 +368,7 @@ private extension ModifierHotKey {
 
     static func modifierFlag(for keyCode: UInt16) -> CGEventFlags {
         switch keyCode {
+        case CancelModifierTapDetector.leftOptionKeyCode: .maskAlternate
         case ModifierHotKey.rightOption.keyCode: .maskAlternate
         case ModifierHotKey.rightControl.keyCode: .maskControl
         default: []

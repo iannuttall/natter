@@ -133,7 +133,7 @@ struct OverlayView: View {
     private var footerText: String {
         switch store.phase {
         case .preparing, .listening:
-            "Tab: switch mode · tap \(store.selectedHotKey.label): stop · Right Option + Right Control: cancel"
+            "Tab: switch mode · tap \(store.selectedHotKey.label): stop · double-tap Left Option: cancel"
         case .recoverable:
             store.statusMessage ?? "The complete transcript is on your clipboard"
         case .failed:
@@ -204,7 +204,7 @@ private struct OverlayCancelButton: View {
         .buttonStyle(.bordered)
         .controlSize(.small)
         .tint(.red)
-        .help("Cancel dictation · press Right Option and Right Control together")
+        .help("Cancel dictation · double-tap Left Option")
         .accessibilityLabel("Cancel dictation")
     }
 }

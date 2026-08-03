@@ -233,23 +233,30 @@ import Testing
     #expect(detector.keyUp(at: 13) == nil)
 }
 
-@Test func bothRightModifiersCancelOnlyAnActiveSession() {
-    var detector = CancelModifierChordDetector()
+@Test func doubleTapLeftOptionCancelsOnlyAnActiveSession() {
+    var detector = CancelModifierTapDetector(doubleTapInterval: 0.42)
 
-    #expect(detector.observe(keyCode: 61, isDown: true, sessionIsActive: false)
+    #expect(detector.observe(keyCode: 58, isDown: true, at: 10, sessionIsActive: false)
         == .passThrough)
-    #expect(detector.observe(keyCode: 62, isDown: true, sessionIsActive: false)
+    #expect(detector.observe(keyCode: 58, isDown: false, at: 10.1, sessionIsActive: false)
         == .passThrough)
-    detector.reset()
-
-    #expect(detector.observe(keyCode: 61, isDown: true, sessionIsActive: true)
+    #expect(detector.observe(keyCode: 58, isDown: true, at: 10.2, sessionIsActive: true)
         == .passThrough)
-    #expect(detector.observe(keyCode: 62, isDown: true, sessionIsActive: true)
+    #expect(detector.observe(keyCode: 58, isDown: false, at: 10.3, sessionIsActive: true)
+        == .passThrough)
+    #expect(detector.observe(keyCode: 58, isDown: true, at: 10.6, sessionIsActive: true)
         == .cancel)
-    #expect(detector.observe(keyCode: 61, isDown: false, sessionIsActive: true)
-        == .suppress)
-    #expect(detector.observe(keyCode: 62, isDown: false, sessionIsActive: true)
-        == .suppress)
+}
+
+@Test func slowLeftOptionTapsDoNotCancel() {
+    var detector = CancelModifierTapDetector(doubleTapInterval: 0.42)
+
+    #expect(detector.observe(keyCode: 58, isDown: true, at: 10, sessionIsActive: true)
+        == .passThrough)
+    #expect(detector.observe(keyCode: 58, isDown: false, at: 10.1, sessionIsActive: true)
+        == .passThrough)
+    #expect(detector.observe(keyCode: 58, isDown: true, at: 10.5, sessionIsActive: true)
+        == .passThrough)
 }
 
 @Test func dictationModesCycleInDisplayedOrder() {
