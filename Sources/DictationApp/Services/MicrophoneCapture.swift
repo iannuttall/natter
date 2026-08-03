@@ -43,6 +43,67 @@ struct AudioChunk: Sendable {
     }
 }
 
+/// Converts tap buffers to the 16 kHz mono format every downstream consumer
+/// expects, using one long-lived stateful `AVAudioConverter` per engine start.
+/// A fresh converter per buffer (the previous behavior, via FluidAudio's
+/// stateless per-call conversion) injects a warm-up transient at every buffer
+/// boundary — ~47 discontinuities per second in the signal the mel extractor
+/// sees. Instances are only touched from the audio tap thread.
+final class CaptureFormatConverter {
+    static let targetSampleRate: Double = 16_000
+
+    private let converter: AVAudioConverter?
+    private let outputFormat: AVAudioFormat
+
+    init?(inputFormat: AVAudioFormat) {
+        guard
+            let outputFormat = AVAudioFormat(
+                commonFormat: .pcmFormatFloat32,
+                sampleRate: Self.targetSampleRate,
+                channels: 1,
+                interleaved: false
+            )
+        else { return nil }
+        self.outputFormat = outputFormat
+
+        if inputFormat.sampleRate == Self.targetSampleRate,
+           inputFormat.channelCount == 1,
+           inputFormat.commonFormat == .pcmFormatFloat32 {
+            converter = nil
+        } else if let converter = AVAudioConverter(from: inputFormat, to: outputFormat) {
+            self.converter = converter
+        } else {
+            return nil
+        }
+    }
+
+    func convert(_ buffer: AVAudioPCMBuffer) -> [Float]? {
+        guard let converter else {
+            guard let channel = buffer.floatChannelData?[0] else { return nil }
+            return Array(UnsafeBufferPointer(start: channel, count: Int(buffer.frameLength)))
+        }
+
+        let ratio = outputFormat.sampleRate / buffer.format.sampleRate
+        let capacity = AVAudioFrameCount((Double(buffer.frameLength) * ratio).rounded(.up)) + 64
+        guard let output = AVAudioPCMBuffer(pcmFormat: outputFormat, frameCapacity: capacity) else {
+            return nil
+        }
+        var consumed = false
+        var conversionError: NSError?
+        converter.convert(to: output, error: &conversionError) { _, status in
+            if consumed {
+                status.pointee = .noDataNow
+                return nil
+            }
+            consumed = true
+            status.pointee = .haveData
+            return buffer
+        }
+        guard conversionError == nil, let channel = output.floatChannelData?[0] else { return nil }
+        return Array(UnsafeBufferPointer(start: channel, count: Int(output.frameLength)))
+    }
+}
+
 enum MicrophoneCaptureError: LocalizedError {
     case noInputChannel
     case selectedDeviceUnavailable
@@ -198,7 +259,9 @@ private final class AudioCaptureState: @unchecked Sendable {
 @MainActor
 final class MicrophoneCapture {
     private let inputDevices: AudioInputDeviceManager
-    private let state = AudioCaptureState(maximumPreRollDuration: 0.45)
+    // Long enough to survive a cold speech-model load without losing the
+    // opening words; 3 s of 16 kHz mono float is under 200 KB.
+    private let state = AudioCaptureState(maximumPreRollDuration: 3.0)
     private var engine: AVAudioEngine?
     private var configurationObserver: NSObjectProtocol?
     private var selectionObserver: NSObjectProtocol?
@@ -236,8 +299,10 @@ final class MicrophoneCapture {
     ) throws -> AsyncStream<AudioChunk> {
         if engine?.isRunning != true { try arm() }
 
+        // Unbounded so a MainActor stall can never silently drop audio from
+        // the middle of an utterance; each buffered chunk is ~1.4 KB.
         let (stream, continuation) = AsyncStream<AudioChunk>.makeStream(
-            bufferingPolicy: .bufferingNewest(32)
+            bufferingPolicy: .unbounded
         )
         let preRollDuration = state.begin(
             continuation: continuation,
@@ -280,13 +345,20 @@ final class MicrophoneCapture {
         try selectConfiguredDevice(on: input)
         let format = input.outputFormat(forBus: 0)
         guard format.channelCount > 0 else { throw MicrophoneCaptureError.noInputChannel }
+        guard let converter = CaptureFormatConverter(inputFormat: format) else {
+            throw MicrophoneCaptureError.unsupportedAudioFormat
+        }
         let callbackGeneration = generation
 
         input.installTap(
             onBus: 0,
             bufferSize: 1_024,
             format: format,
-            block: Self.makeTapHandler(state: state, generation: callbackGeneration)
+            block: Self.makeTapHandler(
+                state: state,
+                converter: converter,
+                generation: callbackGeneration
+            )
         )
         tapInstalled = true
         engine.prepare()
@@ -312,16 +384,16 @@ final class MicrophoneCapture {
 
     nonisolated private static func makeTapHandler(
         state: AudioCaptureState,
+        converter: CaptureFormatConverter,
         generation: Int
     ) -> AVAudioNodeTapBlock {
-        { @Sendable buffer, _ in
-            guard let channel = buffer.floatChannelData?[0] else { return }
-            let samples = Array(UnsafeBufferPointer(
-                start: channel,
-                count: Int(buffer.frameLength)
-            ))
+        // The tap block runs serially on the audio thread; the converter is
+        // touched nowhere else, so its single-threaded contract holds.
+        nonisolated(unsafe) let converter = converter
+        return { @Sendable buffer, _ in
+            guard let samples = converter.convert(buffer), !samples.isEmpty else { return }
             state.receive(
-                AudioChunk(samples: samples, sampleRate: buffer.format.sampleRate),
+                AudioChunk(samples: samples, sampleRate: CaptureFormatConverter.targetSampleRate),
                 generation: generation
             )
         }
