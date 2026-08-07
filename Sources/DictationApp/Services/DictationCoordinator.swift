@@ -782,17 +782,13 @@ final class DictationCoordinator {
                     removesFalseStarts: definition.removesFalseStarts
                 )
             )
-            if definition.processing == .refine {
-                // The selective rewrite preserves wording and leaves untouched
-                // segments verbatim, so a dictation that trails off mid-thought
-                // often ends without terminal punctuation. Close the final
-                // sentence deterministically, using the same technical-token
-                // guard Agent mode uses so commands and paths stay untouched.
-                output = FinalTranscriptFormatter.punctuateRawProse(
-                    output,
-                    capitalizesInitial: false
-                )
-            }
+            // A model can return otherwise-valid text without closing its final
+            // sentence. Apply the same deterministic final punctuation rule to
+            // every editable processing mode, while preserving technical tails.
+            output = FinalTranscriptFormatter.punctuateRawProse(
+                output,
+                capitalizesInitial: false
+            )
             performanceTrace?.mark(.transformFinished)
             let finalOutput = joinedTranscript(
                 prefix: lockedPrefix,

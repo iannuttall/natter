@@ -496,6 +496,24 @@ import Testing
     #expect(TextInsertionPlan.insertionText(for: "", destination: .terminal).isEmpty)
 }
 
+@Test func textInsertionPlanReplacesUTF16SelectionAndMovesCursor() throws {
+    let replacement = try #require(TextInsertionPlan.replacingSelection(
+        in: "Hi 👋 there",
+        utf16Location: 3,
+        utf16Length: 2,
+        with: "Ian"
+    ))
+
+    #expect(replacement.text == "Hi Ian there")
+    #expect(replacement.cursorUTF16Location == 6)
+    #expect(TextInsertionPlan.replacingSelection(
+        in: "short",
+        utf16Location: 10,
+        utf16Length: 0,
+        with: "no"
+    ) == nil)
+}
+
 @Test func voiceSubmitConsumesOnlyAFinalStandaloneCommand() {
     #expect(VoiceSubmitCommand.consume(from: "Send this message enter") == VoiceSubmitResult(
         transcript: "Send this message",
