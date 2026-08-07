@@ -7,6 +7,27 @@
 
     <!-- Newest release first. scripts/release-app.sh prints a complete item. -->
     <item>
+      <title>0.2.3</title>
+      <sparkle:version>10</sparkle:version>
+      <sparkle:shortVersionString>0.2.3</sparkle:shortVersionString>
+      <sparkle:minimumSystemVersion>15.0</sparkle:minimumSystemVersion>
+      <description><![CDATA[
+        <h2>Reliable delivery in every app</h2>
+        <ul>
+          <li>Final text is delivered as one normal paste to the app where dictation started, including editors built with Electron.</li>
+          <li>Editors can replace their focused text field without Natter rejecting the transcript, while switching to another app still falls back safely.</li>
+          <li>The trailing space is included in the same paste, extra blank lines are avoided, and the overlay disappears as soon as delivery completes.</li>
+          <li>When an editor does not expose a stable text field, the complete transcript remains on the clipboard as a backup.</li>
+        </ul>
+      ]]></description>
+      <enclosure
+        url="https://github.com/iannuttall/natter/releases/download/v0.2.3/Natter-0.2.3.dmg"
+        length="35515041"
+        type="application/octet-stream"
+        sparkle:edSignature="gWbNyE0Fayo5zUlvGIFWacPizzKPuTpaCFc+wV0X7RrWJhnSXKjpdxPjAr1rcNkRxgosPzmqtmskRs8a21+oCg==" />
+    </item>
+
+    <item>
       <title>0.2.2</title>
       <sparkle:version>9</sparkle:version>
       <sparkle:shortVersionString>0.2.2</sparkle:shortVersionString>
