@@ -7,6 +7,26 @@
 
     <!-- Newest release first. scripts/release-app.sh prints a complete item. -->
     <item>
+      <title>0.2.2</title>
+      <sparkle:version>9</sparkle:version>
+      <sparkle:shortVersionString>0.2.2</sparkle:shortVersionString>
+      <sparkle:minimumSystemVersion>15.0</sparkle:minimumSystemVersion>
+      <description><![CDATA[
+        <h2>More reliable dictation delivery</h2>
+        <ul>
+          <li>Dictation now lands directly in Conductor's composer instead of falling back to the clipboard.</li>
+          <li>Existing text and the cursor position in Conductor are preserved.</li>
+          <li>Every non-Raw mode now adds missing final punctuation while leaving commands, paths and other technical endings alone.</li>
+        </ul>
+      ]]></description>
+      <enclosure
+        url="https://github.com/iannuttall/natter/releases/download/v0.2.2/Natter-0.2.2.dmg"
+        length="35541087"
+        type="application/octet-stream"
+        sparkle:edSignature="Vjn+yEyBl6KNu7g2AWAAW4cMN1Jj2/IOStu9ujjntFXmhUvKauCOHxxmgGWoaRMnWnZsywwVypRMFYlM+EMGDA==" />
+    </item>
+
+    <item>
       <title>0.2.1</title>
       <sparkle:version>8</sparkle:version>
       <sparkle:shortVersionString>0.2.1</sparkle:shortVersionString>
