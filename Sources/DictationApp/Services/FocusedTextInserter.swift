@@ -7,20 +7,7 @@ struct FocusedTextTarget {
     let processIdentifier: pid_t
     let bundleIdentifier: String?
     let applicationName: String?
-    let element: AXUIElement?
-    let window: AXUIElement?
-    let elementFingerprint: AccessibilityFingerprint?
-    let windowFingerprint: AccessibilityFingerprint?
-}
-
-struct AccessibilityFingerprint {
-    let role: String?
-    let subrole: String?
-    let identifier: String?
-    let description: String?
-    let title: String?
-    let position: CGPoint?
-    let size: CGSize?
+    let capturedElementRole: String?
 }
 
 enum FocusedTextInsertionError: LocalizedError {
@@ -37,7 +24,7 @@ enum FocusedTextInsertionError: LocalizedError {
         case .noFocusedApplication:
             "No destination app was focused when dictation started."
         case .noFocusedTextControl:
-            "No editable text control was focused when dictation started."
+            "No editable text control is focused in the destination app."
         case .focusChanged:
             "The destination app or text control changed while you were speaking."
         case .eventCreationFailed:
@@ -51,9 +38,6 @@ final class FocusedTextInserter {
     // Codex classifies character gaps of 8 ms or less as a paste burst.
     // Keep terminal chunks above that boundary without slowing normal fields.
     private static let terminalChunkDelay = Duration.milliseconds(12)
-    private static let directAccessibilityBundleIdentifiers: Set<String> = [
-        "com.conductor.app"
-    ]
     private let eventPoster = KeyboardEventPoster()
 
     func captureTarget() throws -> FocusedTextTarget {
@@ -83,18 +67,13 @@ final class FocusedTextInserter {
         let editableElement = focusedElement.flatMap {
             isEditableTextControl($0) ? $0 : nil
         }
-        let focusedWindow = focusedElement.flatMap {
-            copyElementAttribute(kAXWindowAttribute, from: $0)
-        }
-            ?? copyElementAttribute(kAXFocusedWindowAttribute, from: appElement)
         return FocusedTextTarget(
             processIdentifier: application.processIdentifier,
             bundleIdentifier: application.bundleIdentifier,
             applicationName: application.localizedName,
-            element: editableElement,
-            window: focusedWindow,
-            elementFingerprint: editableElement.map(fingerprint),
-            windowFingerprint: focusedWindow.map(fingerprint)
+            capturedElementRole: editableElement.flatMap {
+                copyStringAttribute(kAXRoleAttribute, from: $0)
+            }
         )
     }
 
@@ -111,26 +90,21 @@ final class FocusedTextInserter {
         let payload = TextInsertionPlan.insertionText(for: text, destination: applicationKind)
         guard !payload.isEmpty else { return }
 
-        if let bundleIdentifier = target.bundleIdentifier?.lowercased(),
-           Self.directAccessibilityBundleIdentifiers.contains(bundleIdentifier),
-           NSWorkspace.shared.frontmostApplication?.processIdentifier == target.processIdentifier,
-           let capturedElement = target.element,
-           belongsToProcess(capturedElement, processIdentifier: target.processIdentifier),
-           eventPoster.insertThroughAccessibility(payload, into: capturedElement) {
-            NatterLog.delivery.notice("text inserted through captured accessibility element")
-            return
-        }
-
         // Standard apps take the whole transcript, newlines included, in a
         // single paste. Terminals stay on the paced per-character path.
         let chunks = applicationKind == .standard
             ? [payload]
             : TextInsertionPlan.chunks(for: payload, maximumCharacterCount: 16)
         for (chunkIndex, chunk) in chunks.enumerated() {
-            let element = try validate(target)
+            let element = if applicationKind == .standard {
+                try await resolveCurrentEditableElement(for: target)
+            } else {
+                try validate(target)
+            }
             try await eventPoster.postText(
                 chunk,
                 into: element,
+                processIdentifier: target.processIdentifier,
                 destination: applicationKind
             )
 
@@ -140,6 +114,18 @@ final class FocusedTextInserter {
                 try await Task.sleep(for: Self.terminalChunkDelay)
             }
         }
+    }
+
+    private func resolveCurrentEditableElement(
+        for target: FocusedTextTarget
+    ) async throws -> AXUIElement? {
+        for attempt in 0..<3 {
+            if let element = try validate(target) { return element }
+            if attempt < 2 {
+                try await Task.sleep(for: .milliseconds(40))
+            }
+        }
+        return nil
     }
 
     func replaceInsertedText(
@@ -186,9 +172,19 @@ final class FocusedTextInserter {
         let systemFocusBelongsToTarget = systemFocusedElement.map {
             belongsToProcess($0, processIdentifier: target.processIdentifier)
         } ?? false
-        let workspaceFocusBelongsToTarget = NSWorkspace.shared.frontmostApplication?
+        let frontmostApplication = NSWorkspace.shared.frontmostApplication
+        let workspaceFocusBelongsToTarget = frontmostApplication?
             .processIdentifier == target.processIdentifier
-        guard systemFocusBelongsToTarget || workspaceFocusBelongsToTarget else {
+        let natterTemporarilyOwnsFocus = frontmostApplication?
+            .bundleIdentifier == AppInfo.bundleIdentifier
+        guard workspaceFocusBelongsToTarget || natterTemporarilyOwnsFocus else {
+            let frontmostBundle = frontmostApplication?.bundleIdentifier ?? "none"
+            let systemProcess = systemFocusedElement
+                .flatMap(processIdentifier(of:))
+                .map(String.init) ?? "none"
+            NatterLog.delivery.error(
+                "focus validation rejected target_pid=\(target.processIdentifier, privacy: .public) frontmost=\(frontmostBundle, privacy: .public) system_focus_pid=\(systemProcess, privacy: .public)"
+            )
             throw FocusedTextInsertionError.focusChanged
         }
 
@@ -197,18 +193,8 @@ final class FocusedTextInserter {
             ? systemFocusedElement
             : (try? copyFocusedElement(from: appElement))
         let currentEditable = current.flatMap { isEditableTextControl($0) ? $0 : nil }
-        if let targetWindow = target.window,
-           let currentWindow = copyElementAttribute(kAXFocusedWindowAttribute, from: appElement),
-           !CFEqual(currentWindow, targetWindow),
-           let expected = target.windowFingerprint,
-           !fingerprint(of: currentWindow).matches(expected) {
-            throw FocusedTextInsertionError.focusChanged
-        }
 
-        // React and other rich editors can replace their accessibility node
-        // after every edit. The frontmost process and window are stable; use
-        // whichever editable node is focused now, or fall back to Cmd-V when
-        // the editor temporarily exposes only its web container.
+        // Web editors may replace their accessibility node during dictation.
         return currentEditable
     }
 
@@ -253,89 +239,11 @@ final class FocusedTextInserter {
         )
     }
 
-    private func copyElementAttribute(
-        _ attribute: String,
-        from element: AXUIElement
-    ) -> AXUIElement? {
-        var value: CFTypeRef?
-        guard AXUIElementCopyAttributeValue(element, attribute as CFString, &value) == .success,
-              let value,
-              CFGetTypeID(value) == AXUIElementGetTypeID() else {
-            return nil
-        }
-        return unsafeDowncast(value, to: AXUIElement.self)
-    }
-
-    private func fingerprint(of element: AXUIElement) -> AccessibilityFingerprint {
-        AccessibilityFingerprint(
-            role: copyStringAttribute(kAXRoleAttribute, from: element),
-            subrole: copyStringAttribute(kAXSubroleAttribute, from: element),
-            identifier: copyStringAttribute(kAXIdentifierAttribute, from: element),
-            description: copyStringAttribute(kAXDescriptionAttribute, from: element),
-            title: copyStringAttribute(kAXTitleAttribute, from: element),
-            position: copyPointAttribute(kAXPositionAttribute, from: element),
-            size: copySizeAttribute(kAXSizeAttribute, from: element)
-        )
-    }
-
     private func copyStringAttribute(_ attribute: String, from element: AXUIElement) -> String? {
         var value: CFTypeRef?
         guard AXUIElementCopyAttributeValue(element, attribute as CFString, &value) == .success else {
             return nil
         }
         return value as? String
-    }
-
-    private func copyPointAttribute(_ attribute: String, from element: AXUIElement) -> CGPoint? {
-        var value: CFTypeRef?
-        guard AXUIElementCopyAttributeValue(element, attribute as CFString, &value) == .success,
-              let value,
-              CFGetTypeID(value) == AXValueGetTypeID() else {
-            return nil
-        }
-        let axValue = unsafeDowncast(value, to: AXValue.self)
-        var point = CGPoint.zero
-        return AXValueGetValue(axValue, .cgPoint, &point) ? point : nil
-    }
-
-    private func copySizeAttribute(_ attribute: String, from element: AXUIElement) -> CGSize? {
-        var value: CFTypeRef?
-        guard AXUIElementCopyAttributeValue(element, attribute as CFString, &value) == .success,
-              let value,
-              CFGetTypeID(value) == AXValueGetTypeID() else {
-            return nil
-        }
-        let axValue = unsafeDowncast(value, to: AXValue.self)
-        var size = CGSize.zero
-        return AXValueGetValue(axValue, .cgSize, &size) ? size : nil
-    }
-}
-
-private extension AccessibilityFingerprint {
-    func matches(_ other: Self) -> Bool {
-        guard role == other.role, subrole == other.subrole else { return false }
-
-        if let identifier, let otherIdentifier = other.identifier,
-           !identifier.isEmpty, !otherIdentifier.isEmpty {
-            return identifier == otherIdentifier
-        }
-
-        // Rich web editors often expose their current text as the AX title or
-        // description, and their bounds grow as text arrives. App + window +
-        // role + overlapping bounds is the stable identity in that case.
-        return geometryOverlaps(other)
-    }
-
-    private func geometryOverlaps(_ other: Self) -> Bool {
-        guard let position, let size, let otherPosition = other.position,
-              let otherSize = other.size else { return true }
-        let rectangle = CGRect(origin: position, size: size)
-        let otherRectangle = CGRect(origin: otherPosition, size: otherSize)
-        guard !rectangle.isEmpty, !otherRectangle.isEmpty else { return true }
-        let intersection = rectangle.intersection(otherRectangle)
-        guard !intersection.isNull else { return false }
-        let smallerArea = min(rectangle.width * rectangle.height,
-                              otherRectangle.width * otherRectangle.height)
-        return intersection.width * intersection.height >= smallerArea * 0.45
     }
 }
