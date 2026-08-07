@@ -7,6 +7,25 @@
 
     <!-- Newest release first. scripts/release-app.sh prints a complete item. -->
     <item>
+      <title>0.2.4</title>
+      <sparkle:version>12</sparkle:version>
+      <sparkle:shortVersionString>0.2.4</sparkle:shortVersionString>
+      <sparkle:minimumSystemVersion>15.0</sparkle:minimumSystemVersion>
+      <description><![CDATA[
+        <h2>Natter throughout</h2>
+        <ul>
+          <li>The app, executable, Swift modules and developer tools now consistently use the Natter name.</li>
+          <li>Your existing settings, models, history, dictionary and app assignments continue to use the same local data and carry over unchanged.</li>
+        </ul>
+      ]]></description>
+      <enclosure
+        url="https://github.com/iannuttall/natter/releases/download/v0.2.4/Natter-0.2.4.dmg"
+        length="35517592"
+        type="application/octet-stream"
+        sparkle:edSignature="B6lFk/yy86MAWY4TradY6V68K7ujKyLFfE3SzT1VB54dk8+NdijN6N4tySTj6XCC+wYJ+9QuHNUpWc85IL2+CA==" />
+    </item>
+
+    <item>
       <title>0.2.3</title>
       <sparkle:version>10</sparkle:version>
       <sparkle:shortVersionString>0.2.3</sparkle:shortVersionString>
