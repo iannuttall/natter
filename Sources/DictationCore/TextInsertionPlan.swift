@@ -1,6 +1,16 @@
 import Foundation
 
 public enum TextInsertionPlan {
+    public struct SelectionReplacement: Equatable, Sendable {
+        public let text: String
+        public let cursorUTF16Location: Int
+
+        public init(text: String, cursorUTF16Location: Int) {
+            self.text = text
+            self.cursorUTF16Location = cursorUTF16Location
+        }
+    }
+
     public static func chunks(
         for text: String,
         maximumCharacterCount: Int
@@ -38,6 +48,24 @@ public enum TextInsertionPlan {
             of: #"[ \t]*\n+[ \t]*"#,
             with: " ",
             options: .regularExpression
+        )
+    }
+
+    public static func replacingSelection(
+        in value: String,
+        utf16Location: Int,
+        utf16Length: Int,
+        with replacement: String
+    ) -> SelectionReplacement? {
+        let range = NSRange(location: utf16Location, length: utf16Length)
+        let value = value as NSString
+        guard range.location >= 0, range.length >= 0,
+              NSMaxRange(range) <= value.length else {
+            return nil
+        }
+        return SelectionReplacement(
+            text: value.replacingCharacters(in: range, with: replacement),
+            cursorUTF16Location: range.location + replacement.utf16.count
         )
     }
 }

@@ -51,6 +51,9 @@ final class FocusedTextInserter {
     // Codex classifies character gaps of 8 ms or less as a paste burst.
     // Keep terminal chunks above that boundary without slowing normal fields.
     private static let terminalChunkDelay = Duration.milliseconds(12)
+    private static let directAccessibilityBundleIdentifiers: Set<String> = [
+        "com.conductor.app"
+    ]
     private let eventPoster = KeyboardEventPoster()
 
     func captureTarget() throws -> FocusedTextTarget {
@@ -107,6 +110,16 @@ final class FocusedTextInserter {
 
         let payload = TextInsertionPlan.insertionText(for: text, destination: applicationKind)
         guard !payload.isEmpty else { return }
+
+        if let bundleIdentifier = target.bundleIdentifier?.lowercased(),
+           Self.directAccessibilityBundleIdentifiers.contains(bundleIdentifier),
+           NSWorkspace.shared.frontmostApplication?.processIdentifier == target.processIdentifier,
+           let capturedElement = target.element,
+           belongsToProcess(capturedElement, processIdentifier: target.processIdentifier),
+           eventPoster.insertThroughAccessibility(payload, into: capturedElement) {
+            NatterLog.delivery.notice("text inserted through captured accessibility element")
+            return
+        }
 
         // Standard apps take the whole transcript, newlines included, in a
         // single paste. Terminals stay on the paced per-character path.

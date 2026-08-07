@@ -57,6 +57,11 @@ final class KeyboardEventPoster {
         try postKey(code: 36)
     }
 
+    func insertThroughAccessibility(_ text: String, into element: AXUIElement) -> Bool {
+        replaceValueSelection(with: text, in: element)
+            || replaceSelection(with: text, in: element)
+    }
+
     private func flushUnsupported(
         _ text: inout String,
         into element: AXUIElement?,
@@ -90,6 +95,66 @@ final class KeyboardEventPoster {
             kAXSelectedTextAttribute as CFString,
             text as CFString
         ) == .success
+    }
+
+    private func replaceValueSelection(with text: String, in element: AXUIElement) -> Bool {
+        var valueIsSettable = DarwinBoolean(false)
+        guard AXUIElementIsAttributeSettable(
+            element,
+            kAXValueAttribute as CFString,
+            &valueIsSettable
+        ) == .success, valueIsSettable.boolValue,
+              let currentValue = copyStringAttribute(kAXValueAttribute, from: element),
+              let selectedRange = copyRangeAttribute(
+                kAXSelectedTextRangeAttribute,
+                from: element
+              ),
+              let replacement = TextInsertionPlan.replacingSelection(
+                in: currentValue,
+                utf16Location: selectedRange.location,
+                utf16Length: selectedRange.length,
+                with: text
+              ),
+              AXUIElementSetAttributeValue(
+                element,
+                kAXValueAttribute as CFString,
+                replacement.text as CFString
+              ) == .success else {
+            return false
+        }
+
+        var cursorRange = CFRange(
+            location: replacement.cursorUTF16Location,
+            length: 0
+        )
+        if let cursorValue = AXValueCreate(.cfRange, &cursorRange) {
+            _ = AXUIElementSetAttributeValue(
+                element,
+                kAXSelectedTextRangeAttribute as CFString,
+                cursorValue
+            )
+        }
+        return true
+    }
+
+    private func copyStringAttribute(_ attribute: String, from element: AXUIElement) -> String? {
+        var value: CFTypeRef?
+        guard AXUIElementCopyAttributeValue(element, attribute as CFString, &value) == .success else {
+            return nil
+        }
+        return value as? String
+    }
+
+    private func copyRangeAttribute(_ attribute: String, from element: AXUIElement) -> CFRange? {
+        var value: CFTypeRef?
+        guard AXUIElementCopyAttributeValue(element, attribute as CFString, &value) == .success,
+              let value,
+              CFGetTypeID(value) == AXValueGetTypeID() else {
+            return nil
+        }
+        let rangeValue = unsafeDowncast(value, to: AXValue.self)
+        var range = CFRange()
+        return AXValueGetValue(rangeValue, .cfRange, &range) ? range : nil
     }
 
     private func pasteTemporarily(_ text: String) async throws {
