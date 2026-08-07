@@ -12,16 +12,18 @@ final class KeyboardEventPoster {
     func postText(
         _ text: String,
         into element: AXUIElement?,
+        processIdentifier: pid_t,
         destination: DestinationApplicationKind
     ) async throws {
         guard !text.isEmpty else { return }
         try requirePostEventPermission()
 
-        // Paste is the common input path understood by AppKit, WebKit and
-        // Chromium editors. Direct AXSelectedText writes can report success
-        // while controlled React editors silently discard the change.
         if destination == .standard {
-            try await pasteTemporarily(text)
+            try paste(
+                text,
+                processIdentifier: processIdentifier,
+                restoresPreviousClipboard: element != nil
+            )
             return
         }
 
@@ -30,21 +32,13 @@ final class KeyboardEventPoster {
         var unsupported = ""
         for character in text {
             if let stroke = keyboardLayout?.strokes[character] {
-                try await flushUnsupported(
-                    &unsupported,
-                    into: element,
-                    destination: destination
-                )
+                try flushUnsupported(&unsupported, into: element)
                 try postKey(code: stroke.keyCode, flags: stroke.flags)
             } else {
                 unsupported.append(character)
             }
         }
-        try await flushUnsupported(
-            &unsupported,
-            into: element,
-            destination: destination
-        )
+        try flushUnsupported(&unsupported, into: element)
     }
 
     func postBackspace() throws {
@@ -57,27 +51,16 @@ final class KeyboardEventPoster {
         try postKey(code: 36)
     }
 
-    func insertThroughAccessibility(_ text: String, into element: AXUIElement) -> Bool {
-        replaceValueSelection(with: text, in: element)
-            || replaceSelection(with: text, in: element)
-    }
-
     private func flushUnsupported(
         _ text: inout String,
-        into element: AXUIElement?,
-        destination: DestinationApplicationKind
-    ) async throws {
+        into element: AXUIElement?
+    ) throws {
         guard !text.isEmpty else { return }
         let pending = text
         text = ""
 
         if let element, replaceSelection(with: pending, in: element) { return }
-
-        if destination == .terminal {
-            try postUnicode(pending)
-        } else {
-            try await pasteTemporarily(pending)
-        }
+        try postUnicode(pending)
     }
 
     private func replaceSelection(with text: String, in element: AXUIElement) -> Bool {
@@ -97,67 +80,11 @@ final class KeyboardEventPoster {
         ) == .success
     }
 
-    private func replaceValueSelection(with text: String, in element: AXUIElement) -> Bool {
-        var valueIsSettable = DarwinBoolean(false)
-        guard AXUIElementIsAttributeSettable(
-            element,
-            kAXValueAttribute as CFString,
-            &valueIsSettable
-        ) == .success, valueIsSettable.boolValue,
-              let currentValue = copyStringAttribute(kAXValueAttribute, from: element),
-              let selectedRange = copyRangeAttribute(
-                kAXSelectedTextRangeAttribute,
-                from: element
-              ),
-              let replacement = TextInsertionPlan.replacingSelection(
-                in: currentValue,
-                utf16Location: selectedRange.location,
-                utf16Length: selectedRange.length,
-                with: text
-              ),
-              AXUIElementSetAttributeValue(
-                element,
-                kAXValueAttribute as CFString,
-                replacement.text as CFString
-              ) == .success else {
-            return false
-        }
-
-        var cursorRange = CFRange(
-            location: replacement.cursorUTF16Location,
-            length: 0
-        )
-        if let cursorValue = AXValueCreate(.cfRange, &cursorRange) {
-            _ = AXUIElementSetAttributeValue(
-                element,
-                kAXSelectedTextRangeAttribute as CFString,
-                cursorValue
-            )
-        }
-        return true
-    }
-
-    private func copyStringAttribute(_ attribute: String, from element: AXUIElement) -> String? {
-        var value: CFTypeRef?
-        guard AXUIElementCopyAttributeValue(element, attribute as CFString, &value) == .success else {
-            return nil
-        }
-        return value as? String
-    }
-
-    private func copyRangeAttribute(_ attribute: String, from element: AXUIElement) -> CFRange? {
-        var value: CFTypeRef?
-        guard AXUIElementCopyAttributeValue(element, attribute as CFString, &value) == .success,
-              let value,
-              CFGetTypeID(value) == AXValueGetTypeID() else {
-            return nil
-        }
-        let rangeValue = unsafeDowncast(value, to: AXValue.self)
-        var range = CFRange()
-        return AXValueGetValue(rangeValue, .cfRange, &range) ? range : nil
-    }
-
-    private func pasteTemporarily(_ text: String) async throws {
+    private func paste(
+        _ text: String,
+        processIdentifier: pid_t,
+        restoresPreviousClipboard: Bool
+    ) throws {
         let pasteboard = NSPasteboard.general
         let snapshot = PasteboardSnapshot(pasteboard: pasteboard)
         pasteboard.clearContents()
@@ -166,20 +93,24 @@ final class KeyboardEventPoster {
         }
         let temporaryChangeCount = pasteboard.changeCount
 
-        try postKey(code: 9, flags: .maskCommand)
-        // Electron and browser paste handlers may read the pasteboard on a later
-        // run-loop turn, so keep the temporary value alive long enough for them.
-        try await Task.sleep(for: .milliseconds(120))
+        try postKey(
+            code: 9,
+            flags: .maskCommand,
+            processIdentifier: processIdentifier
+        )
+        guard restoresPreviousClipboard else { return }
 
-        // Never overwrite something the user copied while the paste was in flight.
-        if pasteboard.changeCount == temporaryChangeCount {
+        Task { @MainActor in
+            try? await Task.sleep(for: .milliseconds(300))
+            guard pasteboard.changeCount == temporaryChangeCount else { return }
             snapshot.restore(to: pasteboard)
         }
     }
 
     private func postKey(
         code: CGKeyCode,
-        flags: CGEventFlags = []
+        flags: CGEventFlags = [],
+        processIdentifier: pid_t? = nil
     ) throws {
         guard let eventSource,
               let keyDown = CGEvent(
@@ -196,8 +127,13 @@ final class KeyboardEventPoster {
         }
         keyDown.flags = flags
         keyUp.flags = flags
-        keyDown.post(tap: .cghidEventTap)
-        keyUp.post(tap: .cghidEventTap)
+        if let processIdentifier {
+            keyDown.postToPid(processIdentifier)
+            keyUp.postToPid(processIdentifier)
+        } else {
+            keyDown.post(tap: .cghidEventTap)
+            keyUp.post(tap: .cghidEventTap)
+        }
     }
 
     private func postUnicode(_ text: String) throws {

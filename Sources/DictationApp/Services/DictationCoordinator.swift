@@ -277,7 +277,7 @@ final class DictationCoordinator {
                 FileHandle.standardError.write(Data((
                     "NATTER_INSERT_TARGET: \(target.applicationName ?? "unknown") "
                         + "\(target.bundleIdentifier ?? "unknown") "
-                        + "\(target.elementFingerprint?.role ?? "app-fallback")\n"
+                        + "\(target.capturedElementRole ?? "app-fallback")\n"
                 ).utf8))
                 let startedAt = ProcessInfo.processInfo.systemUptime
                 try await textInserter.insert(
@@ -521,7 +521,7 @@ final class DictationCoordinator {
             sourceBundleIdentifier = target.bundleIdentifier ?? sourceBundleIdentifier
             sourceApplicationName = target.applicationName ?? sourceApplicationName
             let targetBundle = target.bundleIdentifier ?? "unknown"
-            let targetRole = target.elementFingerprint?.role ?? "clipboard-fallback"
+            let targetRole = target.capturedElementRole ?? "clipboard-fallback"
             NatterLog.delivery.notice(
                 "target captured app=\(targetBundle, privacy: .public) element=\(targetRole, privacy: .public)"
             )
@@ -608,9 +608,10 @@ final class DictationCoordinator {
 
         switch emitter.finish(transcript) {
         case .none:
-            break
+            let insertion = finalInsertionText("")
+            if !insertion.isEmpty { await insert(insertion) }
         case let .text(text):
-            await insert(text)
+            await insert(finalInsertionText(text))
         case .conflict:
             deliveryIssue = "The final transcript changed after text had already been typed."
         }
@@ -750,6 +751,10 @@ final class DictationCoordinator {
         guard !transformInput.isEmpty else {
             store.liveTranscript = lockedPrefix
             store.finalTranscript = lockedPrefix
+            let insertion = finalInsertionText("")
+            if deliveryIssue == nil, !insertion.isEmpty {
+                await insert(insertion)
+            }
             await completeDelivery(of: lockedPrefix)
             return
         }
@@ -795,11 +800,12 @@ final class DictationCoordinator {
                 continuation: output
             )
             let insertion = String(finalOutput.dropFirst(lockedPrefix.count))
+            let finalInsertion = finalInsertionText(insertion)
             store.liveTranscript = finalOutput
             store.finalTranscript = finalOutput
-            if deliveryIssue == nil, !insertion.isEmpty {
+            if deliveryIssue == nil, !finalInsertion.isEmpty {
                 store.statusMessage = "Typing…"
-                await insert(insertion)
+                await insert(finalInsertion)
             }
             await completeDelivery(of: finalOutput)
         } catch {
@@ -834,18 +840,18 @@ final class DictationCoordinator {
 
     private func completeDelivery(of transcript: String) async {
         var notice: String?
-        if deliveryIssue == nil {
-            if pendingVoiceSubmit {
-                notice = await submitTranscript()
-            } else {
-                await appendTrailingSpace()
-            }
+        if deliveryIssue == nil, pendingVoiceSubmit {
+            notice = await submitTranscript()
         }
 
         finishDelivery(of: transcript)
         if deliveryIssue == nil, let notice {
             store.statusMessage = notice
         }
+    }
+
+    private func finalInsertionText(_ text: String) -> String {
+        pendingVoiceSubmit ? text : text + " "
     }
 
     private func submitTranscript() async -> String? {
@@ -860,21 +866,6 @@ final class DictationCoordinator {
                 "voice submit failed error=\(error.localizedDescription, privacy: .public)"
             )
             return "Text inserted · couldn’t press Return"
-        }
-    }
-
-    private func appendTrailingSpace() async {
-        guard let focusTarget else { return }
-        do {
-            try await textInserter.insert(
-                " ",
-                into: focusTarget,
-                paceTerminalInput: store.terminalPacingEnabled
-            )
-        } catch {
-            NatterLog.delivery.error(
-                "trailing space insertion failed error=\(error.localizedDescription, privacy: .public)"
-            )
         }
     }
 
@@ -898,7 +889,12 @@ final class DictationCoordinator {
         historyWasRecorded = true
     }
 
-    private func hideOverlayAfterResult(delay: Duration = .milliseconds(450)) async {
+    private func hideOverlayAfterResult(delay: Duration? = nil) async {
+        let delay = delay ?? (
+            store.phase == .idle && store.statusMessage == nil
+                ? .zero
+                : .milliseconds(450)
+        )
         try? await Task.sleep(for: delay)
         if store.phase == .idle || store.isRecoverable { overlay.hide() }
         if store.phase == .idle {
