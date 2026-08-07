@@ -148,11 +148,12 @@ public enum DeterministicTranscriptCleaner {
     public static func removeFillers(from transcript: String) -> String {
         var result = transcript
         let patterns = [
+            #"(?i)\b(that|because|if|when|while|although|unless|since),\s*(?:uhm+|um+|erm+|uh+|ah+|eh+|hmm+)\b[,.]?\s*"#,
             #"(?i)(?<![\p{L}\p{N}_])(?:uhm+|um+|erm+|uh+|ah+|eh+|hmm+)(?:[,.]?\s+|[,.]?$)"#,
             #"\s+([,.;:!?])"#,
             #"[ \t]{2,}"#
         ]
-        let replacements = ["", "$1", " "]
+        let replacements = ["$1 ", "", "$1", " "]
         for (pattern, replacement) in zip(patterns, replacements) {
             result = result.replacingOccurrences(
                 of: pattern,
@@ -213,11 +214,41 @@ public enum DeterministicTranscriptCleaner {
                 guard separator.allSatisfy({ $0.isWhitespace || $0 == "," }) else {
                     continue
                 }
+                if length == 1 {
+                    let word = firstWords[0]
+                    if preservesIntentionalRepeat(word)
+                        || (separator.contains(",")
+                            && !repeatableFunctionWords.contains(word)) {
+                        continue
+                    }
+                }
 
-                return tokens[start].range.lowerBound ..< tokens[secondStart].range.lowerBound
+                return tokens[secondStart - 1].range.upperBound
+                    ..< tokens[secondStart + length - 1].range.upperBound
             }
         }
         return nil
+    }
+
+    private static let intentionalRepeatWords: Set<String> = [
+        "absolutely", "again", "always", "bye", "definitely", "exactly", "far",
+        "go", "good", "great", "had", "hard", "here", "more", "much", "must",
+        "never", "next", "no", "now", "oh", "okay", "please", "really", "right",
+        "so", "stop", "sure", "that", "there", "too", "very", "wait", "way",
+        "well", "wow", "yeah", "yes"
+    ]
+
+    private static let repeatableFunctionWords: Set<String> = [
+        "a", "although", "an", "and", "are", "at", "be", "because", "but",
+        "can", "could", "did", "do", "does", "for", "has", "have", "he", "her",
+        "his", "i", "if", "in", "is", "it", "my", "of", "on", "or", "our",
+        "she", "should", "the", "their", "they", "to", "unless", "was", "we",
+        "were", "when", "while", "will", "with", "would", "you", "your"
+    ]
+
+    private static func preservesIntentionalRepeat(_ word: String) -> Bool {
+        intentionalRepeatWords.contains(word)
+            || word.unicodeScalars.allSatisfy(CharacterSet.decimalDigits.contains)
     }
 
     private struct Token {

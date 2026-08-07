@@ -888,6 +888,40 @@ import Testing
     ) == "The download is 5.24 gigabytes.")
 }
 
+@Test func explicitSpokenPunctuationAndBreaksBecomeLiteral() {
+    #expect(SpokenTechnicalTextNormalizer.normalize(
+        "Write hello comma new line open paren ready close paren question mark"
+    ) == "Write hello,\n(ready)?")
+    #expect(SpokenTechnicalTextNormalizer.normalize(
+        "Leave this dot dot dot unfinished"
+    ) == "Leave this… unfinished")
+}
+
+@Test func mentionedPunctuationAndAmbiguousSymbolPhrasesStayAsWords() {
+    let transcript = "Explain why a comma and the question mark matter. Review and sign the form."
+    #expect(SpokenTechnicalTextNormalizer.normalize(transcript) == transcript)
+}
+
+@Test func explicitAtSignCanStillFormAnEmailAddress() {
+    #expect(SpokenTechnicalTextNormalizer.normalize(
+        "Email Ian at sign Example dot com"
+    ) == "Email ian@example.com")
+}
+
+@Test func spokenClockTimesUseOnlyStrongTimeGrammar() {
+    #expect(SpokenTechnicalTextNormalizer.normalize(
+        "Meet at three thirty, deploy by nine oh five, and finish around twelve o'clock."
+    ) == "Meet at 3:30, deploy by 9:05, and finish around 12:00.")
+    #expect(SpokenTechnicalTextNormalizer.normalize(
+        "Assign three thirty people to the launch."
+    ) == "Assign three thirty people to the launch.")
+}
+
+@Test func shortProseNumberRunsDoNotBecomeCodes() {
+    let transcript = "Compare one two items before choosing."
+    #expect(SpokenTechnicalTextNormalizer.normalize(transcript) == transcript)
+}
+
 @Test func spokenDomainsHiddenFilesFlagsAndExtensionsBecomeLiteral() {
     let transcript = """
     Open en dot is but leave open dot island unchanged, edit dot context, save output dot \
@@ -1013,6 +1047,12 @@ import Testing
     #expect(cleaned == "ship the hummingbird, to /tmp/build at 70%.")
 }
 
+@Test func deterministicCleanerRemovesConnectorHesitationPunctuation() {
+    #expect(DeterministicTranscriptCleaner.removeFillers(
+        from: "Ship it because, um, we need it."
+    ) == "Ship it because we need it.")
+}
+
 @Test func deterministicCleanerRemovesObviousRepeatedWordsAndPhrases() {
     let cleaned = DeterministicTranscriptCleaner.clean(
         "Um, I need to, I need to send the report today, erm, but but first check it."
@@ -1025,6 +1065,13 @@ import Testing
         "It was ready. It was ready for the next test."
     )
     #expect(cleaned == "It was ready. It was ready for the next test.")
+}
+
+@Test func deterministicCleanerPreservesMeaningfulAndRhetoricalRepeats() {
+    let transcript = "No no, this is very very deliberate, and I had had enough. Monday, Monday was repeated."
+    #expect(DeterministicTranscriptCleaner.clean(transcript) == transcript)
+    #expect(DeterministicTranscriptCleaner.clean("But, but this is duplicated.") ==
+        "But this is duplicated.")
 }
 
 @Test func factGuardProtectsNumbersPathsUrlsAndEmails() {

@@ -41,6 +41,7 @@ public enum SpokenTechnicalTextNormalizer {
         context: SpokenFormattingContext = .prose
     ) -> String {
         var result = replaceSpelledLetterSequences(in: transcript)
+        result = replaceSpokenFormattingCommands(in: result)
         if context == .technical {
             result = replaceMatches(
                 in: result,
@@ -58,6 +59,11 @@ public enum SpokenTechnicalTextNormalizer {
             using: spokenDecimalRegex,
             with: spokenDecimal
         )
+        result = replaceMatches(
+            in: result,
+            using: spokenClockTimeRegex,
+            with: spokenClockTime
+        )
         result = replaceDigitSequences(in: result)
         result = replacePercentages(in: result)
         result = replaceMatches(
@@ -69,6 +75,11 @@ public enum SpokenTechnicalTextNormalizer {
             in: result,
             using: dotSuffixRegex,
             with: dotSuffix
+        )
+        result = replaceMatches(
+            in: result,
+            using: spacedEmailAddressRegex,
+            with: { $0.replacingOccurrences(of: " ", with: "").lowercased() }
         )
         result = replaceMatches(
             in: result,
@@ -105,6 +116,71 @@ public enum SpokenTechnicalTextNormalizer {
         return result
     }
 
+    private struct FormattingCommand {
+        let regex: NSRegularExpression?
+        let replacement: String
+        let guardsMention: Bool
+
+        init(
+            regex: NSRegularExpression?,
+            replacement: String,
+            guardsMention: Bool = false
+        ) {
+            self.regex = regex
+            self.replacement = replacement
+            self.guardsMention = guardsMention
+        }
+    }
+
+    private static let formattingCommands = [
+        FormattingCommand(
+            regex: compiled(#"(?i)\bnew paragraph\b"#),
+            replacement: "\n\n",
+            guardsMention: true
+        ),
+        FormattingCommand(
+            regex: compiled(#"(?i)\b(?:new line|newline)\b"#),
+            replacement: "\n",
+            guardsMention: true
+        ),
+        FormattingCommand(
+            regex: compiled(#"(?i)\bquestion mark\b"#),
+            replacement: "?",
+            guardsMention: true
+        ),
+        FormattingCommand(
+            regex: compiled(#"(?i)\bexclamation (?:point|mark)\b"#),
+            replacement: "!",
+            guardsMention: true
+        ),
+        FormattingCommand(
+            regex: compiled(#"(?i)\bcomma\b"#),
+            replacement: ",",
+            guardsMention: true
+        ),
+        FormattingCommand(
+            regex: compiled(#"(?i)\bcolon\b"#),
+            replacement: ":",
+            guardsMention: true
+        ),
+        FormattingCommand(
+            regex: compiled(#"(?i)\bsemicolon\b"#),
+            replacement: ";",
+            guardsMention: true
+        ),
+        FormattingCommand(regex: compiled(#"(?i)\bopen paren(?:thesis)?\b"#), replacement: "("),
+        FormattingCommand(regex: compiled(#"(?i)\bclose paren(?:thesis)?\b"#), replacement: ")"),
+        FormattingCommand(regex: compiled(#"(?i)\b(?:dot dot dot|ellipsis)\b"#), replacement: "…"),
+        FormattingCommand(regex: compiled(#"(?i)\b(?:ampersand|and symbol)\b"#), replacement: "&"),
+        FormattingCommand(regex: compiled(#"(?i)\bat (?:sign|symbol)\b"#), replacement: "@"),
+        FormattingCommand(regex: compiled(#"(?i)\bequals (?:sign|symbol)\b"#), replacement: "="),
+        FormattingCommand(regex: compiled(#"(?i)\bplus (?:sign|symbol)\b"#), replacement: "+")
+    ]
+
+    private static let formattingCommandDeterminers: Set<String> = [
+        "a", "an", "another", "any", "that", "the", "this"
+    ]
+
     // Compiled once and reused: `normalize` runs on every partial transcript, and
     // `NSRegularExpression` is immutable and safe to share.
     private static let etCeteraRegex = compiled(#"(?i)\b(?:et\s+cetera|etcetera)\b"#)
@@ -119,6 +195,10 @@ public enum SpokenTechnicalTextNormalizer {
 
     private static let emailAddressRegex = compiled(
         #"(?i)(?<![\p{L}\p{N}._%+-])([\p{L}\p{N}._%+-]+)\s+at\s+([\p{L}\p{N}-]+(?:\.[\p{L}\p{N}-]+)+)"#
+    )
+
+    private static let spacedEmailAddressRegex = compiled(
+        #"(?i)(?<![\p{L}\p{N}._%+-])[\p{L}\p{N}._%+-]+\s+@\s+[\p{L}\p{N}-]+(?:\.[\p{L}\p{N}-]+)+(?![\p{L}\p{N}-])"#
     )
 
     private static let technicalDotRegex = compiled(#"(?i)\bdot\s+(?=[\p{L}\p{N}_-])"#)
@@ -176,11 +256,15 @@ public enum SpokenTechnicalTextNormalizer {
         )
     }()
 
+    private static let spokenClockTimeRegex = compiled(
+        #"(?i)\b(?:at|around|by|before|after|until|from|to|for)\s+(?:[1-9]|1[0-2]|one|two|three|four|five|six|seven|eight|nine|ten|eleven|twelve)\s+(?:o['’]?clock|oh\s+(?:one|two|three|four|five|six|seven|eight|nine)|ten|eleven|twelve|thirteen|fourteen|fifteen|sixteen|seventeen|eighteen|nineteen|twenty(?:[ -]+(?:one|two|three|four|five|six|seven|eight|nine))?|thirty(?:[ -]+(?:one|two|three|four|five|six|seven|eight|nine))?|forty(?:[ -]+(?:one|two|three|four|five|six|seven|eight|nine))?|fifty(?:[ -]+(?:one|two|three|four|five|six|seven|eight|nine))?)(?!\s+(?:percent|people|items|files|seconds|milliseconds|minutes))(?=\s|[.,!?;:]|$)"#
+    )
+
     private static let digitSequenceRegex: NSRegularExpression? = {
         let digit = digitWords.keys.sorted().joined(separator: "|")
         return compiled(
             #"(?i)(?<![\p{L}\p{N}_])(?:"# + digit
-                + #")(?:[\s-]+(?:"# + digit + #"))+(?![\p{L}\p{N}_])"#
+                + #")(?:[\s-]+(?:"# + digit + #")){2,}(?![\p{L}\p{N}_])"#
         )
     }()
 
@@ -205,6 +289,79 @@ public enum SpokenTechnicalTextNormalizer {
         let decimal = decimalWords.compactMap { digitWords[$0] }.joined()
         guard decimal.count == decimalWords.count else { return match }
         return whole + "." + decimal
+    }
+
+    private static func spokenClockTime(_ match: String) -> String {
+        let components = match.split(whereSeparator: \.isWhitespace)
+        guard components.count >= 3 else { return match }
+        let preposition = String(components[0])
+        let hourText = String(components[1])
+        let minuteText = components.dropFirst(2).joined(separator: " ")
+        guard let hourString = parseNumberComponent(hourText),
+              let hour = Int(hourString), (1...12).contains(hour),
+              let minute = parsedClockMinute(minuteText) else {
+            return match
+        }
+        return String(format: "%@ %d:%02d", preposition, hour, minute)
+    }
+
+    private static func parsedClockMinute(_ text: String) -> Int? {
+        if text.lowercased().replacingOccurrences(of: "’", with: "'") == "o'clock" {
+            return 0
+        }
+        guard let minuteString = parseNumberComponent(text),
+              let minute = Int(minuteString), (0...59).contains(minute) else {
+            return nil
+        }
+        return minute
+    }
+
+    private static func replaceSpokenFormattingCommands(in text: String) -> String {
+        var result = text
+        for command in formattingCommands {
+            guard let regex = command.regex else { continue }
+            let matches = regex.matches(
+                in: result,
+                range: NSRange(result.startIndex..., in: result)
+            )
+            for match in matches.reversed() {
+                guard let range = Range(match.range, in: result) else {
+                    continue
+                }
+                if command.guardsMention,
+                   isMentionedFormattingWord(before: range.lowerBound, in: result) {
+                    continue
+                }
+                result.replaceSubrange(range, with: command.replacement)
+            }
+        }
+        result = result.replacingOccurrences(
+            of: #" +([,;:?!…\)])"#,
+            with: "$1",
+            options: .regularExpression
+        )
+        result = result.replacingOccurrences(
+            of: #"(\() +"#,
+            with: "$1",
+            options: .regularExpression
+        )
+        result = result.replacingOccurrences(
+            of: #"[ \t]*\n[ \t]*"#,
+            with: "\n",
+            options: .regularExpression
+        )
+        return result
+    }
+
+    private static func isMentionedFormattingWord(
+        before index: String.Index,
+        in text: String
+    ) -> Bool {
+        let prefix = text[..<index]
+        guard let word = prefix.split(whereSeparator: { !$0.isLetter }).last else {
+            return false
+        }
+        return formattingCommandDeterminers.contains(word.lowercased())
     }
 
     private static func spokenVersion(_ match: String) -> String {

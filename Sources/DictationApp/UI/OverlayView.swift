@@ -177,6 +177,7 @@ private struct LiveVoiceMeter: View {
     @State private var bars = Array(repeating: CGFloat.zero, count: 7)
 
     private let releaseProfile: [CGFloat] = [0.62, 0.68, 0.72, 0.76, 0.7, 0.66, 0.6]
+    private let heightProfile: [CGFloat] = [0.44, 0.64, 0.82, 1, 0.86, 0.68, 0.48]
 
     var body: some View {
         HStack(alignment: .center, spacing: 2) {
@@ -199,7 +200,7 @@ private struct LiveVoiceMeter: View {
                 let release = releaseProfile[index]
                 return (previous * release) + (target * (1 - release))
             }
-            withAnimation(.linear(duration: 0.06)) {
+            withAnimation(.interpolatingSpring(stiffness: 300, damping: 20)) {
                 bars = nextBars
             }
         }
@@ -212,11 +213,17 @@ private struct LiveVoiceMeter: View {
     }
 
     private var targets: [CGFloat] {
-        if bands.count == bars.count {
-            return bands.map { CGFloat(min(1, max(0, $0))) }
-        }
         let measured = CGFloat(min(1, max(0, level)))
-        let heightProfile: [CGFloat] = [0.46, 0.72, 0.9, 1, 0.84, 0.64, 0.42]
+        if bands.count == bars.count {
+            return bands.indices.map { index in
+                // Keep the real spectrum as subtle texture inside a stable
+                // voice-shaped envelope. The centre remains tallest while the
+                // outer bars still respond independently to the microphone.
+                let band = CGFloat(min(1, max(0, bands[index])))
+                let spectralTexture = (band - 0.5) * 0.06
+                return min(1, measured * max(0, heightProfile[index] + spectralTexture))
+            }
+        }
         return heightProfile.map { min(1, measured * $0) }
     }
 }
