@@ -7,6 +7,29 @@
 
     <!-- Newest release first. scripts/release-app.sh prints a complete item. -->
     <item>
+      <title>0.2.1</title>
+      <sparkle:version>8</sparkle:version>
+      <sparkle:shortVersionString>0.2.1</sparkle:shortVersionString>
+      <sparkle:minimumSystemVersion>15.0</sparkle:minimumSystemVersion>
+      <description><![CDATA[
+        <h2>Modes that fit how you work</h2>
+        <ul>
+          <li>Choose Fast, Refine or Rewrite processing for each mode. Rename, reorder, duplicate or hide the included modes, and add your own.</li>
+          <li>Raw stays untouched. Every other mode shares faster local cleanup for fillers, repetitions, punctuation and technical terms.</li>
+          <li>Refine uses the optional 4B model for guarded punctuation and flow improvements. Rewrite uses the optional 9B model with instructions you can edit.</li>
+          <li>Say "Enter" or "Send" at the end to submit text when voice submit is enabled. Normal dictation now leaves a trailing space so you can keep talking.</li>
+          <li>Tab switches modes from any app, cancellation is more reliable, and the voice meter keeps its taller centre while each bar moves independently.</li>
+          <li>The overlay now separates final local processing from paced terminal typing, so longer dictations show what Natter is doing.</li>
+        </ul>
+      ]]></description>
+      <enclosure
+        url="https://github.com/iannuttall/natter/releases/download/v0.2.1/Natter-0.2.1.dmg"
+        length="35604225"
+        type="application/octet-stream"
+        sparkle:edSignature="PJUx5A4MFIHxR40W9FvMnverVw9p1JAES3SuAndMcr2AbTV2gJbU9Hrat7rzi3fGjXQ618vPOqtjfW8A5w1xCg==" />
+    </item>
+
+    <item>
       <title>0.2.0</title>
       <sparkle:version>2</sparkle:version>
       <sparkle:shortVersionString>0.2.0</sparkle:shortVersionString>
