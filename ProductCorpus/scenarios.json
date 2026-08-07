@@ -80,7 +80,7 @@
     "mode": "Agent",
     "title": "Code-shaped words and flags",
     "instruction": "Read the script as written, including the flag and file names.",
-    "script": "Open Sources slash DictationApp slash AppDelegate dot swift, keep the main actor annotation, run git diff double dash check, and never force unwrap the event.",
+    "script": "Open Sources slash NatterApp slash AppDelegate dot swift, keep the main actor annotation, run git diff double dash check, and never force unwrap the event.",
     "required": ["AppDelegate", "main actor", "git diff", "--check", "force unwrap"],
     "forbidden": ["dash check", "double dash"],
     "minInputEvents": 2,

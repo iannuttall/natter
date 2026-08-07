@@ -9,7 +9,7 @@ cd "$repo_dir"
 
 xcodebuild build \
     -quiet \
-    -scheme dictation-parity \
+    -scheme natter-parity \
     -destination 'platform=macOS,arch=arm64' \
     -configuration Release \
     -derivedDataPath .xcode-build \
@@ -17,11 +17,11 @@ xcodebuild build \
     -skipPackagePluginValidation \
     -skipMacroValidation
 
-"$products_dir/dictation-parity" \
+"$products_dir/natter-parity" \
     --fixtures ../dictation-bench/WritingCorpus/fixtures.json \
     --output Results/qwen-direct-mlx.json
 
-"$products_dir/dictation-parity" \
+"$products_dir/natter-parity" \
     --fixtures ../dictation-bench/WritingCorpus/context-stress.json \
     --repeat-transcript 40 \
     --output Results/qwen-direct-mlx-context-40x.json

@@ -18,9 +18,9 @@ AppKit lifecycle/panels and SwiftUI views.
 ## Repo map
 
 ```text
-Sources/DictationCore/   pure models, rules and testable pipeline logic
-Sources/DictationApp/    AppKit lifecycle/services and SwiftUI views
-Sources/DictationParity/ direct MLX writing benchmark
+Sources/NatterCore/   pure models, rules and testable pipeline logic
+Sources/NatterApp/    AppKit lifecycle/services and SwiftUI views
+Sources/NatterParity/ direct MLX writing benchmark
 Tests/                   pure logic tests
 scripts/                 build and benchmark entry points
 .github/                 public CI and project metadata
@@ -30,7 +30,7 @@ scripts/                 build and benchmark entry points
 
 ```sh
 swift test
-swift build -c release --product dictation
+swift build -c release --product Natter
 make check
 make install
 ./scripts/build-app.sh

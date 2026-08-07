@@ -129,9 +129,9 @@ the signed app before verification.
 The main source areas are:
 
 ```text
-Sources/DictationCore/   pure models, rules, and pipeline logic
-Sources/DictationApp/    AppKit lifecycle, services, and SwiftUI views
-Sources/DictationParity/ direct MLX writing benchmark
+Sources/NatterCore/   pure models, rules, and pipeline logic
+Sources/NatterApp/    AppKit lifecycle, services, and SwiftUI views
+Sources/NatterParity/ direct MLX writing benchmark
 Tests/                   pure Swift regression tests
 ProductCorpus/           local workflow test harness
 scripts/                 build, install, release, and benchmark commands

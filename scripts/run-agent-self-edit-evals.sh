@@ -17,7 +17,7 @@ cd "$repo_dir"
 
 xcodebuild build \
     -quiet \
-    -scheme dictation-parity \
+    -scheme natter-parity \
     -destination 'platform=macOS,arch=arm64' \
     -configuration Release \
     -derivedDataPath .xcode-build \
@@ -25,7 +25,7 @@ xcodebuild build \
     -skipPackagePluginValidation \
     -skipMacroValidation
 
-"$products_dir/dictation-parity" \
+"$products_dir/natter-parity" \
     --fixtures ProductCorpus/agent-self-edit-fixtures.json \
     --model-directory "$model_dir" \
     --strategy agent-self-edits \

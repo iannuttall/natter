@@ -1,7 +1,7 @@
 # ASR engine evaluation — Nemotron 560 ms vs Parakeet Unified vs SpeechAnalyzer
 
 Date: 2026-08-03. Hardware: this development Mac (Apple silicon, macOS 26).
-Harness: `dictation-asr-eval` (release build), dataset built by
+Harness: `natter-asr-eval` (release build), dataset built by
 `scripts/prepare-asr-eval-data.py` from LibriSpeech test-clean: 20 short
 utterances (2–8 s), 20 medium (8–20 s), 8 long (~60 s same-chapter
 concatenations), 4 extra-long (~150 s). Every file was upsampled once to
@@ -52,8 +52,8 @@ transcript, the latency the user actually feels before post-processing.
 
 ```sh
 python3 scripts/prepare-asr-eval-data.py     # in a directory with LibriSpeech/test-clean
-swift build -c release --product dictation-asr-eval
-.build/release/dictation-asr-eval --mode unified-batch \
+swift build -c release --product natter-asr-eval
+.build/release/natter-asr-eval --mode unified-batch \
   --manifest manifest.json --output results-unified-batch.json
 ```
 

@@ -3,16 +3,16 @@
 import PackageDescription
 
 let package = Package(
-    name: "dictation",
+    name: "Natter",
     platforms: [
         .macOS(.v15)
     ],
     products: [
-        .library(name: "DictationCore", targets: ["DictationCore"]),
-        .executable(name: "dictation", targets: ["DictationApp"]),
-        .executable(name: "dictation-formatting-bench", targets: ["DictationFormattingBench"]),
-        .executable(name: "dictation-parity", targets: ["DictationParity"]),
-        .executable(name: "dictation-asr-eval", targets: ["DictationAsrEval"])
+        .library(name: "NatterCore", targets: ["NatterCore"]),
+        .executable(name: "Natter", targets: ["NatterApp"]),
+        .executable(name: "natter-formatting-bench", targets: ["NatterFormattingBench"]),
+        .executable(name: "natter-parity", targets: ["NatterParity"]),
+        .executable(name: "natter-asr-eval", targets: ["NatterAsrEval"])
     ],
     dependencies: [
         .package(url: "https://github.com/sparkle-project/Sparkle", from: "2.6.0"),
@@ -30,11 +30,11 @@ let package = Package(
         )
     ],
     targets: [
-        .target(name: "DictationCore"),
+        .target(name: "NatterCore"),
         .executableTarget(
-            name: "DictationApp",
+            name: "NatterApp",
             dependencies: [
-                "DictationCore",
+                "NatterCore",
                 .product(name: "FluidAudio", package: "FluidAudio"),
                 .product(name: "Sparkle", package: "Sparkle"),
                 .product(name: "Hub", package: "swift-transformers"),
@@ -46,19 +46,19 @@ let package = Package(
             ]
         ),
         .executableTarget(
-            name: "DictationFormattingBench",
-            dependencies: ["DictationCore"]
+            name: "NatterFormattingBench",
+            dependencies: ["NatterCore"]
         ),
         .executableTarget(
-            name: "DictationAsrEval",
+            name: "NatterAsrEval",
             dependencies: [
                 .product(name: "FluidAudio", package: "FluidAudio")
             ]
         ),
         .executableTarget(
-            name: "DictationParity",
+            name: "NatterParity",
             dependencies: [
-                "DictationCore",
+                "NatterCore",
                 .product(name: "Hub", package: "swift-transformers"),
                 .product(name: "MLXHuggingFace", package: "mlx-swift-lm"),
                 .product(name: "MLXGuidedGeneration", package: "mlx-swift-lm"),
@@ -68,8 +68,8 @@ let package = Package(
             ]
         ),
         .testTarget(
-            name: "DictationCoreTests",
-            dependencies: ["DictationCore"]
+            name: "NatterCoreTests",
+            dependencies: ["NatterCore"]
         )
     ]
 )
