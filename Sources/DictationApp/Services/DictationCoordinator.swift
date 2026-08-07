@@ -492,6 +492,7 @@ final class DictationCoordinator {
                 if shouldUseWritingModel {
                     await deliverWritingMode(transcript)
                 } else {
+                    store.statusMessage = "Typing…"
                     await deliverFinalTranscript(transcript)
                     await completeDelivery(of: transcript)
                 }
@@ -800,7 +801,10 @@ final class DictationCoordinator {
             let insertion = String(finalOutput.dropFirst(lockedPrefix.count))
             store.liveTranscript = finalOutput
             store.finalTranscript = finalOutput
-            if deliveryIssue == nil, !insertion.isEmpty { await insert(insertion) }
+            if deliveryIssue == nil, !insertion.isEmpty {
+                store.statusMessage = "Typing…"
+                await insert(insertion)
+            }
             await completeDelivery(of: finalOutput)
         } catch {
             recoverTranscript(transcript, reason: error.localizedDescription)
