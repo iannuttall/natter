@@ -160,7 +160,7 @@ struct HistoryView: View {
                 HStack(spacing: 7) {
                     Text(record.sourceApplicationName ?? "Unknown app")
                         .fontWeight(.medium)
-                    Text(record.mode.label)
+                    Text(record.modeName ?? record.mode.label)
                         .font(.caption2.weight(.medium))
                         .padding(.horizontal, 6)
                         .padding(.vertical, 2)

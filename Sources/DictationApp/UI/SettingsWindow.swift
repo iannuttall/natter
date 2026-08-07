@@ -50,6 +50,7 @@ final class SettingsWindow: NSObject, NSWindowDelegate {
         modelManager: ModelManager,
         permissions: PermissionController,
         rules: RulesManager,
+        modes: ModeManager,
         profiles: ApplicationProfileManager,
         history: HistoryManager,
         onboarding: OnboardingManager,
@@ -81,6 +82,7 @@ final class SettingsWindow: NSObject, NSWindowDelegate {
                 modelManager: modelManager,
                 permissions: permissions,
                 rules: rules,
+                modes: modes,
                 profiles: profiles,
                 history: history,
                 onboarding: onboarding,
@@ -110,6 +112,7 @@ private struct NatterAppView: View {
     @Bindable var modelManager: ModelManager
     @Bindable var permissions: PermissionController
     @Bindable var rules: RulesManager
+    @Bindable var modes: ModeManager
     @Bindable var profiles: ApplicationProfileManager
     @Bindable var history: HistoryManager
     @Bindable var onboarding: OnboardingManager
@@ -140,13 +143,13 @@ private struct NatterAppView: View {
         case .home:
             HistoryView(history: history)
         case .modes:
-            ModesView(store: store, profiles: profiles)
+            ModesView(store: store, modes: modes, profiles: profiles)
         case .dictionary:
             DictionaryView(rules: rules) {
                 selection.section = .rules
             }
         case .rules:
-            RulesEditorView(rules: rules)
+            RulesEditorView(rules: rules, modes: modes)
         case .settings:
             SettingsView(
                 store: store,

@@ -1,6 +1,14 @@
 import Foundation
 
 public enum WritingRules {
+    public static let customModeMarkdown = """
+    # Custom mode
+
+    - Preserve the speaker's meaning, facts, names, numbers and tone.
+    - Make only the changes requested for this mode.
+    - Never invent details.
+    """
+
     public static let legacyArticleMarkdownV1 = """
     # Article mode
 
@@ -17,15 +25,10 @@ public enum WritingRules {
             """
             # Agent mode
 
-            - Make the smallest possible corrections justified by technical context.
-            - Remove explicit speech fillers and repeated fragments.
-            - Correct clear grammar and sentence-boundary punctuation without rephrasing.
-            - Correct obvious speech-recognition homophones for commands, tools and identifiers.
-            - Format explicit CLI commands, subcommands, flags, paths and code symbols literally.
-            - Lowercase command names and flags only when the command context is unambiguous.
-            - Preserve the speaker's request, word order, constraints, profanity and line breaks.
-            - Do not turn prose into source code, Markdown or a different command.
-            - If a change is uncertain, leave it unchanged.
+            - Keep the result concise and suitable for an AI or coding agent.
+            - Preserve CLI commands, flags, paths, versions and code symbols literally.
+            - Preserve every spoken word, constraint, uncertainty and line break.
+            - Do not make the request more formal or polite.
             """
         case .clean:
             """
@@ -33,6 +36,8 @@ public enum WritingRules {
 
             - Remove filler words such as um, erm, uh and ah.
             - Resolve false starts and repeated fragments.
+            - Restore sentence boundaries and capitalization without rephrasing.
+            - Preserve technical terms, commands, flags, paths and symbols.
             - Keep the speaker's wording, meaning, facts, uncertainty and profanity.
             - Do not make the result more formal or polite.
             """
@@ -59,12 +64,15 @@ public enum WritingRules {
             """
         case .raw:
             ""
+        default:
+            customModeMarkdown
         }
     }
 
     public static func prompt(
         transcript: String,
         mode: DictationMode,
+        modeName: String? = nil,
         markdownRules: String,
         agentContext: AgentWritingContext? = nil
     ) -> String {
@@ -83,7 +91,7 @@ public enum WritingRules {
             contextSection = ""
         }
         return """
-        Mode: \(mode.label)
+        Mode: \(modeName ?? mode.label)
 
         User rules:
         <rules>
@@ -97,8 +105,8 @@ public enum WritingRules {
         """
     }
 
-    public static func agentRulesContainCustomInstructions(_ rules: String) -> Bool {
-        let defaultLines = Set(normalizedInstructionLines(defaultMarkdown(for: .agent)))
+    public static func cleanRulesContainCustomInstructions(_ rules: String) -> Bool {
+        let defaultLines = Set(normalizedInstructionLines(defaultMarkdown(for: .clean)))
         return normalizedInstructionLines(rules).contains { !defaultLines.contains($0) }
     }
 

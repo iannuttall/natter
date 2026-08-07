@@ -126,7 +126,7 @@ private struct OnboardingView: View {
         ) {
             VStack(alignment: .leading, spacing: 12) {
                 feature("Fast local Raw dictation", symbol: "bolt.fill")
-                feature("Agent, Clean, Email and Article modes", symbol: "slider.horizontal.3")
+                feature("Editable Fast, Refine and Rewrite modes", symbol: "slider.horizontal.3")
                 feature("Private local history and dictionary", symbol: "externaldrive.fill")
             }
             Spacer()
@@ -226,7 +226,7 @@ private struct OnboardingView: View {
     private var writingModel: some View {
         setupPage(
             title: "Optional writing models",
-            detail: "Fast Agent cleanup and long-form writing use separate local models. Raw, Clean and deterministic Agent formatting work without either one.",
+            detail: "Refine modes use the smaller local model for guarded formatting. Rewrite modes use the larger model for restructuring. Fast modes use neither.",
             symbol: "text.badge.star"
         ) {
             modelCard(

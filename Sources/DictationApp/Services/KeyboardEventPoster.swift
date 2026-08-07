@@ -52,6 +52,11 @@ final class KeyboardEventPoster {
         try postKey(code: 51)
     }
 
+    func postReturn() throws {
+        try requirePostEventPermission()
+        try postKey(code: 36)
+    }
+
     private func flushUnsupported(
         _ text: inout String,
         into element: AXUIElement?,

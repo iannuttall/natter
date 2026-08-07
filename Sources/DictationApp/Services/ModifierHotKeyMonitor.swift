@@ -142,7 +142,7 @@ final class ModifierHotKeyMonitor {
             $0 | (CGEventMask(1) << $1.rawValue)
         }
         guard let tap = CGEvent.tapCreate(
-            tap: .cgSessionEventTap,
+            tap: .cghidEventTap,
             place: .headInsertEventTap,
             options: .defaultTap,
             eventsOfInterest: mask,

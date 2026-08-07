@@ -1,0 +1,91 @@
+{
+  "version": 1,
+  "fixtures": [
+    {
+      "id": "capitalized-boundaries-in-run-on",
+      "mode": "Clean",
+      "instructions": "Restore sentence boundaries and capitalization without changing the words.",
+      "transcript": "Okay, new waveform Yeah, looks alright to me. Okay, that's pretty good Decent One thing I noticed is that the centre bars now feel much clearer.",
+      "expected": "Okay, new waveform. Yeah, looks alright to me. Okay, that's pretty good. Decent. One thing I noticed is that the centre bars now feel much clearer.",
+      "required": [
+        "waveform. Yeah",
+        "good. Decent.",
+        "One thing"
+      ],
+      "forbidden": [
+        "waveform Yeah",
+        "good Decent"
+      ]
+    },
+    {
+      "id": "lowercase-boundaries-in-run-on",
+      "mode": "Clean",
+      "instructions": "Restore sentence boundaries and capitalization without changing the words.",
+      "transcript": "the build is ready it still needs a final review we can ship it after the checks pass",
+      "expected": "The build is ready. It still needs a final review. We can ship it after the checks pass.",
+      "required": [
+        "ready. It",
+        "review. We"
+      ],
+      "forbidden": [
+        "ready it",
+        "review we"
+      ]
+    },
+    {
+      "id": "technical-boundaries-preserve-terms",
+      "mode": "Clean",
+      "instructions": "Restore sentence boundaries while preserving every technical token.",
+      "transcript": "run git diff --check first Then open AppDelegate and inspect the launch handler",
+      "expected": "Run git diff --check first. Then open AppDelegate and inspect the launch handler.",
+      "required": [
+        "--check first. Then",
+        "AppDelegate"
+      ],
+      "forbidden": [
+        "--check first Then",
+        "ApplicationDelegate"
+      ],
+      "terminology": [
+        {
+          "preferred": "AppDelegate",
+          "variants": ["app delegate"],
+          "authoritative": true
+        }
+      ]
+    },
+    {
+      "id": "long-dictation-short-boundaries",
+      "mode": "Clean",
+      "instructions": "Restore sentence boundaries and capitalization without changing the words.",
+      "transcript": "Okay, new waveform Yeah, looks alright to me. Okay, that's pretty good Decent One thing I saw because the other tool was open source. I saw somebody else was going ahead and forking it and adding their own features. What if we added a setting to Natter where if it was enabled and the last word that a user says in their chat or in their transcription dictation, whatever was enter or send then it would recognize that and automatically hit enter in whatever text field they're in. So for me right now, I'm chatting to you in Codex but it could be in the ChatGPT app or whatever it would be really cool to be able to have that mode enabled and then if I want to send the message rather than it just appear in the box, I would say enter. And then what would happen is that Natter would recognize that and send the enter key to the system to submit that.",
+      "expected": "Okay, new waveform. Yeah, looks alright to me. Okay, that's pretty good. Decent. One thing I saw because the other tool was open source. I saw somebody else was going ahead and forking it and adding their own features. What if we added a setting to Natter where if it was enabled and the last word that a user says in their chat or in their transcription dictation, whatever was enter or send, then it would recognize that and automatically hit enter in whatever text field they're in. So for me right now, I'm chatting to you in Codex, but it could be in the ChatGPT app or whatever. It would be really cool to be able to have that mode enabled, and then if I want to send the message rather than it just appear in the box, I would say enter. And then what would happen is that Natter would recognize that and send the enter key to the system to submit that.",
+      "required": [
+        "waveform. Yeah",
+        "good. Decent.",
+        "One thing"
+      ],
+      "forbidden": [
+        "waveform Yeah",
+        "good Decent"
+      ],
+      "terminology": [
+        {
+          "preferred": "Natter",
+          "variants": ["NATA"],
+          "authoritative": true
+        },
+        {
+          "preferred": "Codex",
+          "variants": ["codecs"],
+          "authoritative": true
+        },
+        {
+          "preferred": "ChatGPT",
+          "variants": ["chat GPT"],
+          "authoritative": true
+        }
+      ]
+    }
+  ]
+}

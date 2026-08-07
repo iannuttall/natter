@@ -44,14 +44,8 @@ final class DictationStore {
         didSet { defaults.set(agentTypesLive, forKey: Keys.agentTypesLive) }
     }
 
-    var smartAgentEnabled: Bool {
-        didSet { defaults.set(smartAgentEnabled, forKey: Keys.smartAgentEnabled) }
-    }
-
-    var agentRemovesFalseStarts: Bool {
-        didSet {
-            defaults.set(agentRemovesFalseStarts, forKey: Keys.agentRemovesFalseStarts)
-        }
+    var voiceSubmitEnabled: Bool {
+        didSet { defaults.set(voiceSubmitEnabled, forKey: Keys.voiceSubmitEnabled) }
     }
 
     var overlayStyle: OverlayStyle {
@@ -78,9 +72,7 @@ final class DictationStore {
             ?? true
         agentTypesLive = defaults.object(forKey: Keys.agentTypesLive) as? Bool
             ?? false
-        smartAgentEnabled = defaults.object(forKey: Keys.smartAgentEnabled) as? Bool
-            ?? true
-        agentRemovesFalseStarts = defaults.object(forKey: Keys.agentRemovesFalseStarts) as? Bool
+        voiceSubmitEnabled = defaults.object(forKey: Keys.voiceSubmitEnabled) as? Bool
             ?? false
         overlayStyle = defaults.string(forKey: Keys.overlayStyle)
             .flatMap(OverlayStyle.init(rawValue:))
@@ -103,6 +95,15 @@ final class DictationStore {
         guard !phase.isBusy else { return }
         selectedMode = mode
         pendingModeOverride = mode
+    }
+
+    func reconcileAvailableModes(_ availableModes: [DictationMode]) {
+        let available = Set(availableModes)
+        if !available.contains(defaultMode) { defaultMode = .raw }
+        if !available.contains(selectedMode) { selectedMode = defaultMode }
+        if let pendingModeOverride, !available.contains(pendingModeOverride) {
+            self.pendingModeOverride = nil
+        }
     }
 
     func selectDefault(_ mode: DictationMode) {
@@ -171,8 +172,7 @@ final class DictationStore {
         static let selectedHotKey = "selectedHotKey"
         static let terminalPacingEnabled = "terminalPacingEnabled"
         static let agentTypesLive = "agentTypesLive"
-        static let smartAgentEnabled = "smartAgentEnabled"
-        static let agentRemovesFalseStarts = "agentRemovesFalseStarts"
+        static let voiceSubmitEnabled = "voiceSubmitEnabled"
         static let overlayStyle = "overlayStyle"
     }
 }

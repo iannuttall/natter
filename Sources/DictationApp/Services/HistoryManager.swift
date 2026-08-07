@@ -133,6 +133,7 @@ final class HistoryManager {
         rawTranscript: String,
         durationSeconds: TimeInterval,
         mode: DictationMode,
+        modeName: String? = nil,
         sourceBundleIdentifier: String?,
         sourceApplicationName: String?,
         outcome: DictationOutcome
@@ -141,6 +142,7 @@ final class HistoryManager {
         let record = DictationHistoryRecord(
             durationSeconds: durationSeconds,
             mode: mode,
+            modeName: modeName,
             wordCount: DictationHistoryRecord.countWords(in: transcript),
             sourceBundleIdentifier: sourceBundleIdentifier,
             sourceApplicationName: sourceApplicationName,

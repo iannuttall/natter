@@ -160,7 +160,7 @@ final class ModelManager {
     }
 
     private func installAgentWriting() async throws {
-        status = "Downloading fast Agent cleanup…"
+            status = "Downloading Refine output model…"
         let directory = try await writingInstaller.installAgent(in: paths) { [weak self] progress in
             Task { @MainActor in self?.progress = progress }
         }

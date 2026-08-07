@@ -285,13 +285,20 @@ private actor MLXWritingGenerator {
                     )
                 )
                 let cleaned = WritingBenchmark.cleanMinimalFormattingEnvelope(response)
-                guard !cleaned.isEmpty,
-                      TranscriptWordingGuard.preservesWords(from: body, in: cleaned),
-                      TranscriptFactGuard.preservesFacts(from: body, in: cleaned),
+                let wordingHolds = TranscriptWordingGuard.preservesWords(
+                    from: body,
+                    in: cleaned
+                )
+                let safeOutput = wordingHolds
+                    ? cleaned
+                    : (TranscriptFormattingProjection.project(from: body, onto: cleaned) ?? cleaned)
+                guard !safeOutput.isEmpty,
+                      TranscriptWordingGuard.preservesWords(from: body, in: safeOutput),
+                      TranscriptFactGuard.preservesFacts(from: body, in: safeOutput),
                       TranscriptTerminologyGuard.preserves(
                         context.protectedSpellings,
                         from: body,
-                        in: cleaned
+                        in: safeOutput
                       ) else {
                     let sourceWords = WritingBenchmark.normalizedWords(body)
                     let outputWords = WritingBenchmark.normalizedWords(cleaned)
@@ -307,7 +314,7 @@ private actor MLXWritingGenerator {
                     fallbackCount += 1
                     continue
                 }
-                output += leading + cleaned + trailing
+                output += leading + safeOutput + trailing
             } catch {
                 output += segment.text
                 fallbackCount += 1

@@ -89,13 +89,18 @@ public enum SpokenTechnicalTextNormalizer {
         if context == .technical {
             result = replaceMatches(
                 in: result,
+                using: spokenRootRouteRegex,
+                with: spokenRootRoute
+            )
+            result = replaceMatches(
+                in: result,
                 using: technicalDotRegex,
                 with: { _ in "." }
             )
             result = replaceMatches(
                 in: result,
-                using: slashSeparatorRegex,
-                with: { _ in "/" }
+                using: anchoredPathSeparatorRegex,
+                with: anchoredPathSeparator
             )
             result = replaceMatches(
                 in: result,
@@ -203,7 +208,15 @@ public enum SpokenTechnicalTextNormalizer {
 
     private static let technicalDotRegex = compiled(#"(?i)\bdot\s+(?=[\p{L}\p{N}_-])"#)
 
-    private static let slashSeparatorRegex = compiled(#"(?i)\s+slash\s+"#)
+    private static let slashSeparatorRegex = compiled(#"(?i)\s+(?:forward\s+)?slash\s+"#)
+
+    private static let spokenRootRouteRegex = compiled(
+        #"(?i)\b(?:forward\s+)?slash\s+[\p{L}\p{N}._-]+(?=\s+(?:route|path|endpoint|url)\b)"#
+    )
+
+    private static let anchoredPathSeparatorRegex = compiled(
+        #"(?i)(?<!\S)[.~\/][\p{L}\p{N}._\/-]*\s+(?:forward\s+)?slash\s+[\p{L}\p{N}._-]+"#
+    )
 
     private static let doubleDashRegex = compiled(
         #"(?i)\b(?:dash\s+dash|double\s+dash|hyphen\s+hyphen|two\s+(?:dashes|hyphens))(?:\s+[\p{L}\p{N}][\p{L}\p{N}-]*)?"#
@@ -425,6 +438,21 @@ public enum SpokenTechnicalTextNormalizer {
             with: { _ in "/" }
         )
         return "~/" + path
+    }
+
+    private static func spokenRootRoute(_ match: String) -> String {
+        guard let component = match.split(whereSeparator: \.isWhitespace).last else {
+            return match
+        }
+        return "/" + component
+    }
+
+    private static func anchoredPathSeparator(_ match: String) -> String {
+        replaceMatches(
+            in: match,
+            using: slashSeparatorRegex,
+            with: { _ in "/" }
+        )
     }
 
     private static func emailAddress(_ match: String) -> String {

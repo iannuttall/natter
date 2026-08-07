@@ -161,29 +161,6 @@ struct SettingsView: View {
         .clipShape(RoundedRectangle(cornerRadius: Theme.Radius.card))
     }
 
-    private var agentDelivery: some View {
-        VStack(alignment: .leading, spacing: Theme.Space.regular) {
-            Text("Agent delivery")
-                .font(.headline)
-            Toggle("Type live while speaking", isOn: $store.agentTypesLive)
-            Text("Off by default: show the live transcript in the overlay, format it when you stop, then type it visibly into the destination.")
-                .font(.caption)
-                .foregroundStyle(.secondary)
-            Toggle("Use local AI cleanup when installed", isOn: $store.smartAgentEnabled)
-            Text("Uses the fast 4B Agent model and falls back to deterministic technical formatting when it is not installed.")
-                .font(.caption)
-                .foregroundStyle(.secondary)
-            Toggle("Tidy false starts", isOn: $store.agentRemovesFalseStarts)
-            Text("Removes abandoned thoughts spoken out loud, like “what am I—”. Words are only ever deleted, never added, and protected terms always survive.")
-                .font(.caption)
-                .foregroundStyle(.secondary)
-        }
-        .padding(Theme.Space.regular)
-        .background(Theme.Colour.secondaryPanel)
-        .clipShape(RoundedRectangle(cornerRadius: Theme.Radius.card))
-        .disabled(store.phase.isBusy)
-    }
-
     private var historyPreferences: some View {
         VStack(alignment: .leading, spacing: Theme.Space.regular) {
             HStack {

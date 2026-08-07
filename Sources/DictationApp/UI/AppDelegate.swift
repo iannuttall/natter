@@ -11,6 +11,7 @@ final class AppDelegate: NSObject, NSApplicationDelegate {
     private var modelManager: ModelManager?
     private var permissions: PermissionController?
     private var rules: RulesManager?
+    private var modes: ModeManager?
     private var profiles: ApplicationProfileManager?
     private var history: HistoryManager?
     private var onboarding: OnboardingManager?
@@ -32,12 +33,15 @@ final class AppDelegate: NSObject, NSApplicationDelegate {
         let modelManager = ModelManager(speechTranscriber: speechTranscriber)
         let permissions = PermissionController()
         let rules = RulesManager()
+        let modes = ModeManager()
+        store.reconcileAvailableModes(modes.enabledModes.map(\.id))
         let profiles = ApplicationProfileManager()
         let history = HistoryManager()
         let onboarding = OnboardingManager()
         self.modelManager = modelManager
         self.permissions = permissions
         self.rules = rules
+        self.modes = modes
         self.profiles = profiles
         self.history = history
         self.onboarding = onboarding
@@ -45,6 +49,7 @@ final class AppDelegate: NSObject, NSApplicationDelegate {
             store: store,
             transcriber: speechTranscriber,
             rules: rules,
+            modes: modes,
             profiles: profiles,
             history: history
         )
@@ -54,6 +59,7 @@ final class AppDelegate: NSObject, NSApplicationDelegate {
             modelManager: modelManager,
             permissions: permissions,
             rules: rules,
+            modes: modes,
             profiles: profiles,
             history: history,
             onboarding: onboarding,
@@ -76,7 +82,7 @@ final class AppDelegate: NSObject, NSApplicationDelegate {
         }
         Task { @MainActor [weak coordinator] in
             try? await Task.sleep(for: .seconds(2))
-            coordinator?.warmAgentModelIfInstalled()
+            coordinator?.warmRefineModelIfInstalled()
         }
         Task { @MainActor [weak coordinator] in
             try? await Task.sleep(for: .seconds(8))
@@ -106,6 +112,7 @@ final class AppDelegate: NSObject, NSApplicationDelegate {
                 modelManager: modelManager,
                 permissions: permissions,
                 rules: rules,
+                modes: modes,
                 profiles: profiles,
                 history: history,
                 onboarding: onboarding,
@@ -203,7 +210,9 @@ final class AppDelegate: NSObject, NSApplicationDelegate {
             guard let command = AppCommand(url: url) else { continue }
             switch command {
             case let .setMode(mode):
-                store.select(mode)
+                if modes?.enabledDefinition(for: mode) != nil {
+                    store.select(mode)
+                }
             }
         }
     }

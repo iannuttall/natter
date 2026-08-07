@@ -8,6 +8,7 @@ final class StatusItemController: NSObject, NSMenuDelegate {
     private let modelManager: ModelManager
     private let permissions: PermissionController
     private let rules: RulesManager
+    private let modes: ModeManager
     private let profiles: ApplicationProfileManager
     private let history: HistoryManager
     private let onboarding: OnboardingManager
@@ -22,6 +23,7 @@ final class StatusItemController: NSObject, NSMenuDelegate {
         modelManager: ModelManager,
         permissions: PermissionController,
         rules: RulesManager,
+        modes: ModeManager,
         profiles: ApplicationProfileManager,
         history: HistoryManager,
         onboarding: OnboardingManager,
@@ -31,6 +33,7 @@ final class StatusItemController: NSObject, NSMenuDelegate {
         self.modelManager = modelManager
         self.permissions = permissions
         self.rules = rules
+        self.modes = modes
         self.profiles = profiles
         self.history = history
         self.onboarding = onboarding
@@ -70,7 +73,7 @@ final class StatusItemController: NSObject, NSMenuDelegate {
         audioInputs.refresh()
 
         let status = item(
-            title: "\(store.phase.label) · \(store.selectedMode.label)",
+            title: "\(store.phase.label) · \(modes.name(for: store.selectedMode))",
             symbol: phaseSymbol
         )
         status.isEnabled = false
@@ -106,9 +109,10 @@ final class StatusItemController: NSObject, NSMenuDelegate {
 
         menu.addItem(.separator())
         let modeMenu = NSMenu()
-        for mode in DictationMode.allCases {
+        for definition in modes.enabledModes {
+            let mode = definition.id
             let modeItem = item(
-                title: mode.label,
+                title: modes.name(for: definition.id),
                 action: #selector(selectMode(_:)),
                 symbol: symbol(for: mode)
             )
@@ -117,9 +121,12 @@ final class StatusItemController: NSObject, NSMenuDelegate {
             modeItem.isEnabled = !store.phase.isBusy
             modeMenu.addItem(modeItem)
         }
-        let modes = item(title: "Mode: \(store.selectedMode.label)", symbol: "slider.horizontal.3")
-        modes.submenu = modeMenu
-        menu.addItem(modes)
+        let modesItem = item(
+            title: "Mode: \(modes.name(for: store.selectedMode))",
+            symbol: "slider.horizontal.3"
+        )
+        modesItem.submenu = modeMenu
+        menu.addItem(modesItem)
 
         let microphoneMenu = NSMenu()
         let systemDefault = item(
@@ -253,6 +260,7 @@ final class StatusItemController: NSObject, NSMenuDelegate {
         case .clean: "sparkles"
         case .email: "envelope"
         case .article: "doc.text"
+        default: "slider.horizontal.3"
         }
     }
 
@@ -309,6 +317,7 @@ final class StatusItemController: NSObject, NSMenuDelegate {
             modelManager: modelManager,
             permissions: permissions,
             rules: rules,
+            modes: modes,
             profiles: profiles,
             history: history,
             onboarding: onboarding,
@@ -389,6 +398,6 @@ final class StatusItemController: NSObject, NSMenuDelegate {
         )
         image?.isTemplate = true
         button.image = image
-        button.toolTip = "\(AppInfo.displayName) · \(phase.label) · \(mode.label)"
+        button.toolTip = "\(AppInfo.displayName) · \(phase.label) · \(modes.name(for: mode))"
     }
 }

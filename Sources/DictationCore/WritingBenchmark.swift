@@ -112,7 +112,7 @@ public enum WritingBenchmark {
     public static let agentRewriteCompletionInstructions = """
     Process the complete transcript, including its final third. Restore missing sentence boundaries
     and capitalization throughout any unpunctuated run. Remove every explicit filler and repeated
-    fragment requested by Agent mode. Do not leave a long run-on merely to minimize edits.
+    fragment requested by Clean mode. Do not leave a long run-on merely to minimize edits.
     """
 
     public static let selectiveAgentRewriteInstructions = """
@@ -259,7 +259,7 @@ public enum WritingBenchmark {
         """ : ""
         let trimmedRules = markdownRules.trimmingCharacters(in: .whitespacesAndNewlines)
         let rulesSection = if trimmedRules.isEmpty
-            || !WritingRules.agentRulesContainCustomInstructions(trimmedRules) {
+            || !WritingRules.cleanRulesContainCustomInstructions(trimmedRules) {
             ""
         } else {
             """
@@ -302,11 +302,11 @@ public enum WritingBenchmark {
 
     public static func prompt(for fixture: WritingFixture, repeatTranscript: Int = 1) -> String {
         let transcript = expanded(fixture.transcript, count: repeatTranscript)
-        if fixture.mode.caseInsensitiveCompare(DictationMode.agent.label) == .orderedSame {
+        if fixture.mode.caseInsensitiveCompare(DictationMode.clean.label) == .orderedSame {
             return WritingRules.prompt(
                 transcript: transcript,
-                mode: .agent,
-                markdownRules: WritingRules.defaultMarkdown(for: .agent)
+                mode: .clean,
+                markdownRules: WritingRules.defaultMarkdown(for: .clean)
             )
         }
         return """
@@ -529,6 +529,6 @@ public enum WritingBenchmark {
 
     private static func usesMinimalFormatting(for fixture: WritingFixture) -> Bool {
         fixture.mode == "Smart formatting"
-            || fixture.mode.caseInsensitiveCompare(DictationMode.agent.label) == .orderedSame
+            || fixture.mode.caseInsensitiveCompare(DictationMode.clean.label) == .orderedSame
     }
 }

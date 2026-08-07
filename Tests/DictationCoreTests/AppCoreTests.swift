@@ -73,6 +73,34 @@ import Testing
     #expect(DictationMode.article.isGenerative)
 }
 
+@Test func customModeIdentifiersKeepLegacyStringEncoding() throws {
+    let mode = try #require(DictationMode(rawValue: "client-notes"))
+    let data = try JSONEncoder().encode(mode)
+
+    #expect(String(decoding: data, as: UTF8.self) == "\"client-notes\"")
+    #expect(try JSONDecoder().decode(DictationMode.self, from: data) == mode)
+    #expect(DictationMode(rawValue: "Not Valid!") == nil)
+}
+
+@Test func modeConfigurationsRoundTripCustomProcessingAndInstructions() throws {
+    let customID = try #require(DictationMode(rawValue: "client-update"))
+    let configuration = ModeConfiguration(modes: [
+        ModeDefinition(
+            id: customID,
+            name: "Client update",
+            processing: .rewrite,
+            instructions: "Use short headings.",
+            removesFalseStarts: true
+        )
+    ])
+
+    let data = try JSONEncoder().encode(configuration)
+    #expect(try JSONDecoder().decode(ModeConfiguration.self, from: data) == configuration)
+    #expect(DictationMode.agent.defaultProcessing == .fast)
+    #expect(DictationMode.clean.defaultProcessing == .refine)
+    #expect(DictationMode.article.defaultProcessing == .rewrite)
+}
+
 @Test func knownTerminalsUseTerminalDelivery() {
     for bundleIdentifier in [
         "com.apple.Terminal",
@@ -468,6 +496,36 @@ import Testing
     #expect(TextInsertionPlan.insertionText(for: "", destination: .terminal).isEmpty)
 }
 
+@Test func voiceSubmitConsumesOnlyAFinalStandaloneCommand() {
+    #expect(VoiceSubmitCommand.consume(from: "Send this message enter") == VoiceSubmitResult(
+        transcript: "Send this message",
+        shouldSubmit: true
+    ))
+    #expect(VoiceSubmitCommand.consume(from: "Please review this, SEND.") == VoiceSubmitResult(
+        transcript: "Please review this",
+        shouldSubmit: true
+    ))
+    #expect(VoiceSubmitCommand.consume(from: "Send this message tomorrow") == VoiceSubmitResult(
+        transcript: "Send this message tomorrow",
+        shouldSubmit: false
+    ))
+    #expect(VoiceSubmitCommand.consume(from: "sender") == VoiceSubmitResult(
+        transcript: "sender",
+        shouldSubmit: false
+    ))
+}
+
+@Test func voiceSubmitDoesNotTreatACommandOnlyDictationAsContent() {
+    #expect(VoiceSubmitCommand.consume(from: "send") == VoiceSubmitResult(
+        transcript: "send",
+        shouldSubmit: false
+    ))
+    #expect(VoiceSubmitCommand.consume(from: "Enter.") == VoiceSubmitResult(
+        transcript: "Enter.",
+        shouldSubmit: false
+    ))
+}
+
 @Test func textInsertionChunksPreserveComposedCharacters() {
     #expect(TextInsertionPlan.chunks(
         for: "123456789012345🙂next",
@@ -795,6 +853,9 @@ import Testing
     let transcript = "Calculate the dot product, discuss slash fiction, and meet Ian at five."
 
     #expect(SpokenTechnicalTextNormalizer.normalize(transcript) == transcript)
+    let technical = SpokenTechnicalTextNormalizer.normalize(transcript, context: .technical)
+    #expect(technical.contains("discuss slash fiction"))
+    #expect(!technical.contains("/fiction"))
 }
 
 @Test func technicalFormattingHandlesHiddenFilesPathsAndFlags() {
@@ -813,6 +874,13 @@ import Testing
 
     #expect(SpokenTechnicalTextNormalizer.normalize(transcript, context: .technical) ==
         "Set scroll restoration: true, run tool --verbose, and open .unfamiliar/config.")
+}
+
+@Test func spokenRootRoutesKeepTheirLeadingSpace() {
+    #expect(SpokenTechnicalTextNormalizer.normalize(
+        "Remind me about the slash connect route and the forward slash account endpoint.",
+        context: .technical
+    ) == "Remind me about the /connect route and the /account endpoint.")
 }
 
 @Test func agentModeShortensEtCeteraWithoutChangingProse() {
