@@ -2,29 +2,11 @@ import AppKit
 import DictationCore
 import SwiftUI
 
-enum RulesDocument: String, CaseIterable, Identifiable {
-    case personal
-    case agent
-    case clean
-    case email
-    case article
-
-    var id: String { rawValue }
-
-    var label: String {
-        switch self {
-        case .personal: "Dictionary"
-        case .agent: "Agent"
-        case .clean: "Clean"
-        case .email: "Email"
-        case .article: "Article"
-        }
-    }
-}
-
 struct RulesEditorView: View {
     @Bindable var rules: RulesManager
-    @State private var document: RulesDocument = .personal
+    @Bindable var modes: ModeManager
+    @State private var selection = "personal"
+    @State private var draft = ""
 
     var body: some View {
         VStack(alignment: .leading, spacing: 16) {
@@ -36,17 +18,18 @@ struct RulesEditorView: View {
                         .foregroundStyle(.secondary)
                 }
                 Spacer()
-                Picker("Document", selection: $document) {
-                    ForEach(RulesDocument.allCases) {
-                        Text($0.label).tag($0)
+                Picker("Document", selection: $selection) {
+                    Text("Dictionary").tag("personal")
+                    Divider()
+                    ForEach(modes.configurableModes) { mode in
+                        Text(modes.name(for: mode.id)).tag(mode.id.rawValue)
                     }
                 }
-                .pickerStyle(.segmented)
                 .labelsHidden()
-                .frame(width: 380)
+                .frame(width: 190)
             }
 
-            TextEditor(text: markdownBinding)
+            TextEditor(text: $draft)
                 .font(.system(.body, design: .monospaced))
                 .scrollContentBackground(.hidden)
                 .padding(10)
@@ -54,61 +37,59 @@ struct RulesEditorView: View {
                 .clipShape(RoundedRectangle(cornerRadius: Theme.Radius.card))
 
             HStack {
-                if let error = rules.errorMessage {
+                if let error = modes.errorMessage ?? rules.errorMessage {
                     Text(error)
                         .font(.caption)
                         .foregroundStyle(.red)
                 } else {
-                    Text(rules.status)
+                    Text(selection == "personal" ? rules.status : modes.status)
                         .font(.caption)
                         .foregroundStyle(.secondary)
                 }
                 Spacer()
-                Button("Reload") { rules.reload() }
-                Button("Save") { rules.save() }
+                Button("Reload") {
+                    rules.reload()
+                    modes.reload()
+                    loadDraft()
+                }
+                Button("Save") { saveDraft() }
                     .keyboardShortcut("s")
             }
         }
         .padding(24)
         .frame(maxWidth: .infinity, maxHeight: .infinity)
         .background(Theme.Colour.panel)
+        .onAppear(perform: loadDraft)
+        .onChange(of: selection) { _, _ in loadDraft() }
+    }
+
+    private var selectedMode: ModeDefinition? {
+        guard let id = DictationMode(rawValue: selection) else { return nil }
+        return modes.modes.first { $0.id == id }
     }
 
     private var documentDescription: String {
-        switch document {
-        case .personal:
-            "The same corrections shown in Dictionary, as local Markdown."
-        case .agent, .clean, .email, .article:
-            "Mode-specific Markdown instructions, stored locally."
+        guard selection != "personal", let selectedMode else {
+            return "Personal spellings and corrections applied to every non-Raw mode."
         }
+        return "Instructions used when \(selectedMode.name) is set to Refine or Rewrite."
     }
 
-    private var markdownBinding: Binding<String> {
-        Binding(
-            get: {
-                switch document {
-                case .personal: rules.personalMarkdown
-                case .agent: rules.agentMarkdown
-                case .clean: rules.cleanMarkdown
-                case .email: rules.emailMarkdown
-                case .article: rules.articleMarkdown
-                }
-            },
-            set: { value in
-                switch document {
-                case .personal:
-                    rules.personalMarkdown = value
-                case .agent:
-                    rules.agentMarkdown = value
-                case .clean:
-                    rules.cleanMarkdown = value
-                case .email:
-                    rules.emailMarkdown = value
-                case .article:
-                    rules.articleMarkdown = value
-                }
-            }
-        )
+    private func loadDraft() {
+        draft = selection == "personal"
+            ? rules.personalMarkdown
+            : (selectedMode?.instructions ?? "")
+    }
+
+    private func saveDraft() {
+        if selection == "personal" {
+            rules.personalMarkdown = draft
+            rules.save()
+            return
+        }
+        guard var selectedMode else { return }
+        selectedMode.instructions = draft
+        modes.update(selectedMode)
     }
 }
 
@@ -117,7 +98,7 @@ final class RulesWindow: NSObject, NSWindowDelegate {
     static let shared = RulesWindow()
     private var window: NSWindow?
 
-    func show(rules: RulesManager) {
+    func show(rules: RulesManager, modes: ModeManager = ModeManager()) {
         if let window {
             NSApp.activate(ignoringOtherApps: true)
             window.makeKeyAndOrderFront(nil)
@@ -135,7 +116,7 @@ final class RulesWindow: NSObject, NSWindowDelegate {
         window.minSize = NSSize(width: 560, height: 400)
         window.center()
         window.delegate = self
-        window.contentView = NSHostingView(rootView: RulesEditorView(rules: rules))
+        window.contentView = NSHostingView(rootView: RulesEditorView(rules: rules, modes: modes))
         self.window = window
 
         NSApp.activate(ignoringOtherApps: true)

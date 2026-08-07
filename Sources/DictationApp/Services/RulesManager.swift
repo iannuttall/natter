@@ -31,6 +31,7 @@ final class RulesManager {
         case .email: emailMarkdown
         case .article: articleMarkdown
         case .raw: ""
+        default: WritingRules.defaultMarkdown(for: mode)
         }
     }
 
@@ -41,6 +42,7 @@ final class RulesManager {
         case .email: emailMarkdown = markdown
         case .article: articleMarkdown = markdown
         case .raw: break
+        default: break
         }
     }
 

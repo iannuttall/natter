@@ -11,6 +11,7 @@ public struct DictationHistoryRecord: Codable, Equatable, Identifiable, Sendable
     public let createdAt: Date
     public let durationSeconds: TimeInterval
     public let mode: DictationMode
+    public let modeName: String?
     public let wordCount: Int
     public let sourceBundleIdentifier: String?
     public let sourceApplicationName: String?
@@ -23,6 +24,7 @@ public struct DictationHistoryRecord: Codable, Equatable, Identifiable, Sendable
         createdAt: Date = Date(),
         durationSeconds: TimeInterval,
         mode: DictationMode,
+        modeName: String? = nil,
         wordCount: Int,
         sourceBundleIdentifier: String?,
         sourceApplicationName: String?,
@@ -34,6 +36,7 @@ public struct DictationHistoryRecord: Codable, Equatable, Identifiable, Sendable
         self.createdAt = createdAt
         self.durationSeconds = max(0, durationSeconds)
         self.mode = mode
+        self.modeName = modeName
         self.wordCount = max(0, wordCount)
         self.sourceBundleIdentifier = sourceBundleIdentifier
         self.sourceApplicationName = sourceApplicationName

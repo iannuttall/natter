@@ -3,14 +3,14 @@
     "id": "raw-incremental",
     "category": "Live delivery",
     "mode": "Raw",
-    "title": "Stable chunks arrive while speaking",
+    "title": "Untouched transcript stays visible while speaking",
     "instruction": "Arm the test, double tap Right Option, read the full script, then tap Right Option once.",
     "script": "I want the transcript to appear while I am still speaking, one stable phrase at a time, so I can see a mistake before I reach the end of this sentence.",
     "required": ["stable phrase", "mistake", "end of this sentence"],
     "forbidden": [],
     "terminalPunctuation": true,
-    "minInputEvents": 2,
-    "manualChecks": ["The overlay stayed readable while the destination filled"]
+    "minInputEvents": 1,
+    "manualChecks": ["The overlay stayed readable", "The destination remained unchanged until stop"]
   },
   {
     "id": "raw-premature-stop",
@@ -175,7 +175,7 @@
   {
     "id": "correction-existing",
     "category": "Corrections",
-    "mode": "Raw",
+    "mode": "Agent",
     "title": "Existing personal correction",
     "instruction": "Pronounce the domain as ‘en dot is’ so the recogniser is likely to produce en.is.",
     "script": "Open en.is and compare the latest note with the Portman repository before changing anything.",
@@ -200,7 +200,7 @@
   {
     "id": "correction-follow-up",
     "category": "Corrections",
-    "mode": "Raw",
+    "mode": "Agent",
     "title": "Spoken correction works next time",
     "instruction": "Run this immediately after the correction command scenario.",
     "script": "Open the port man project and inspect the current branch before running any tests.",
@@ -212,7 +212,7 @@
   {
     "id": "correction-boundary",
     "category": "Corrections",
-    "mode": "Raw",
+    "mode": "Agent",
     "title": "Correction respects phrase boundaries",
     "instruction": "This checks that a short rule does not rewrite text inside a longer word.",
     "script": "Open en.is, but leave the word open.island exactly as it is because that longer token is unrelated.",
@@ -226,7 +226,7 @@
     "category": "Clean mode",
     "mode": "Clean",
     "title": "Filler and repeated-phrase cleanup",
-    "instruction": "Include every filler and repeated phrase; Clean runs locally as soon as you stop.",
+    "instruction": "Include every filler and repeated phrase; Clean applies its local cleanup after you stop.",
     "script": "Um, I need to, I need to send the report today, erm, but first check whether the figures from Tuesday are actually final.",
     "required": ["report today", "figures from Tuesday", "actually final"],
     "forbidden": ["um", "erm", "I need to, I need to"],

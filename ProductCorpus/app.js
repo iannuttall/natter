@@ -36,7 +36,7 @@ if (waitsForWritingModel) {
   document.title = "Dictation Formatting and Writing Run";
   elements.eyebrow.textContent = "Formatting + writing checkout";
   elements.pageTitle.textContent = "Speak it. We’ll handle the rest.";
-  elements.pageDescription.textContent = "Ten short tests cover versions, Clean, Email and Article. The runner waits automatically if Writing Tools is still downloading.";
+  elements.pageDescription.textContent = "Ten short tests cover Fast, Refine and Rewrite processing. The runner waits automatically if the Rewrite model is still downloading.";
 }
 
 function scenario() {
@@ -169,12 +169,12 @@ async function writingModelInstalled() {
 
 function waitForWritingModel() {
   phase = "waiting-model";
-  elements.runState.textContent = "Waiting for the Writing Tools download to finish…";
+  elements.runState.textContent = "Waiting for the Rewrite model download to finish…";
   elements.saveState.textContent = "Checking model…";
   settlingTask = window.setTimeout(async () => {
     if (phase !== "waiting-model") return;
     if (await writingModelInstalled()) {
-      elements.runState.textContent = "Writing Tools ready · continuing automatically…";
+      elements.runState.textContent = "Rewrite model ready · continuing automatically…";
       return prepareCurrentScenario();
     }
     waitForWritingModel();

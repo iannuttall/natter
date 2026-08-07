@@ -3,6 +3,7 @@ import SwiftUI
 
 struct OverlayView: View {
     @Bindable var store: DictationStore
+    @Bindable var modes: ModeManager
     let onCycleMode: () -> Void
     let onCancel: () -> Void
 
@@ -138,7 +139,7 @@ struct OverlayView: View {
     private func modeButton(font: Font) -> some View {
         Button(action: onCycleMode) {
             HStack(spacing: 3) {
-                Text(store.selectedMode.label)
+                Text(modes.name(for: store.selectedMode))
                     .font(font)
                 Image(systemName: "chevron.right")
                     .font(.system(size: 8, weight: .bold))
@@ -147,7 +148,7 @@ struct OverlayView: View {
         }
         .buttonStyle(.plain)
         .help("Switch mode · press Tab while listening")
-        .accessibilityLabel("Switch from \(store.selectedMode.label) mode")
+        .accessibilityLabel("Switch from \(modes.name(for: store.selectedMode)) mode")
     }
 
     private var footerText: String {
@@ -177,6 +178,7 @@ private struct LiveVoiceMeter: View {
     @State private var bars = Array(repeating: CGFloat.zero, count: 7)
 
     private let releaseProfile: [CGFloat] = [0.62, 0.68, 0.72, 0.76, 0.7, 0.66, 0.6]
+    private let heightProfile: [CGFloat] = [0.44, 0.64, 0.82, 1, 0.86, 0.68, 0.48]
 
     var body: some View {
         HStack(alignment: .center, spacing: 2) {
@@ -199,7 +201,7 @@ private struct LiveVoiceMeter: View {
                 let release = releaseProfile[index]
                 return (previous * release) + (target * (1 - release))
             }
-            withAnimation(.linear(duration: 0.06)) {
+            withAnimation(.interpolatingSpring(stiffness: 300, damping: 20)) {
                 bars = nextBars
             }
         }
@@ -212,12 +214,30 @@ private struct LiveVoiceMeter: View {
     }
 
     private var targets: [CGFloat] {
-        if bands.count == bars.count {
-            return bands.map { CGFloat(min(1, max(0, $0))) }
-        }
         let measured = CGFloat(min(1, max(0, level)))
-        let heightProfile: [CGFloat] = [0.46, 0.72, 0.9, 1, 0.84, 0.64, 0.42]
+        if bands.count == bars.count {
+            let candidates = bands.indices.map { index in
+                let band = CGFloat(min(1, max(0, bands[index])))
+                let independentEnergy = measured * (0.3 + (0.7 * band.squareRoot()))
+                return min(1, independentEnergy * heightProfile[index])
+            }
+            return centreWeighted(candidates, measured: measured)
+        }
         return heightProfile.map { min(1, measured * $0) }
+    }
+
+    private func centreWeighted(_ candidates: [CGFloat], measured: CGFloat) -> [CGFloat] {
+        var shaped = candidates
+        let centre = bars.count / 2
+        shaped[centre] = max(shaped[centre], measured * 0.55)
+
+        for index in stride(from: centre - 1, through: 0, by: -1) {
+            shaped[index] = min(shaped[index], shaped[index + 1] * 0.9)
+        }
+        for index in (centre + 1)..<shaped.count {
+            shaped[index] = min(shaped[index], shaped[index - 1] * 0.9)
+        }
+        return shaped
     }
 }
 
@@ -235,6 +255,7 @@ private struct OverlayCancelButton: View {
             .frame(minWidth: compact ? 22 : nil)
         }
         .buttonStyle(.bordered)
+        .contentShape(Rectangle())
         .controlSize(.small)
         .tint(.red)
         .help("Cancel dictation · double-tap Left Option")

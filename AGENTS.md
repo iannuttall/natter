@@ -7,9 +7,10 @@ AppKit lifecycle/panels and SwiftUI views.
 
 - No account, cloud inference, telemetry, Ollama, Homebrew helper or localhost service.
 - Speech uses one engine: FluidAudio Parakeet Unified 0.6B — a chunked streaming encoder for the live preview and the full-attention offline encoder for the batch-decoded final transcript.
-- Raw buffers by default and types after stop. Agent buffers by default, applies technical formatting after stop and then types visibly; advanced live Agent delivery is optional.
-- Clean performs deterministic filler and repetition cleanup after stop without a model.
-- Agent can use the optional local Qwen 3.5 4B model after stop. Email and Article use the optional Qwen 3.5 9B model.
+- Raw is fixed, untouched Parakeet output and types after stop.
+- Every non-Raw mode shares deterministic cleanup for fillers, repetitions, punctuation and technical terms.
+- Editable modes choose Fast, Refine or Rewrite processing. Fast stops after deterministic cleanup. Refine uses the optional local Qwen 3.5 4B model with guarded output. Rewrite uses the optional local Qwen 3.5 9B model and editable instructions.
+- Agent, Clean, Email and Article are editable presets. Users may hide them or add, reorder and delete custom modes. Advanced live Agent delivery remains optional.
 - Raw text must survive every insertion or transformation failure.
 - Models live under Application Support and are never bundled in the signed app.
 - History, stats, rules and app profiles are local. Do not add telemetry without an explicit product decision and an opt-in design.

@@ -10,16 +10,16 @@ public enum ModelPack: String, CaseIterable, Identifiable, Sendable {
     public var label: String {
         switch self {
         case .speech: "Live speech"
-        case .agentWriting: "Fast Agent cleanup"
-        case .writing: "Long-form writing"
+        case .agentWriting: "Refine output"
+        case .writing: "Rewrite output"
         }
     }
 
     public var detail: String {
         switch self {
         case .speech: "Parakeet Unified 0.6B · required"
-        case .agentWriting: "Qwen 3.5 4B MLX 4-bit · guarded run-on cleanup"
-        case .writing: "Qwen 3.5 9B MLX 4-bit · Email and Article"
+        case .agentWriting: "Qwen 3.5 4B MLX 4-bit · Refine output"
+        case .writing: "Qwen 3.5 9B MLX 4-bit · follows mode instructions"
         }
     }
 

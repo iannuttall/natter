@@ -26,11 +26,11 @@ import Testing
     #expect(instructions.contains("Never translate prose into source code"))
 }
 
-@Test func agentBenchmarkUsesTheProductionPromptAndEnvelope() {
+@Test func cleanBenchmarkUsesTheProductionPromptAndEnvelope() {
     let fixture = WritingFixture(
-        id: "agent",
-        mode: "Agent",
-        instructions: "- Format explicit CLI commands literally.",
+        id: "clean",
+        mode: "Clean",
+        instructions: "- Restore sentence boundaries without rephrasing.",
         transcript: "Run Claude dash P.",
         expected: "Run claude -p.",
         required: [],
@@ -39,9 +39,9 @@ import Testing
 
     #expect(WritingBenchmark.systemInstructions(for: fixture)
         .contains("smallest possible edit"))
-    #expect(WritingBenchmark.prompt(for: fixture).contains("Mode: Agent"))
+    #expect(WritingBenchmark.prompt(for: fixture).contains("Mode: Clean"))
     #expect(WritingBenchmark.prompt(for: fixture)
-        .contains("speech-recognition homophones"))
+        .contains("Restore sentence boundaries"))
     #expect(WritingBenchmark.evaluate(
         fixture: fixture,
         rawOutput: "Run `claude -p`.",
@@ -221,7 +221,7 @@ import Testing
     )
     let prompt = WritingBenchmark.selectiveAgentRewritePrompt(
         transcript: "use Natter for this run on sentence",
-        markdownRules: WritingRules.defaultMarkdown(for: .agent),
+        markdownRules: WritingRules.defaultMarkdown(for: .clean),
         context: context
     )
 
@@ -229,14 +229,10 @@ import Testing
     #expect(!prompt.contains("GitHub"))
     #expect(!prompt.contains("User rules:"))
 
-    let legacyDefaults = """
-    # Agent mode
-    - Make the smallest possible corrections justified by technical context.
-    - Preserve the speaker's request, word order, constraints, profanity and line breaks.
-    """
-    #expect(!WritingRules.agentRulesContainCustomInstructions(legacyDefaults))
-    #expect(WritingRules.agentRulesContainCustomInstructions(
-        legacyDefaults + "\n- Always keep my issue keys uppercase."
+    let cleanDefaults = WritingRules.defaultMarkdown(for: .clean)
+    #expect(!WritingRules.cleanRulesContainCustomInstructions(cleanDefaults))
+    #expect(WritingRules.cleanRulesContainCustomInstructions(
+        cleanDefaults + "\n- Always keep my issue keys uppercase."
     ))
 }
 
@@ -270,6 +266,13 @@ import Testing
     #expect(ContextualTranscriptCorrector.correct(
         "Keep the main actor annotation, inspect app delegate, and confirm the dictation app still has the raw transcript."
     ) == "Keep the @MainActor annotation, inspect AppDelegate, and confirm the dictation app still has the raw transcript.")
+}
+
+@Test func agentTechnicalCorrectionsDoNotApplyCleanModeEdits() {
+    let input = "Open the Gitter repo the result are ready but yeah keep going"
+
+    #expect(ContextualTranscriptCorrector.correctTechnical(input)
+        == "Open the GitHub repo the result are ready but yeah keep going")
 }
 
 @Test func contextualCorrectionsHandleObservedProductAndTechnicalASRErrors() {
@@ -393,7 +396,7 @@ import Testing
     #expect(chunks.allSatisfy { AgentTranscriptChunker.wordCount($0) <= 120 })
 }
 
-@Test func selectiveAgentRewriteSegmentationIsLosslessAndTargetsRunOns() {
+@Test func selectiveAgentRewriteSegmentationIsLosslessAndAlwaysProcessesCleanText() {
     let shortSentence = "This sentence is already fine. "
     let runOn = String(repeating: "unfinished thought ", count: 80)
     let transcript = shortSentence + runOn
@@ -402,8 +405,11 @@ import Testing
 
     #expect(segments.map(\.text).joined() == transcript)
     #expect(segments.count == 2)
-    #expect(segments[0].requiresRewrite == false)
-    #expect(segments[1].requiresRewrite == true)
+    #expect(segments.allSatisfy { $0.requiresRewrite })
+    #expect(segments.allSatisfy {
+        AgentTranscriptChunker.wordCount($0.text)
+            <= AgentRewriteSegmenter.wholeTranscriptMaximumWords
+    })
 }
 
 @Test func selectiveAgentRewriteProcessesShortDictationAsOneUnit() {
@@ -441,6 +447,27 @@ import Testing
         from: "if I say switch the profile",
         in: "If I switch the profile."
     ))
+}
+
+@Test func formattingProjectionKeepsPunctuationButRestoresChangedWords() {
+    let source = "Whatever was enter or send then it would recognize that"
+    let proposed = "Whatever was entered or sent, then it would recognize that."
+
+    #expect(TranscriptFormattingProjection.project(
+        from: source,
+        onto: proposed
+    ) == "Whatever was enter or send, then it would recognize that.")
+}
+
+@Test func formattingProjectionRejectsDroppedAndBroadlyRewrittenContent() {
+    #expect(TranscriptFormattingProjection.project(
+        from: "Keep every original word here",
+        onto: "Keep every word here"
+    ) == nil)
+    #expect(TranscriptFormattingProjection.project(
+        from: "Keep every original word here",
+        onto: "Replace all of this now"
+    ) == nil)
 }
 
 @Test func agentSelfEditPolicyAcceptsOnlyGroundedCueEdits() {
@@ -649,7 +676,7 @@ import Testing
 private func makeFixture() -> WritingFixture {
     WritingFixture(
         id: "test",
-        mode: "clean",
+        mode: "Test",
         instructions: "Fix punctuation only",
         transcript: "hello um world",
         expected: "Hello world.",

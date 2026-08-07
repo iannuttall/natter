@@ -21,10 +21,11 @@ types into the app you were already using.
 Double-tap Right Option and start talking. Natter listens through a local speech model and
 shows the live transcript in a small overlay. Tap Right Option once to stop.
 
-Raw mode shows the live transcript in the overlay, then types it after you stop. Agent mode
-also waits until you stop, fixes technical terms and sentence boundaries, then types the
-finished result. Press Tab while listening to switch mode without moving focus out of the
-text field. Double-tap Left Option to cancel a recording.
+Raw shows Parakeet's untouched transcript in the overlay, then types it after you stop. Every
+other mode shares Natter's deterministic cleanup for fillers, repetitions, punctuation and
+technical terms. Each mode then chooses Fast, Refine or Rewrite processing. Press Tab while
+listening to switch mode without moving focus out of the text field. Double-tap Left Option to
+cancel a recording.
 
 The app is designed for the awkward dictation that ordinary macOS speech tools tend to
 mangle: GitHub, SwiftPM, `--flags`, file paths, version numbers, terminal commands, and names
@@ -41,20 +42,27 @@ Application Support and are never bundled into the app or this repository.
 | Model | Used for | Download |
 |---|---|---:|
 | FluidAudio Parakeet Unified 0.6B | Required live speech | 1.16 GB |
-| Qwen 3.5 4B MLX 4-bit | Optional fast Agent cleanup | 3.03 GB |
-| Qwen 3.5 9B MLX 4-bit | Optional Email and Article rewriting | 5.95 GB |
+| Qwen 3.5 4B MLX 4-bit | Optional Refine processing | 3.03 GB |
+| Qwen 3.5 9B MLX 4-bit | Optional Rewrite processing | 5.95 GB |
 
-Raw and Clean do not need a writing model. Agent also has a deterministic fallback when its
-optional model is missing or rejects an unsafe edit.
+Fast never uses a writing model. Refine falls back to deterministic cleanup when its optional
+4B model is unavailable or rejects an unsafe edit. Rewrite requires the optional 9B model.
 
 ## Dictation modes
 
-- **Raw** types stable speech live with personal corrections.
-- **Agent** keeps the live transcript in the overlay, applies conservative technical cleanup
-  after stop, and types the result visibly.
-- **Clean** removes explicit filler and repeated fragments without a writing model.
-- **Email** turns the transcript into a direct email body after stop.
-- **Article** restructures longer speech into readable prose after stop.
+- **Raw** is fixed. It types the untouched final Parakeet transcript after stop with no
+  corrections, punctuation pass or technical formatting.
+- **Agent** starts as a Fast mode for low-latency technical dictation.
+- **Clean** starts as a Refine mode for guarded punctuation and flow improvements.
+- **Email** and **Article** start as Rewrite modes with instructions suited to each format.
+
+The preset modes can be renamed, reordered, edited or hidden. You can also add your own modes.
+Each editable mode chooses one processing level:
+
+- **Fast** applies shared deterministic cleanup only.
+- **Refine** asks the local 4B model to improve punctuation and flow without changing meaning.
+- **Rewrite** asks the local 9B model to restructure the transcript using that mode's editable
+  instructions.
 
 Every delivery path keeps the original transcript recoverable. If the destination loses
 focus, rejects keyboard events, or a model returns an unsafe rewrite, Natter stores a local

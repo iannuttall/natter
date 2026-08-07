@@ -1,6 +1,14 @@
 import Foundation
 
 public enum WritingRules {
+    public static let customModeMarkdown = """
+    # Custom mode
+
+    - Preserve the speaker's meaning, facts, names, numbers and tone.
+    - Make only the changes requested for this mode.
+    - Never invent details.
+    """
+
     public static let legacyArticleMarkdownV1 = """
     # Article mode
 
@@ -17,15 +25,10 @@ public enum WritingRules {
             """
             # Agent mode
 
-            - Make the smallest possible corrections justified by technical context.
-            - Remove explicit speech fillers and repeated fragments.
-            - Correct clear grammar and sentence-boundary punctuation without rephrasing.
-            - Correct obvious speech-recognition homophones for commands, tools and identifiers.
-            - Format explicit CLI commands, subcommands, flags, paths and code symbols literally.
-            - Lowercase command names and flags only when the command context is unambiguous.
-            - Preserve the speaker's request, word order, constraints, profanity and line breaks.
-            - Do not turn prose into source code, Markdown or a different command.
-            - If a change is uncertain, leave it unchanged.
+            - Keep the result concise and suitable for an AI or coding agent.
+            - Preserve CLI commands, flags, paths, versions and code symbols literally.
+            - Preserve every spoken word, constraint, uncertainty and line break.
+            - Do not make the request more formal or polite.
             """
         case .clean:
             """
@@ -33,6 +36,8 @@ public enum WritingRules {
 
             - Remove filler words such as um, erm, uh and ah.
             - Resolve false starts and repeated fragments.
+            - Restore sentence boundaries and capitalization without rephrasing.
+            - Preserve technical terms, commands, flags, paths and symbols.
             - Keep the speaker's wording, meaning, facts, uncertainty and profanity.
             - Do not make the result more formal or polite.
             """
@@ -59,12 +64,15 @@ public enum WritingRules {
             """
         case .raw:
             ""
+        default:
+            customModeMarkdown
         }
     }
 
     public static func prompt(
         transcript: String,
         mode: DictationMode,
+        modeName: String? = nil,
         markdownRules: String,
         agentContext: AgentWritingContext? = nil
     ) -> String {
@@ -83,7 +91,7 @@ public enum WritingRules {
             contextSection = ""
         }
         return """
-        Mode: \(mode.label)
+        Mode: \(modeName ?? mode.label)
 
         User rules:
         <rules>
@@ -97,8 +105,8 @@ public enum WritingRules {
         """
     }
 
-    public static func agentRulesContainCustomInstructions(_ rules: String) -> Bool {
-        let defaultLines = Set(normalizedInstructionLines(defaultMarkdown(for: .agent)))
+    public static func cleanRulesContainCustomInstructions(_ rules: String) -> Bool {
+        let defaultLines = Set(normalizedInstructionLines(defaultMarkdown(for: .clean)))
         return normalizedInstructionLines(rules).contains { !defaultLines.contains($0) }
     }
 
@@ -148,11 +156,12 @@ public enum DeterministicTranscriptCleaner {
     public static func removeFillers(from transcript: String) -> String {
         var result = transcript
         let patterns = [
+            #"(?i)\b(that|because|if|when|while|although|unless|since),\s*(?:uhm+|um+|erm+|uh+|ah+|eh+|hmm+)\b[,.]?\s*"#,
             #"(?i)(?<![\p{L}\p{N}_])(?:uhm+|um+|erm+|uh+|ah+|eh+|hmm+)(?:[,.]?\s+|[,.]?$)"#,
             #"\s+([,.;:!?])"#,
             #"[ \t]{2,}"#
         ]
-        let replacements = ["", "$1", " "]
+        let replacements = ["$1 ", "", "$1", " "]
         for (pattern, replacement) in zip(patterns, replacements) {
             result = result.replacingOccurrences(
                 of: pattern,
@@ -213,11 +222,41 @@ public enum DeterministicTranscriptCleaner {
                 guard separator.allSatisfy({ $0.isWhitespace || $0 == "," }) else {
                     continue
                 }
+                if length == 1 {
+                    let word = firstWords[0]
+                    if preservesIntentionalRepeat(word)
+                        || (separator.contains(",")
+                            && !repeatableFunctionWords.contains(word)) {
+                        continue
+                    }
+                }
 
-                return tokens[start].range.lowerBound ..< tokens[secondStart].range.lowerBound
+                return tokens[secondStart - 1].range.upperBound
+                    ..< tokens[secondStart + length - 1].range.upperBound
             }
         }
         return nil
+    }
+
+    private static let intentionalRepeatWords: Set<String> = [
+        "absolutely", "again", "always", "bye", "definitely", "exactly", "far",
+        "go", "good", "great", "had", "hard", "here", "more", "much", "must",
+        "never", "next", "no", "now", "oh", "okay", "please", "really", "right",
+        "so", "stop", "sure", "that", "there", "too", "very", "wait", "way",
+        "well", "wow", "yeah", "yes"
+    ]
+
+    private static let repeatableFunctionWords: Set<String> = [
+        "a", "although", "an", "and", "are", "at", "be", "because", "but",
+        "can", "could", "did", "do", "does", "for", "has", "have", "he", "her",
+        "his", "i", "if", "in", "is", "it", "my", "of", "on", "or", "our",
+        "she", "should", "the", "their", "they", "to", "unless", "was", "we",
+        "were", "when", "while", "will", "with", "would", "you", "your"
+    ]
+
+    private static func preservesIntentionalRepeat(_ word: String) -> Bool {
+        intentionalRepeatWords.contains(word)
+            || word.unicodeScalars.allSatisfy(CharacterSet.decimalDigits.contains)
     }
 
     private struct Token {

@@ -160,6 +160,12 @@ final class FocusedTextInserter {
         )
     }
 
+    func submit(in target: FocusedTextTarget) async throws {
+        try await Task.sleep(for: .milliseconds(40))
+        _ = try validate(target)
+        try eventPoster.postReturn()
+    }
+
     private func validate(_ target: FocusedTextTarget) throws -> AXUIElement? {
         let systemFocusedElement = try? copyFocusedElement(
             from: AXUIElementCreateSystemWide()

@@ -1,6 +1,10 @@
 import AppKit
 import SwiftUI
 
+private final class OverlayHostingView<Content: View>: NSHostingView<Content> {
+    override func acceptsFirstMouse(for event: NSEvent?) -> Bool { true }
+}
+
 @MainActor
 final class OverlayPanelController {
     var onCancel: (() -> Void)?
@@ -9,7 +13,7 @@ final class OverlayPanelController {
     private let store: DictationStore
     private let frameAutosaveName = "DictationOverlayFrame"
 
-    init(store: DictationStore) {
+    init(store: DictationStore, modes: ModeManager) {
         self.store = store
         panel = NSPanel(
             contentRect: NSRect(x: 0, y: 0, width: 440, height: 166),
@@ -17,10 +21,14 @@ final class OverlayPanelController {
             backing: .buffered,
             defer: false
         )
-        panel.contentView = NSHostingView(rootView: OverlayView(
+        panel.contentView = OverlayHostingView(rootView: OverlayView(
             store: store,
+            modes: modes,
             onCycleMode: { [weak self] in self?.onCycleMode?() },
-            onCancel: { [weak self] in self?.onCancel?() }
+            onCancel: { [weak self] in
+                NatterLog.app.notice("overlay cancel clicked")
+                self?.onCancel?()
+            }
         ))
         panel.isOpaque = false
         panel.backgroundColor = .clear
@@ -28,7 +36,7 @@ final class OverlayPanelController {
         panel.level = .floating
         panel.hidesOnDeactivate = false
         panel.ignoresMouseEvents = false
-        panel.isMovableByWindowBackground = true
+        panel.isMovableByWindowBackground = false
         panel.setFrameAutosaveName(frameAutosaveName)
         panel.collectionBehavior = [.canJoinAllSpaces, .fullScreenAuxiliary, .transient]
     }

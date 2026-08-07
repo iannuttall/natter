@@ -19,7 +19,7 @@ actor WritingEngine {
     private var inferenceWaiters: [CheckedContinuation<Void, Never>] = []
 
     /// With enough unified memory both Qwen packs stay resident; alternating
-    /// Agent and Email otherwise reloads 3–6 GB from disk inside the
+    /// Clean and Email otherwise reload 3–6 GB from disk inside the
     /// user-visible stop path. Below that, keep the old single-slot behavior.
     private static let maximumResidentContainers =
         ProcessInfo.processInfo.physicalMemory >= 24 * 1_073_741_824 ? 2 : 1
@@ -29,12 +29,12 @@ actor WritingEngine {
         let hostTokenizer: any MLXLMCommon.Tokenizer
     }
 
-    func warmAgent(modelDirectory: URL) async {
+    func warmRefine(modelDirectory: URL) async {
         let startedAt = ProcessInfo.processInfo.systemUptime
         _ = try? await transform(
             transcript: "No changes are needed.",
-            mode: .agent,
-            markdownRules: WritingRules.defaultMarkdown(for: .agent),
+            mode: .clean,
+            markdownRules: WritingRules.defaultMarkdown(for: .clean),
             modelDirectory: nil,
             agentModelDirectory: modelDirectory,
             agentContext: AgentWritingContext.production(
@@ -44,7 +44,7 @@ actor WritingEngine {
         )
         let milliseconds = (ProcessInfo.processInfo.systemUptime - startedAt) * 1_000
         NatterLog.model.notice(
-            "fast Agent model warm elapsed_ms=\(String(format: "%.1f", milliseconds), privacy: .public)"
+            "Refine model warm elapsed_ms=\(String(format: "%.1f", milliseconds), privacy: .public)"
         )
     }
 
@@ -132,6 +132,8 @@ actor WritingEngine {
     func transform(
         transcript: String,
         mode: DictationMode,
+        modeName: String? = nil,
+        processing: ModeProcessing? = nil,
         markdownRules: String,
         modelDirectory: URL?,
         agentModelDirectory: URL? = nil,
@@ -139,8 +141,15 @@ actor WritingEngine {
     ) async throws -> String {
         await acquireInference()
         defer { releaseInference() }
-        let deterministicInput = DeterministicTranscriptCleaner.clean(transcript)
-        if mode == .agent {
+        if mode == .raw { return transcript }
+        let selectedProcessing = processing ?? mode.defaultProcessing
+        let deterministicInput = ContextualTranscriptCorrector.correctTechnical(
+            DeterministicTranscriptCleaner.clean(transcript),
+            context: agentContext
+        )
+        if selectedProcessing == .fast { return deterministicInput }
+
+        if selectedProcessing == .refine {
             let correctedInput = ContextualTranscriptCorrector.correct(
                 deterministicInput,
                 context: agentContext
@@ -156,7 +165,7 @@ actor WritingEngine {
                 )
             } catch {
                 NatterLog.model.error(
-                    "Agent cleanup failed; using safe input error=\(error.localizedDescription, privacy: .public)"
+                    "Refine failed; using deterministic output error=\(error.localizedDescription, privacy: .public)"
                 )
                 return correctedInput
             }
@@ -178,6 +187,7 @@ actor WritingEngine {
             to: WritingRules.prompt(
                 transcript: deterministicInput,
                 mode: mode,
+                modeName: modeName,
                 markdownRules: markdownRules
             )
         )
@@ -215,7 +225,7 @@ actor WritingEngine {
             proposedOutput: WritingBenchmark.cleanEnvelope(response)
         ) else {
             NatterLog.model.notice(
-                "Agent self-edit discarded an unsafe response"
+                "Refine self-edit discarded an unsafe response"
             )
             return transcript
         }
@@ -276,27 +286,46 @@ actor WritingEngine {
                     cleaned,
                     markdownRules: markdownRules
                 )
-                let wordingHolds = removesFalseStarts
+                let initialWordingHolds = removesFalseStarts
                     ? TranscriptWordingGuard.allowsOnlyDeletions(from: body, in: rewritten)
                     : TranscriptWordingGuard.preservesWords(from: body, in: rewritten)
-                guard !rewritten.isEmpty,
+                let safeRewrite = if initialWordingHolds || removesFalseStarts {
+                    rewritten
+                } else {
+                    TranscriptFormattingProjection.project(from: body, onto: rewritten)
+                        ?? rewritten
+                }
+                let wordingHolds = removesFalseStarts
+                    ? TranscriptWordingGuard.allowsOnlyDeletions(from: body, in: safeRewrite)
+                    : TranscriptWordingGuard.preservesWords(from: body, in: safeRewrite)
+                let factsHold = TranscriptFactGuard.preservesFacts(
+                    from: body,
+                    in: safeRewrite
+                )
+                let terminologyHolds = TranscriptTerminologyGuard.preserves(
+                    context.protectedSpellings,
+                    from: body,
+                    in: safeRewrite
+                )
+                guard !safeRewrite.isEmpty,
                       wordingHolds,
-                      TranscriptFactGuard.preservesFacts(from: body, in: rewritten),
-                      TranscriptTerminologyGuard.preserves(
-                        context.protectedSpellings,
-                        from: body,
-                        in: rewritten
-                      ) else {
+                      factsHold,
+                      terminologyHolds else {
                     NatterLog.model.error(
-                        "selective Agent segment rejected; preserving safe segment words=\(AgentTranscriptChunker.wordCount(body), privacy: .public)"
+                        "Refine segment rejected; preserving deterministic output words=\(AgentTranscriptChunker.wordCount(body), privacy: .public) wording=\(wordingHolds, privacy: .public) facts=\(factsHold, privacy: .public) terminology=\(terminologyHolds, privacy: .public)"
                     )
                     output += segment.text
                     continue
                 }
-                output += leading + rewritten + trailing
+                if !initialWordingHolds, safeRewrite != rewritten {
+                    NatterLog.model.notice(
+                        "Refine segment projected onto source words words=\(AgentTranscriptChunker.wordCount(body), privacy: .public)"
+                    )
+                }
+                output += leading + safeRewrite + trailing
             } catch {
                 NatterLog.model.error(
-                    "selective Agent segment failed; preserving safe segment words=\(AgentTranscriptChunker.wordCount(body), privacy: .public) error=\(error.localizedDescription, privacy: .public)"
+                    "Refine segment failed; preserving deterministic output words=\(AgentTranscriptChunker.wordCount(body), privacy: .public) error=\(error.localizedDescription, privacy: .public)"
                 )
                 output += segment.text
             }

@@ -116,13 +116,116 @@ public enum ContextualTranscriptCorrector {
         _ transcript: String,
         context: AgentWritingContext
     ) -> String {
+        correct(applyingAuthoritativeTerminology(to: transcript, context: context))
+    }
+
+    public static func correctTechnical(
+        _ transcript: String,
+        context: AgentWritingContext
+    ) -> String {
+        correctTechnical(applyingAuthoritativeTerminology(to: transcript, context: context))
+    }
+
+    public static func correctTechnical(_ transcript: String) -> String {
+        var result = transcript
+        if result.range(
+            of: #"(?i)\b(?:dictation|transcription|shortcut|mode picker|local model)\b"#,
+            options: .regularExpression
+        ) != nil {
+            result = replacingMatches(
+                in: result,
+                pattern: #"(?i)(?<![\p{L}\p{N}_])monologues?(?![\p{L}\p{N}_])"#,
+                with: "Monologue"
+            )
+        }
+        if result.range(
+            of: #"(?i)\b(?:keyboard|shortcut|tab|escape|shift|dictat(?:e|ing|ion))\b"#,
+            options: .regularExpression
+        ) != nil {
+            result = replacingMatches(
+                in: result,
+                pattern: #"(?i)(?<![\p{L}\p{N}_])(?:right|write)\s+shift(?![\p{L}\p{N}_])"#,
+                with: "Right Shift"
+            )
+            result = replacingMatches(
+                in: result,
+                pattern: #"(?i)(?<![\p{L}\p{N}_])command\s+shift\s+(?:and|plus)\s+v(?![\p{L}\p{N}_])"#,
+                with: "Command-Shift-V"
+            )
+        }
+        if result.range(
+            of: #"(?i)(?<![\p{L}\p{N}_])tori{1,2}\s+app\b"#,
+            options: .regularExpression
+        ) != nil {
+            result = replacingMatches(
+                in: result,
+                pattern: #"(?i)(?<![\p{L}\p{N}_])tori{1,2}(?![\p{L}\p{N}_])"#,
+                with: "Tauri"
+            )
+        }
+        result = replacingMatches(
+            in: result,
+            pattern: #"(?i)(?<![\p{L}\p{N}_])(?:href\s*,?\s*lang|hrf\s+lang)(?![\p{L}\p{N}_])"#,
+            with: "hreflang"
+        )
+        result = replacingMatches(
+            in: result,
+            pattern: #"(?i)(?<![\p{L}\p{N}_])search\s+console(?![\p{L}\p{N}_])"#,
+            with: "Search Console"
+        )
+        result = replacingMatches(
+            in: result,
+            pattern: #"(?i)(?<=\brepo\s)readme(?![\p{L}\p{N}_])"#,
+            with: "README"
+        )
+        let technicalPhrases: [(String, String)] = [
+            (#"(?i)(?<![\p{L}\p{N}_])text\s+to\s+speech(?![\p{L}\p{N}_])"#, "text-to-speech"),
+            (#"(?i)(?<![\p{L}\p{N}_])mit\s+licensed(?![\p{L}\p{N}_])"#, "MIT-licensed"),
+            (#"(?i)(?<![\p{L}\p{N}_])local\s+only(?=\s+(?:model|mac|app|processing|inference)\b)"#, "local-only"),
+            (#"(?i)(?<![\p{L}\p{N}_])mac\s+native(?=\s+(?:swift|app|code)\b)"#, "Mac-native"),
+            (#"(?i)(?<![\p{L}\p{N}_])markdown(?=\s+files?\b)"#, "Markdown")
+        ]
+        for (pattern, replacement) in technicalPhrases {
+            result = replacingMatches(in: result, pattern: pattern, with: replacement)
+        }
+        result = replacingMatches(
+            in: result,
+            pattern: #"(?i)(?<![\p{L}\p{N}_])gitter(?=\s+(?:repo(?:sitory|s|sitories)?|commit|branch|pull request|issue)\b)"#,
+            with: "GitHub"
+        )
+        result = replacingMatches(
+            in: result,
+            pattern: #"(?i)(?<![\p{L}\p{N}_])scroll\s+restoration(?=\s*:\s*(?:true|false)\b)"#,
+            with: "scrollRestoration"
+        )
+        result = replacingMatches(
+            in: result,
+            pattern: #"(?i)(?<![\p{L}\p{N}_])main\s+actor(?=\s+annotation\b)"#,
+            with: "@MainActor"
+        )
+        if result.range(
+            of: #"(?i)(?:\b(?:swift|launch|application\s+delegate|repository|dictation\s+app)\b|@mainactor)"#,
+            options: .regularExpression
+        ) != nil {
+            result = replacingMatches(
+                in: result,
+                pattern: #"(?i)(?<![\p{L}\p{N}_])app\s+delegate(?![\p{L}\p{N}_])"#,
+                with: "AppDelegate"
+            )
+        }
+        return replacingNatterVariantsWhenSelfReferential(in: result)
+    }
+
+    private static func applyingAuthoritativeTerminology(
+        to transcript: String,
+        context: AgentWritingContext
+    ) -> String {
         let authoritativeTerms = context.terminology.filter { $0.authoritative == true }
-        let corrected = authoritativeTerms.reduce(transcript) { result, term in
+        return authoritativeTerms.reduce(transcript) { result, term in
             term.variants.reduce(result) { variantResult, variant in
                 replaceExactPhrase(variant, with: term.preferred, in: variantResult)
             }
         }
-        return correct(corrected)
     }
 
     public static func correct(_ transcript: String) -> String {
@@ -901,59 +1004,15 @@ public struct AgentRewriteSegment: Equatable, Sendable {
 
 public enum AgentRewriteSegmenter {
     public static let wholeTranscriptMaximumWords = 150
-    public static let runOnMinimumWords = 45
-    public static let runOnMaximumWords = 180
 
     public static func segments(_ transcript: String) -> [AgentRewriteSegment] {
         guard !transcript.isEmpty else {
             return [AgentRewriteSegment(text: transcript, requiresRewrite: false)]
         }
-        if AgentTranscriptChunker.wordCount(transcript) <= wholeTranscriptMaximumWords {
-            return [AgentRewriteSegment(text: transcript, requiresRewrite: true)]
-        }
-
-        var result: [AgentRewriteSegment] = []
-        var segmentStart = transcript.startIndex
-        var index = transcript.startIndex
-        while index < transcript.endIndex {
-            let character = transcript[index]
-            let next = transcript.index(after: index)
-            let isSentenceEnd = ".?!".contains(character)
-                && (next == transcript.endIndex || transcript[next].isWhitespace)
-            if isSentenceEnd {
-                var end = next
-                while end < transcript.endIndex, transcript[end].isWhitespace {
-                    end = transcript.index(after: end)
-                }
-                appendSegment(String(transcript[segmentStart..<end]), to: &result)
-                segmentStart = end
-                index = end
-            } else {
-                index = next
-            }
-        }
-        if segmentStart < transcript.endIndex {
-            appendSegment(String(transcript[segmentStart...]), to: &result)
-        }
-        return result
-    }
-
-    private static func appendSegment(
-        _ text: String,
-        to result: inout [AgentRewriteSegment]
-    ) {
-        guard !text.isEmpty else { return }
-        if AgentTranscriptChunker.wordCount(text) > runOnMaximumWords {
-            result += AgentTranscriptChunker.chunks(
-                text,
-                maximumWords: runOnMaximumWords
-            ).map { AgentRewriteSegment(text: $0, requiresRewrite: true) }
-            return
-        }
-        result.append(AgentRewriteSegment(
-            text: text,
-            requiresRewrite: AgentTranscriptChunker.wordCount(text) >= runOnMinimumWords
-        ))
+        return AgentTranscriptChunker.chunks(
+            transcript,
+            maximumWords: wholeTranscriptMaximumWords
+        ).map { AgentRewriteSegment(text: $0, requiresRewrite: true) }
     }
 }
 
@@ -1046,6 +1105,71 @@ public enum TranscriptWordingGuard {
             guard matched else { return false }
         }
         return true
+    }
+}
+
+public enum TranscriptFormattingProjection {
+    /// Salvages punctuation and case from a mostly grounded model response
+    /// while restoring every source word. This lets the safety guard keep a
+    /// useful formatting pass when a small model inflects one or two words.
+    public static func project(from source: String, onto proposed: String) -> String? {
+        let sourceTokens = tokens(in: source)
+        let proposedTokens = tokens(in: proposed)
+        guard !sourceTokens.isEmpty, sourceTokens.count == proposedTokens.count else {
+            return nil
+        }
+
+        let matching = zip(sourceTokens, proposedTokens).filter {
+            $0.normalized == $1.normalized
+        }.count
+        guard Double(matching) / Double(sourceTokens.count) >= 0.8 else { return nil }
+
+        var output = ""
+        var cursor = proposed.startIndex
+        for (sourceToken, proposedToken) in zip(sourceTokens, proposedTokens) {
+            output += proposed[cursor..<proposedToken.range.lowerBound]
+            output += sourceToken.normalized == proposedToken.normalized
+                ? proposed[proposedToken.range]
+                : source[sourceToken.range]
+            cursor = proposedToken.range.upperBound
+        }
+        output += proposed[cursor...]
+        return output
+    }
+
+    private struct Token {
+        let range: Range<String.Index>
+        let normalized: String
+    }
+
+    private static func tokens(in text: String) -> [Token] {
+        var result: [Token] = []
+        var wordStart: String.Index?
+        var index = text.startIndex
+
+        func appendToken(endingAt end: String.Index) {
+            guard let start = wordStart else { return }
+            let range = start..<end
+            let normalized = WritingBenchmark.normalizedWords(String(text[range]))
+                .first ?? ""
+            if !normalized.isEmpty {
+                result.append(Token(range: range, normalized: normalized))
+            }
+            wordStart = nil
+        }
+
+        while index < text.endIndex {
+            let character = text[index]
+            if character.isLetter || character.isNumber
+                || character == "'" || character == "’" {
+                wordStart = wordStart ?? index
+            } else {
+                appendToken(endingAt: index)
+            }
+            index = text.index(after: index)
+        }
+        appendToken(endingAt: text.endIndex)
+        return result
     }
 }
 
