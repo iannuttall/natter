@@ -46,7 +46,7 @@ jobs:
 
       - name: Verify the app launches
         run: |
-          dist/Natter.app/Contents/MacOS/dictation & PID=$!
+          dist/Natter.app/Contents/MacOS/Natter & PID=$!
           sleep 6
           if kill -0 $PID 2>/dev/null; then
             kill $PID

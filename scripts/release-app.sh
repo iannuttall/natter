@@ -8,7 +8,7 @@ build_number="${BUILD_NUMBER:-}"
 notary_profile="${NOTARY_PROFILE:-}"
 sign_identity="${SIGN_IDENTITY:-}"
 app_name="${APP_NAME:-Natter}"
-executable_name="${EXECUTABLE_NAME:-dictation}"
+executable_name="${EXECUTABLE_NAME:-Natter}"
 
 if [[ -z "$version" || -z "$build_number" || -z "$sign_identity" ]]; then
     echo "Usage: VERSION=1.0.0 BUILD_NUMBER=1 SIGN_IDENTITY='Developer ID Application: Name (TEAMID)' [NOTARY_PROFILE=name] ./scripts/release-app.sh" >&2
@@ -21,6 +21,7 @@ VERSION="$version" \
 BUILD_NUMBER="$build_number" \
 SIGN_IDENTITY="$sign_identity" \
 APP_NAME="$app_name" \
+EXECUTABLE_NAME="$executable_name" \
 ./scripts/build-app.sh
 
 app_path="$repo_dir/dist/$app_name.app"

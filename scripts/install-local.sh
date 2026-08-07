@@ -4,16 +4,17 @@ set -euo pipefail
 
 repo_dir="${0:A:h:h}"
 app_name="${APP_NAME:-Natter}"
-executable_name="${EXECUTABLE_NAME:-dictation}"
+executable_name="${EXECUTABLE_NAME:-Natter}"
 source_app="$repo_dir/dist/$app_name.app"
 install_dir="${INSTALL_DIR:-$HOME/Applications}"
 installed_app="$install_dir/$app_name.app"
 enable_login="${ENABLE_LOGIN:-1}"
 
-"$repo_dir/scripts/build-app.sh"
+EXECUTABLE_NAME="$executable_name" "$repo_dir/scripts/build-app.sh"
 mkdir -p "$install_dir"
 
 pkill -f "$installed_app/Contents/MacOS/$executable_name" 2>/dev/null || true
+pkill -f "$installed_app/Contents/MacOS/dictation" 2>/dev/null || true
 if [[ -e "$installed_app" ]]; then
     case "$installed_app" in
         "$install_dir/$app_name.app") rm -r "$installed_app" ;;

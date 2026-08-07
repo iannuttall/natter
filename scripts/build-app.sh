@@ -5,7 +5,7 @@ set -euo pipefail
 repo_dir="${0:A:h:h}"
 configuration="${CONFIGURATION:-release}"
 app_name="${APP_NAME:-Natter}"
-executable_name="${EXECUTABLE_NAME:-dictation}"
+executable_name="${EXECUTABLE_NAME:-Natter}"
 bundle_id="${BUNDLE_ID:-is.ian.natter}"
 version="${VERSION:-0.1.0}"
 build_number="${BUILD_NUMBER:-1}"
@@ -30,7 +30,7 @@ products_dir="$repo_dir/.xcode-build/Build/Products/$configuration_name"
 
 xcodebuild build \
     -quiet \
-    -scheme dictation \
+    -scheme Natter \
     -destination 'platform=macOS,arch=arm64' \
     -configuration "$configuration_name" \
     -derivedDataPath .xcode-build \

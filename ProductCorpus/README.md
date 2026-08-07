@@ -27,7 +27,7 @@ Nothing is uploaded. The server is bound to `127.0.0.1`, accepts only its own br
 Run the deterministic benchmark with:
 
 ```sh
-swift run dictation-formatting-bench --fixtures ProductCorpus/formatting-fixtures.json
+swift run natter-formatting-bench --fixtures ProductCorpus/formatting-fixtures.json
 ```
 
 The deterministic layer shared by every non-Raw mode handles explicit grammar such as spoken versions, decimals, percentages, paths and flags. Identifier casing, date style, unit abbreviations and similar context-dependent choices stay literal until a personal rule or Refine's guarded model pass has enough context to change them.
