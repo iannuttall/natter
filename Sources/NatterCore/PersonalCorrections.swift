@@ -339,8 +339,11 @@ public enum SpokenCorrectionCommand {
     the exact text that was heard incorrectly. Copy `heard` exactly from that transcript, excluding
     unrelated surrounding words. Set `replacement` to the spelling or phrase the speaker requests.
     Speech recognition may collapse a distinction inside the command itself, so use its meaning and
-    any explicit spelling together with the previous transcript. Never invent a correction. If the
-    request is not clearly a correction, set isCorrection to false and both strings to empty.
+    any explicit spelling together with the previous transcript. A letter-by-letter spelling gives
+    the letters and their order; it does not mean the replacement should be uppercase. Obey explicit
+    `lowercase`, `uppercase`, `all caps`, `title case`, and `sentence case` instructions. Never
+    invent a correction. If the request is not clearly a correction, set isCorrection to false and
+    both strings to empty.
 
     Example: previous transcript `I spoke to port man yesterday`; command `Hey Nata, you just
     transcribed it as Portman, but what I said was Portman Portman. Add that to my rules.`; output
@@ -354,6 +357,11 @@ public enum SpokenCorrectionCommand {
     Example: there is no previous transcript; command `Hey Nata, add a rule to my profile to change
     en to en an`; output `{"isCorrection":true,"heard":"en","replacement":"ian"}`. In this common
     speech-recognition error, `en an` is a mangled letter-by-letter spelling of the name Ian.
+
+    Example: previous transcript `Ask port man tomorrow`; command `Hey Natter, change port man to
+    p-o-r-t-m-a-n, title case, and add it to my rules`; output
+    `{"isCorrection":true,"heard":"port man","replacement":"Portman"}`. The uppercase letters
+    produced by speech recognition do not override the requested title case.
     """
 
     public static let jsonSchema = #"{"type":"object","properties":{"isCorrection":{"type":"boolean"},"heard":{"type":"string"},"replacement":{"type":"string"}},"required":["isCorrection","heard","replacement"],"additionalProperties":false}"#
@@ -370,10 +378,13 @@ public enum SpokenCorrectionCommand {
 
     public static func looksLikeRuleRequest(_ transcript: String) -> Bool {
         let words = Set(normalizedWakeText(transcript).split(separator: " ").map(String.init))
-        return (words.contains("rule") || words.contains("rules"))
-            && ["add", "remember", "correct", "correction", "transcribed"].contains {
-                words.contains($0)
-            }
+        let hasDestination = [
+            "rule", "rules", "dictionary", "dictionaries", "vocabulary", "word", "words"
+        ].contains { words.contains($0) }
+        let hasAction = [
+            "add", "remember", "change", "correct", "correction", "replace", "transcribed"
+        ].contains { words.contains($0) }
+        return hasDestination && hasAction
     }
 
     public static func canonicalizingWakeWord(
@@ -414,10 +425,18 @@ public enum SpokenCorrectionCommand {
         previousTranscript: String
     ) -> PersonalCorrection? {
         let heard = extraction.heard.trimmingCharacters(in: .whitespacesAndNewlines)
-        let replacement = extraction.replacement.trimmingCharacters(in: .whitespacesAndNewlines)
+        let extractedReplacement = extraction.replacement
+            .trimmingCharacters(in: .whitespacesAndNewlines)
         guard extraction.isCorrection,
               !heard.isEmpty,
-              !replacement.isEmpty,
+              !extractedReplacement.isEmpty else {
+            return nil
+        }
+        let replacement = resolvedReplacement(
+            extractedReplacement,
+            command: command
+        )
+        guard !replacement.isEmpty,
               heard != replacement else {
             return nil
         }
@@ -427,6 +446,86 @@ public enum SpokenCorrectionCommand {
             return nil
         }
         return correction
+    }
+
+    private enum RequestedCase {
+        case lowercase
+        case uppercase
+        case title
+        case sentence
+    }
+
+    private static let caseDirectiveRegex = try? NSRegularExpression(
+        pattern: #"(?i)\b(?:lower[\s-]*case|upper[\s-]*case|all[\s-]+caps|title[\s-]*case|sentence[\s-]*case|capitali[sz]ed)\b"#
+    )
+
+    private static func resolvedReplacement(_ replacement: String, command: String) -> String {
+        let collapsed = collapsedSpelledReplacement(replacement)
+        guard let requestedCase = requestedCase(in: command) else { return collapsed }
+
+        switch requestedCase {
+        case .lowercase:
+            return collapsed.lowercased()
+        case .uppercase:
+            return collapsed.uppercased()
+        case .title:
+            return titleCased(collapsed)
+        case .sentence:
+            return initialCased(collapsed)
+        }
+    }
+
+    private static func collapsedSpelledReplacement(_ replacement: String) -> String {
+        let pieces = replacement.split { character in
+            character.isWhitespace || character == "-"
+        }
+        guard pieces.count >= 3,
+              pieces.allSatisfy({ $0.count == 1 && $0.first?.isLetter == true }) else {
+            return replacement
+        }
+        return pieces.joined()
+    }
+
+    private static func requestedCase(in command: String) -> RequestedCase? {
+        guard let caseDirectiveRegex else { return nil }
+        let range = NSRange(command.startIndex..., in: command)
+        guard let match = caseDirectiveRegex.matches(in: command, range: range).last,
+              let matchRange = Range(match.range, in: command) else {
+            return nil
+        }
+        let directive = command[matchRange]
+            .lowercased()
+            .filter(\.isLetter)
+        if directive == "lowercase" { return .lowercase }
+        if directive == "uppercase" || directive == "allcaps" { return .uppercase }
+        if directive == "titlecase" { return .title }
+        return .sentence
+    }
+
+    private static func initialCased(_ text: String) -> String {
+        let lowered = text.lowercased()
+        guard let firstLetter = lowered.firstIndex(where: \.isLetter) else { return lowered }
+        var result = lowered
+        result.replaceSubrange(
+            firstLetter...firstLetter,
+            with: String(lowered[firstLetter]).uppercased()
+        )
+        return result
+    }
+
+    private static func titleCased(_ text: String) -> String {
+        var result = ""
+        var startsWord = true
+        for character in text.lowercased() {
+            if character.isLetter {
+                result += startsWord ? String(character).uppercased() : String(character)
+                startsWord = false
+            } else {
+                result.append(character)
+                startsWord = character.isWhitespace || character == "-"
+            }
+        }
+        return result
     }
 
     private static let separatorRegex = try? NSRegularExpression(pattern: #"[^\p{L}\p{N}]+"#)
