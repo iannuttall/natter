@@ -263,7 +263,10 @@ private struct OnboardingView: View {
                     symbol: "record.circle"
                 )
                 feature("Tap once to stop", symbol: "stop.circle")
-                feature("Press Tab while listening to switch mode", symbol: "arrow.triangle.2.circlepath")
+                feature(
+                    "Press Command-Shift-M while listening to switch mode",
+                    symbol: "arrow.triangle.2.circlepath"
+                )
                 feature("Double-tap Left Option to cancel", symbol: "xmark.circle")
             }
             Spacer()

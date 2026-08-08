@@ -10,12 +10,17 @@ private struct ModifierFlagsEvent: Sendable {
 
 private final class HotKeyEventSink: @unchecked Sendable {
     let eventHandler: @Sendable (ModifierFlagsEvent) -> Void
-    let modeCycleHandler: @MainActor (_ isKeyDown: Bool, _ isRepeat: Bool) -> Bool
+    let modeCycleHandler: @MainActor (
+        _ modifierFlagsRawValue: UInt64,
+        _ isKeyDown: Bool,
+        _ isRepeat: Bool
+    ) -> Bool
     let disabledHandler: @Sendable () -> Void
 
     init(
         eventHandler: @escaping @Sendable (ModifierFlagsEvent) -> Void,
         modeCycleHandler: @escaping @MainActor (
+            _ modifierFlagsRawValue: UInt64,
             _ isKeyDown: Bool,
             _ isRepeat: Bool
         ) -> Bool,
@@ -42,12 +47,14 @@ private func modifierEventTapCallback(
     }
 
     if type == .keyDown || type == .keyUp,
-       event.getIntegerValueField(.keyboardEventKeycode) == 48,
+       event.getIntegerValueField(.keyboardEventKeycode)
+        == Int64(DictationShortcut.defaultModeCycle.keyCode),
        Thread.isMainThread {
         let isKeyDown = type == .keyDown
         let isRepeat = event.getIntegerValueField(.keyboardEventAutorepeat) != 0
+        let modifierFlagsRawValue = event.flags.rawValue
         let shouldSuppress = MainActor.assumeIsolated {
-            sink.modeCycleHandler(isKeyDown, isRepeat)
+            sink.modeCycleHandler(modifierFlagsRawValue, isKeyDown, isRepeat)
         }
         return shouldSuppress ? nil : Unmanaged.passUnretained(event)
     }
@@ -130,8 +137,12 @@ final class ModifierHotKeyMonitor {
             eventHandler: { [weak self] event in
                 DispatchQueue.main.async { self?.handle(event) }
             },
-            modeCycleHandler: { [weak self] isKeyDown, isRepeat in
-                self?.handleModeCycleKey(isKeyDown: isKeyDown, isRepeat: isRepeat) ?? false
+            modeCycleHandler: { [weak self] modifierFlagsRawValue, isKeyDown, isRepeat in
+                self?.handleModeCycleKey(
+                    modifierFlagsRawValue: modifierFlagsRawValue,
+                    isKeyDown: isKeyDown,
+                    isRepeat: isRepeat
+                ) ?? false
             },
             disabledHandler: { [weak self] in
                 DispatchQueue.main.async { self?.keepEventTapAlive(reason: "disabled") }
@@ -280,13 +291,25 @@ final class ModifierHotKeyMonitor {
         lastHandledEvent = nil
     }
 
-    private func handleModeCycleKey(isKeyDown: Bool, isRepeat: Bool) -> Bool {
+    private func handleModeCycleKey(
+        modifierFlagsRawValue: UInt64,
+        isKeyDown: Bool,
+        isRepeat: Bool
+    ) -> Bool {
         if !isKeyDown {
             defer { suppressingModeCycleKey = false }
             return suppressingModeCycleKey
         }
 
-        guard store.phase == .listening else { return false }
+        guard store.phase == .listening,
+              DictationShortcut.defaultModeCycle.matches(
+                keyCode: DictationShortcut.defaultModeCycle.keyCode,
+                modifiers: DictationShortcutModifiers(
+                    cgEventFlags: CGEventFlags(rawValue: modifierFlagsRawValue)
+                )
+              ) else {
+            return false
+        }
         suppressingModeCycleKey = true
         if !isRepeat { actionHandler(.cycleMode) }
         return true
@@ -355,6 +378,18 @@ final class ModifierHotKeyMonitor {
             startTriggeredForPress = action == .start
             actionHandler(action)
         }
+    }
+}
+
+private extension DictationShortcutModifiers {
+    init(cgEventFlags flags: CGEventFlags) {
+        var modifiers: DictationShortcutModifiers = []
+        if flags.contains(.maskCommand) { modifiers.insert(.command) }
+        if flags.contains(.maskShift) { modifiers.insert(.shift) }
+        if flags.contains(.maskAlternate) { modifiers.insert(.option) }
+        if flags.contains(.maskControl) { modifiers.insert(.control) }
+        if flags.contains(.maskSecondaryFn) { modifiers.insert(.function) }
+        self = modifiers
     }
 }
 

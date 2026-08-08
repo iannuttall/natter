@@ -147,14 +147,14 @@ struct OverlayView: View {
             }
         }
         .buttonStyle(.plain)
-        .help("Switch mode · press Tab while listening")
+        .help("Switch mode · press Command-Shift-M while listening")
         .accessibilityLabel("Switch from \(modes.name(for: store.selectedMode)) mode")
     }
 
     private var footerText: String {
         switch store.phase {
         case .preparing, .listening:
-            "Tab: switch mode · tap \(store.selectedHotKey.label): stop · double-tap Left Option: cancel"
+            "⌘⇧M: switch mode · tap \(store.selectedHotKey.label): stop · double-tap Left Option: cancel"
         case .recoverable:
             store.statusMessage ?? "The complete transcript is on your clipboard"
         case .failed:
