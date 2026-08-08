@@ -1,11 +1,15 @@
-.PHONY: build check dmg install parity run
+.PHONY: build check dmg install parity run source-size
 
 build:
 	./scripts/build-app.sh
 
 check:
+	./scripts/check-source-size.sh
 	swift test
 	node --test ProductCorpus/tests/scenarios.test.mjs
+
+source-size:
+	./scripts/check-source-size.sh
 
 dmg:
 	./scripts/build-dmg.sh

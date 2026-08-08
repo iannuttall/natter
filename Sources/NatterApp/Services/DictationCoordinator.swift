@@ -4,38 +4,23 @@ import Foundation
 
 @MainActor
 final class DictationCoordinator {
-    private let store: DictationStore
+    let store: DictationStore
     private let microphone = MicrophoneCapture()
-    private let transcriber: SpeechTranscriber
-    private let rules: RulesManager
-    private let modes: ModeManager
+    let transcriber: SpeechTranscriber
+    let rules: RulesManager
+    let modes: ModeManager
     private let profiles: ApplicationProfileManager
     private let history: HistoryManager
-    private let writingEngine = WritingEngine()
-    private let textInserter = FocusedTextInserter()
+    let writingEngine: WritingEngine
+    private let correctionService: SpokenCorrectionService
+    let textInserter = FocusedTextInserter()
     private let recovery = TranscriptRecovery()
     private let feedback = FeedbackSoundPlayer()
     private let overlay: OverlayPanelController
     private var armExpiryTask: Task<Void, Never>?
     private var streamTask: Task<Void, Never>?
-    private var sessionTask: Task<Void, Never>?
-    private var focusTarget: FocusedTextTarget?
-    private var sourceBundleIdentifier: String?
-    private var sourceApplicationName: String?
-    private var emitter = StableTranscriptEmitter()
-    private var stabilizer = StableTranscriptStabilizer(trailingTokenCount: 1)
-    private var deliveryIssue: String?
-    private var liveTranscriptConflict = false
-    private var sessionCorrections: [PersonalCorrection] = []
-    private var commandCandidate = false
-    private var forcesLowercaseInitial = false
-    private var pendingVoiceSubmit = false
-    private var lastHandledPartial = ""
-    private var previousTranscript: String?
-    private var recordingStartedAt: Date?
-    private var recordingStoppedAt: Date?
-    private var historyWasRecorded = false
-    private var performanceTrace: DictationPerformanceTrace?
+    var sessionTask: Task<Void, Never>?
+    private var session = DictationSessionState()
 
     init(
         store: DictationStore,
@@ -43,7 +28,8 @@ final class DictationCoordinator {
         rules: RulesManager,
         modes: ModeManager,
         profiles: ApplicationProfileManager,
-        history: HistoryManager
+        history: HistoryManager,
+        writingEngine: WritingEngine = WritingEngine()
     ) {
         self.store = store
         self.transcriber = transcriber
@@ -51,6 +37,11 @@ final class DictationCoordinator {
         self.modes = modes
         self.profiles = profiles
         self.history = history
+        self.writingEngine = writingEngine
+        correctionService = SpokenCorrectionService(
+            writingEngine: writingEngine,
+            rules: rules
+        )
         overlay = OverlayPanelController(store: store, modes: modes)
         overlay.onCancel = { [weak self] in self?.cancel() }
         overlay.onCycleMode = { [weak self] in self?.cycleMode() }
@@ -70,7 +61,7 @@ final class DictationCoordinator {
         guard store.phase == .preparing || store.phase == .listening else { return }
         armExpiryTask?.cancel()
         armExpiryTask = nil
-        recordingStoppedAt = Date()
+        session.recordingStoppedAt = Date()
         microphone.stopImmediately()
         feedback.play(.stopped)
         streamTask?.cancel()
@@ -87,8 +78,8 @@ final class DictationCoordinator {
         if !draft.isEmpty {
             let record = RecoveryRecord(
                 transcript: draft,
-                deliveredPrefix: emitter.delivered,
-                targetBundleIdentifier: sourceBundleIdentifier,
+                deliveredPrefix: session.emitter.delivered,
+                targetBundleIdentifier: session.sourceBundleIdentifier,
                 reason: "Cancelled by user"
             )
             store.latestRecoveryURL = try? recovery.saveAndCopy(
@@ -157,156 +148,12 @@ final class DictationCoordinator {
         return .raw
     }
 
-    func prepareForDebug() {
-        sessionTask?.cancel()
-        sessionTask = Task {
-            do {
-                try await prepareTranscriber()
-                store.statusMessage = "Speech model ready"
-                FileHandle.standardError.write(Data("DICTATION_SPEECH_MODEL_READY\n".utf8))
-            } catch {
-                fail(error)
-                FileHandle.standardError.write(
-                    Data("DICTATION_SPEECH_MODEL_ERROR: \(error.localizedDescription)\n".utf8)
-                )
-            }
-        }
-    }
-
-    func warmRefineModelIfInstalled() {
-        guard modes.enabledModes.contains(where: { $0.processing == .refine }) else { return }
-        let paths = AppPaths.live(bundleIdentifier: AppInfo.bundleIdentifier)
-        guard let directory = AgentWritingModelLocation.resolve(in: paths) else { return }
-        Task { await writingEngine.warmRefine(modelDirectory: directory) }
-    }
-
-    func warmWritingModelIfInstalled() {
-        let paths = AppPaths.live(bundleIdentifier: AppInfo.bundleIdentifier)
-        guard let directory = WritingModelLocation.resolve(in: paths) else { return }
-        Task { await writingEngine.warmWriting(modelDirectory: directory) }
-    }
-
-    func testWritingForDebug(
-        _ transcript: String,
-        mode: DictationMode,
-        iterations: Int = 1,
-        delay: Duration = .zero
-    ) {
-        sessionTask?.cancel()
-        sessionTask = Task {
-            do {
-                try await Task.sleep(for: delay)
-                let paths = AppPaths.live(bundleIdentifier: AppInfo.bundleIdentifier)
-                let qualityDirectory = WritingModelLocation.resolve(in: paths)
-                let agentDirectory = AgentWritingModelLocation.resolve(in: paths)
-                let definition = modes.definition(for: mode)
-                if definition.processing == .rewrite, qualityDirectory == nil {
-                    throw DictationCoordinatorError.writingModelMissing
-                }
-                for iteration in 1...max(iterations, 1) {
-                    let startedAt = ProcessInfo.processInfo.systemUptime
-                    let output = try await writingEngine.transform(
-                        transcript: transcript,
-                        mode: mode,
-                        modeName: modes.name(for: mode),
-                        processing: definition.processing,
-                        markdownRules: definition.instructions,
-                        modelDirectory: qualityDirectory,
-                        agentModelDirectory: agentDirectory,
-                        agentContext: AgentWritingContext.production(
-                            destinationApplicationName: "Debug",
-                            corrections: applicableCorrections(
-                                rules.corrections,
-                                for: mode
-                            )
-                        )
-                    )
-                    let milliseconds = (ProcessInfo.processInfo.systemUptime - startedAt) * 1_000
-                    let result = "DICTATION_WRITING_RESULT run=\(iteration) "
-                        + "elapsed_ms=\(String(format: "%.1f", milliseconds)): \(output)\n"
-                    FileHandle.standardError.write(Data(result.utf8))
-                }
-                if ProcessInfo.processInfo.environment["DICTATION_EXIT_AFTER_WRITING"] == "1" {
-                    NSApp.terminate(nil)
-                }
-            } catch {
-                FileHandle.standardError.write(
-                    Data("DICTATION_WRITING_ERROR: \(error.localizedDescription)\n".utf8)
-                )
-                if ProcessInfo.processInfo.environment["DICTATION_EXIT_AFTER_WRITING"] == "1" {
-                    NSApp.terminate(nil)
-                }
-            }
-        }
-    }
-
-    func testCorrectionForDebug(command: String, previousTranscript: String) {
-        sessionTask?.cancel()
-        sessionTask = Task {
-            do {
-                let paths = AppPaths.live(bundleIdentifier: AppInfo.bundleIdentifier)
-                guard let modelDirectory = WritingModelLocation.resolve(in: paths)
-                    ?? AgentWritingModelLocation.resolve(in: paths) else {
-                    throw WritingEngineError.modelMissing
-                }
-                let correction = try await writingEngine.extractPersonalCorrection(
-                    command: command,
-                    previousTranscript: previousTranscript,
-                    modelDirectory: modelDirectory
-                )
-                let result = correction.map { "\($0.heard) -> \($0.replacement)" } ?? "none"
-                FileHandle.standardError.write(
-                    Data("DICTATION_CORRECTION_RESULT: \(result)\n".utf8)
-                )
-            } catch {
-                FileHandle.standardError.write(
-                    Data("DICTATION_CORRECTION_ERROR: \(error.localizedDescription)\n".utf8)
-                )
-            }
-            if ProcessInfo.processInfo.environment["DICTATION_EXIT_AFTER_CORRECTION"] == "1" {
-                NSApp.terminate(nil)
-            }
-        }
-    }
-
-    func testInsertionForDebug(_ text: String, delay: Duration = .seconds(2)) {
-        sessionTask?.cancel()
-        sessionTask = Task {
-            do {
-                try await Task.sleep(for: delay)
-                let target = try textInserter.captureTarget()
-                FileHandle.standardError.write(Data((
-                    "NATTER_INSERT_TARGET: \(target.applicationName ?? "unknown") "
-                        + "\(target.bundleIdentifier ?? "unknown") "
-                        + "\(target.capturedElementRole ?? "app-fallback")\n"
-                ).utf8))
-                let startedAt = ProcessInfo.processInfo.systemUptime
-                try await textInserter.insert(
-                    text,
-                    into: target,
-                    paceTerminalInput: false
-                )
-                let milliseconds = (ProcessInfo.processInfo.systemUptime - startedAt) * 1_000
-                FileHandle.standardError.write(
-                    Data(
-                        "NATTER_INSERT_RESULT: success "
-                            .appending("elapsed_ms=\(String(format: "%.1f", milliseconds))\n")
-                            .utf8
-                    )
-                )
-            } catch {
-                FileHandle.standardError.write(
-                    Data("NATTER_INSERT_ERROR: \(error.localizedDescription)\n".utf8)
-                )
-            }
-        }
-    }
 
     private func start() {
         guard store.canStart else { return }
         armExpiryTask?.cancel()
         armExpiryTask = nil
-        performanceTrace = DictationPerformanceTrace()
+        session.performanceTrace = DictationPerformanceTrace()
         sessionTask?.cancel()
         sessionTask = Task { await beginSession() }
     }
@@ -331,37 +178,29 @@ final class DictationCoordinator {
     }
 
     private func beginSession() async {
-        previousTranscript = store.finalTranscript.isEmpty ? nil : store.finalTranscript
+        let previousTranscript = store.finalTranscript.isEmpty ? nil : store.finalTranscript
         store.resetSession()
-        emitter.reset()
-        deliveryIssue = nil
-        liveTranscriptConflict = false
-        sessionCorrections = rules.corrections
-        commandCandidate = false
-        forcesLowercaseInitial = false
-        pendingVoiceSubmit = false
-        lastHandledPartial = ""
-        recordingStartedAt = nil
-        recordingStoppedAt = nil
-        historyWasRecorded = false
+        session.reset(
+            previousTranscript: previousTranscript,
+            corrections: rules.corrections
+        )
         captureSourceApplication()
         captureFocusTarget()
         let resolution = profiles.resolution(
-            bundleIdentifier: sourceBundleIdentifier,
+            bundleIdentifier: session.sourceBundleIdentifier,
             defaultMode: store.defaultMode
         )
         store.prepareSessionMode(enabledResolution(resolution))
-        store.activeApplicationName = sourceApplicationName
-        stabilizer = StableTranscriptStabilizer(trailingTokenCount: 3)
+        store.activeApplicationName = session.sourceApplicationName
         store.phase = .preparing
         store.statusMessage = "Loading local speech model…"
         overlay.show()
-        performanceTrace?.mark(.overlayVisible)
+        session.performanceTrace?.mark(.overlayVisible)
 
         do {
             try validateSelectedMode()
             try await prepareTranscriber()
-            performanceTrace?.mark(.modelReady)
+            session.performanceTrace?.mark(.modelReady)
             guard !Task.isCancelled else { return }
             await transcriber.reset()
 
@@ -371,14 +210,14 @@ final class DictationCoordinator {
                     if let bands { store?.audioBands = bands }
                 },
                 firstBufferHandler: { [weak self] in
-                    self?.performanceTrace?.mark(.firstAudioBuffer)
+                    self?.session.performanceTrace?.mark(.firstAudioBuffer)
                 },
                 routeFailureHandler: { [weak self] error in self?.fail(error) }
             )
-            performanceTrace?.mark(.captureStarted)
+            session.performanceTrace?.mark(.captureStarted)
             store.phase = .listening
-            recordingStartedAt = Date()
-            store.statusMessage = deliveryIssue == nil
+            session.recordingStartedAt = Date()
+            store.statusMessage = session.deliveryIssue == nil
                 ? nil
                 : "Listening · transcript will be copied"
             feedback.play(.started)
@@ -389,7 +228,7 @@ final class DictationCoordinator {
                     do {
                         let rawPartial = try await self?.transcriber.consume(chunk) ?? ""
                         guard !rawPartial.isEmpty else { continue }
-                        self?.performanceTrace?.mark(.firstPartial)
+                        self?.session.performanceTrace?.mark(.firstPartial)
                         self?.store.rawTranscript = rawPartial
                         await self?.handlePartial(rawPartial)
                     } catch {
@@ -418,8 +257,8 @@ final class DictationCoordinator {
             return
         }
 
-        recordingStoppedAt = Date()
-        performanceTrace?.mark(.stopRequested)
+        session.recordingStoppedAt = Date()
+        session.performanceTrace?.mark(.stopRequested)
         let drainingStreamTask = streamTask
         streamTask = nil
         store.audioLevel = 0
@@ -429,7 +268,7 @@ final class DictationCoordinator {
 
         sessionTask = Task {
             await microphone.stopDrainingTail()
-            performanceTrace?.mark(.captureStopped)
+            session.performanceTrace?.mark(.captureStopped)
             feedback.play(.stopped)
             await drainingStreamTask?.value
             guard store.phase == .finalizing else { return }
@@ -437,7 +276,7 @@ final class DictationCoordinator {
             do {
                 let rawTranscript = try await transcriber.finish()
                     .trimmingCharacters(in: .whitespacesAndNewlines)
-                performanceTrace?.mark(.finalTranscript)
+                session.performanceTrace?.mark(.finalTranscript)
                 store.rawTranscript = rawTranscript
 
                 if await handleCorrectionCommand(rawTranscript) {
@@ -445,49 +284,17 @@ final class DictationCoordinator {
                     return
                 }
 
-                let lowercaseResult = spokenLowercaseResult(for: rawTranscript)
-                forcesLowercaseInitial = lowercaseResult.consumedCommand
-                let dictatedTranscript = lowercaseResult.transcript
-
-                let modeTranscript: String
-                if store.selectedMode == .raw {
-                    modeTranscript = dictatedTranscript
-                } else {
-                    let normalizedTranscript = SpokenTechnicalTextNormalizer.normalize(
-                        dictatedTranscript,
-                        context: .technical
-                    )
-                    modeTranscript = PersonalCorrections.apply(
-                        sessionCorrections,
-                        to: normalizedTranscript,
-                        scope: correctionScope
-                    )
-                }
-                let voiceSubmit = store.voiceSubmitEnabled
-                    ? VoiceSubmitCommand.consume(from: modeTranscript)
-                    : VoiceSubmitResult(
-                        transcript: modeTranscript,
-                        shouldSubmit: false
-                    )
-                pendingVoiceSubmit = voiceSubmit.shouldSubmit
-                let deliveryTranscript = voiceSubmit.transcript
-                let transcript = if store.selectedMode == .raw {
-                    FinalTranscriptFormatter.punctuateRawProse(
-                        deliveryTranscript,
-                        capitalizesInitial: false
-                    )
-                } else {
-                    FinalTranscriptFormatter.punctuateRawProse(
-                        ContextualTranscriptCorrector.correctTechnical(
-                            DeterministicTranscriptCleaner.clean(deliveryTranscript),
-                            context: AgentWritingContext.production(
-                                destinationApplicationName: sourceApplicationName,
-                                corrections: activeCorrections
-                            )
-                        ),
-                        capitalizesInitial: false
-                    )
-                }
+        let lowercaseResult = spokenLowercaseResult(for: rawTranscript)
+        session.forcesLowercaseInitial = lowercaseResult.consumedCommand
+        let preparedTranscript = DictationTranscriptPipeline.prepareFinal(
+            rawTranscript: lowercaseResult.transcript,
+            mode: store.selectedMode,
+            corrections: session.corrections,
+            destinationApplicationName: session.sourceApplicationName,
+                    voiceSubmitEnabled: store.voiceSubmitEnabled
+        )
+        session.pendingVoiceSubmit = preparedTranscript.shouldSubmit
+        let transcript = preparedTranscript.transcript
                 store.liveTranscript = transcript
                 store.finalTranscript = transcript
 
@@ -513,7 +320,7 @@ final class DictationCoordinator {
         }
     }
 
-    private func prepareTranscriber() async throws {
+    func prepareTranscriber() async throws {
         let paths = AppPaths.live(bundleIdentifier: AppInfo.bundleIdentifier)
         guard let modelDirectory = SpeechModelLocation.resolve(in: paths) else {
             throw DictationCoordinatorError.speechModelMissing(
@@ -526,17 +333,17 @@ final class DictationCoordinator {
     private func captureFocusTarget() {
         do {
             let target = try textInserter.captureTarget()
-            focusTarget = target
-            sourceBundleIdentifier = target.bundleIdentifier ?? sourceBundleIdentifier
-            sourceApplicationName = target.applicationName ?? sourceApplicationName
+            session.focusTarget = target
+            session.sourceBundleIdentifier = target.bundleIdentifier ?? session.sourceBundleIdentifier
+            session.sourceApplicationName = target.applicationName ?? session.sourceApplicationName
             let targetBundle = target.bundleIdentifier ?? "unknown"
             let targetRole = target.capturedElementRole ?? "clipboard-fallback"
             NatterLog.delivery.notice(
                 "target captured app=\(targetBundle, privacy: .public) element=\(targetRole, privacy: .public)"
             )
         } catch {
-            focusTarget = nil
-            deliveryIssue = error.localizedDescription
+            session.focusTarget = nil
+            session.deliveryIssue = error.localizedDescription
             NatterLog.delivery.error(
                 "target capture failed error=\(error.localizedDescription, privacy: .public)"
             )
@@ -545,21 +352,21 @@ final class DictationCoordinator {
 
     private func captureSourceApplication() {
         let application = NSWorkspace.shared.frontmostApplication
-        sourceBundleIdentifier = application?.bundleIdentifier
-        sourceApplicationName = application?.localizedName
+        session.sourceBundleIdentifier = application?.bundleIdentifier
+        session.sourceApplicationName = application?.localizedName
     }
 
     private func deliverStablePartial(_ transcript: String) async {
-        guard sessionTypesIncrementally, deliveryIssue == nil else { return }
+        guard sessionTypesIncrementally, session.deliveryIssue == nil else { return }
 
-        switch emitter.observe(transcript) {
+        switch session.emitter.observe(transcript) {
         case .none:
             break
         case let .text(text):
             await insert(text)
         case .conflict:
-            liveTranscriptConflict = true
-            deliveryIssue = "The live transcript changed after text had already been typed."
+            session.liveTranscriptConflict = true
+            session.deliveryIssue = "The live transcript changed after text had already been typed."
             store.statusMessage = "Still listening · field will be corrected on stop"
         }
     }
@@ -575,14 +382,14 @@ final class DictationCoordinator {
         // The ASR emits a new hypothesis roughly every 560 ms while the tap
         // delivers buffers ~47x/sec; skip the normalization pipeline for the
         // ~25 of 26 callbacks whose transcript hasn't changed.
-        guard rawTranscript != lastHandledPartial else { return }
-        lastHandledPartial = rawTranscript
+        guard rawTranscript != session.lastHandledPartial else { return }
+        session.lastHandledPartial = rawTranscript
 
-        if commandCandidate || SpokenCorrectionCommand.couldBeCommand(
+        if session.commandCandidate || SpokenCorrectionCommand.couldBeCommand(
             rawTranscript,
             appNames: correctionAppNames
         ) {
-            commandCandidate = true
+            session.commandCandidate = true
             store.liveTranscript = visibleCorrectionCommand(rawTranscript)
             if SpokenCorrectionCommand.looksLikeRuleRequest(rawTranscript) {
                 store.statusMessage = "Rule command detected · keep speaking"
@@ -591,55 +398,45 @@ final class DictationCoordinator {
         }
 
         let lowercaseResult = spokenLowercaseResult(for: rawTranscript)
-        forcesLowercaseInitial = lowercaseResult.consumedCommand
-        let dictatedTranscript = lowercaseResult.transcript
+        session.forcesLowercaseInitial = lowercaseResult.consumedCommand
+        store.liveTranscript = DictationTranscriptPipeline.preview(
+            rawTranscript: lowercaseResult.transcript,
+            mode: store.selectedMode,
+            corrections: session.corrections
+        )
 
-        if store.selectedMode == .raw {
-            store.liveTranscript = dictatedTranscript
-        } else {
-            let visible = SpokenTechnicalTextNormalizer.normalize(
-                dictatedTranscript,
-                context: spokenFormattingContext
-            )
-            store.liveTranscript = PersonalCorrections.apply(
-                sessionCorrections,
-                to: visible,
-                scope: correctionScope
-            )
-        }
-
-        switch stabilizer.observe(store.liveTranscript) {
+        switch session.stabilizer.observe(store.liveTranscript) {
         case let .prefix(prefix):
             await deliverStablePartial(prefix)
         case .conflict:
-            liveTranscriptConflict = true
-            deliveryIssue = "The live transcript changed after text had already been typed."
+            session.liveTranscriptConflict = true
+            session.deliveryIssue = "The live transcript changed after text had already been typed."
             store.statusMessage = "Still listening · field will be corrected on stop"
         }
     }
 
     private func deliverFinalTranscript(_ transcript: String) async {
-        if liveTranscriptConflict {
-            deliveryIssue = "The final transcript changed after text had already been typed."
+        if session.liveTranscriptConflict {
+            session.deliveryIssue = "The final transcript changed after text had already been typed."
             return
         }
 
-        guard deliveryIssue == nil else { return }
+        guard session.deliveryIssue == nil else { return }
 
-        switch emitter.finish(transcript) {
+        switch session.emitter.finish(transcript) {
         case .none:
             let insertion = finalInsertionText("")
             if !insertion.isEmpty { await insert(insertion) }
         case let .text(text):
             await insert(finalInsertionText(text))
         case .conflict:
-            deliveryIssue = "The final transcript changed after text had already been typed."
+            session.deliveryIssue = "The final transcript changed after text had already been typed."
         }
     }
 
     private func insert(_ text: String) async {
-        guard let focusTarget else {
-            deliveryIssue = "The original text control is no longer available."
+        guard let focusTarget = session.focusTarget else {
+            session.deliveryIssue = "The original text control is no longer available."
             return
         }
 
@@ -650,7 +447,7 @@ final class DictationCoordinator {
                 paceTerminalInput: store.terminalPacingEnabled
             )
         } catch {
-            deliveryIssue = error.localizedDescription
+            session.deliveryIssue = error.localizedDescription
             store.statusMessage = "Still listening · transcript will be copied"
             NatterLog.delivery.error(
                 "text insertion failed error=\(error.localizedDescription, privacy: .public)"
@@ -665,8 +462,8 @@ final class DictationCoordinator {
     ) {
         let record = RecoveryRecord(
             transcript: transcript,
-            deliveredPrefix: emitter.delivered,
-            targetBundleIdentifier: sourceBundleIdentifier,
+            deliveredPrefix: session.emitter.delivered,
+            targetBundleIdentifier: session.sourceBundleIdentifier,
             reason: reason
         )
 
@@ -688,49 +485,39 @@ final class DictationCoordinator {
     }
 
     private func handleCorrectionCommand(_ rawTranscript: String) async -> Bool {
-        guard commandCandidate,
+        guard session.commandCandidate,
               SpokenCorrectionCommand.looksLikeRuleRequest(rawTranscript) else {
             return false
         }
         let visibleCommand = visibleCorrectionCommand(rawTranscript)
         store.liveTranscript = visibleCommand
 
-        let paths = AppPaths.live(bundleIdentifier: AppInfo.bundleIdentifier)
-        guard let modelDirectory = WritingModelLocation.resolve(in: paths)
-            ?? AgentWritingModelLocation.resolve(in: paths) else {
-            recoverTranscript(
-                visibleCommand,
-                reason: "Install a writing model to add corrections by voice.",
-                statusMessage: "Couldn’t add rule · writing model required · command copied"
-            )
-            return true
-        }
-
         store.statusMessage = "Natter is checking that rule locally…"
         do {
-            guard let correction = try await writingEngine.extractPersonalCorrection(
+            let resolution = try await correctionService.resolve(
                 command: rawTranscript,
-                previousTranscript: previousTranscript ?? "",
-                modelDirectory: modelDirectory
-            ) else {
+                previousTranscript: session.previousTranscript ?? ""
+            )
+            switch resolution {
+            case .modelMissing:
+                recoverTranscript(
+                    visibleCommand,
+                    reason: "Install a writing model to add corrections by voice.",
+                    statusMessage: "Couldn’t add rule · writing model required · command copied"
+                )
+            case .unverified:
                 recoverTranscript(
                     visibleCommand,
                     reason: "Couldn’t verify a personal correction from the spoken command.",
                     statusMessage: "Couldn’t add rule · command copied"
                 )
-                return true
+            case let .added(correction):
+                store.liveTranscript = "Added “\(correction.heard)” → “\(correction.replacement)”"
+                store.finalTranscript = ""
+                store.statusMessage = "Rule added everywhere"
+                store.phase = .idle
+                recordHistory(visibleCommand, outcome: .delivered)
             }
-
-            rules.add(PersonalCorrection(
-                heard: correction.heard,
-                replacement: correction.replacement,
-                scope: .everywhere
-            ))
-            store.liveTranscript = "Added “\(correction.heard)” → “\(correction.replacement)”"
-            store.finalTranscript = ""
-            store.statusMessage = "Rule added everywhere"
-            store.phase = .idle
-            recordHistory(visibleCommand, outcome: .delivered)
         } catch {
             recoverTranscript(
                 visibleCommand,
@@ -754,11 +541,11 @@ final class DictationCoordinator {
         let definition = activeModeDefinition
         store.statusMessage = "Applying \(modes.name(for: definition.id)) rules locally…"
 
-        let lockedPrefix = emitter.delivered
+        let lockedPrefix = session.emitter.delivered
         let transformInput: String
         if lockedPrefix.isEmpty {
             transformInput = transcript
-        } else if let remainder = emitter.tolerantRemainder(in: transcript) {
+        } else if let remainder = session.emitter.tolerantRemainder(in: transcript) {
             transformInput = remainder.trimmingCharacters(in: .whitespacesAndNewlines)
         } else {
             recoverTranscript(
@@ -772,7 +559,7 @@ final class DictationCoordinator {
             store.liveTranscript = lockedPrefix
             store.finalTranscript = lockedPrefix
             let insertion = finalInsertionText("")
-            if deliveryIssue == nil, !insertion.isEmpty {
+            if session.deliveryIssue == nil, !insertion.isEmpty {
                 await insert(insertion)
             }
             await completeDelivery(of: lockedPrefix)
@@ -802,12 +589,12 @@ final class DictationCoordinator {
                 modelDirectory: modelDirectory,
                 agentModelDirectory: agentModelDirectory,
                 agentContext: AgentWritingContext.production(
-                    destinationApplicationName: sourceApplicationName,
+                    destinationApplicationName: session.sourceApplicationName,
                     corrections: activeCorrections,
                     removesFalseStarts: definition.removesFalseStarts
                 )
             )
-            if forcesLowercaseInitial, lockedPrefix.isEmpty {
+            if session.forcesLowercaseInitial, lockedPrefix.isEmpty {
                 output = SpokenLowercaseCommand.lowercaseInitial(in: output)
             }
             // A model can return otherwise-valid text without closing its final
@@ -817,7 +604,7 @@ final class DictationCoordinator {
                 output,
                 capitalizesInitial: false
             )
-            performanceTrace?.mark(.transformFinished)
+            session.performanceTrace?.mark(.transformFinished)
             let finalOutput = joinedTranscript(
                 prefix: lockedPrefix,
                 continuation: output
@@ -826,7 +613,7 @@ final class DictationCoordinator {
             let finalInsertion = finalInsertionText(insertion)
             store.liveTranscript = finalOutput
             store.finalTranscript = finalOutput
-            if deliveryIssue == nil, !finalInsertion.isEmpty {
+            if session.deliveryIssue == nil, !finalInsertion.isEmpty {
                 store.statusMessage = "Typing…"
                 await insert(finalInsertion)
             }
@@ -851,8 +638,8 @@ final class DictationCoordinator {
     }
 
     private func finishDelivery(of transcript: String) {
-        performanceTrace?.mark(.deliveryFinished)
-        if let deliveryIssue {
+        session.performanceTrace?.mark(.deliveryFinished)
+        if let deliveryIssue = session.deliveryIssue {
             recoverTranscript(transcript, reason: deliveryIssue)
         } else {
             recordHistory(transcript, outcome: .delivered)
@@ -863,22 +650,22 @@ final class DictationCoordinator {
 
     private func completeDelivery(of transcript: String) async {
         var notice: String?
-        if deliveryIssue == nil, pendingVoiceSubmit {
+        if session.deliveryIssue == nil, session.pendingVoiceSubmit {
             notice = await submitTranscript()
         }
 
         finishDelivery(of: transcript)
-        if deliveryIssue == nil, let notice {
+        if session.deliveryIssue == nil, let notice {
             store.statusMessage = notice
         }
     }
 
     private func finalInsertionText(_ text: String) -> String {
-        pendingVoiceSubmit ? text : text + " "
+        session.pendingVoiceSubmit ? text : text + " "
     }
 
     private func submitTranscript() async -> String? {
-        guard let focusTarget else {
+        guard let focusTarget = session.focusTarget else {
             return "Text inserted · couldn’t press Return"
         }
         do {
@@ -896,20 +683,20 @@ final class DictationCoordinator {
         _ transcript: String,
         outcome: DictationOutcome
     ) {
-        guard !historyWasRecorded else { return }
-        let end = recordingStoppedAt ?? Date()
-        let duration = recordingStartedAt.map { end.timeIntervalSince($0) } ?? 0
+        guard !session.historyWasRecorded else { return }
+        let end = session.recordingStoppedAt ?? Date()
+        let duration = session.recordingStartedAt.map { end.timeIntervalSince($0) } ?? 0
         history.record(
             transcript: transcript,
             rawTranscript: store.rawTranscript,
             durationSeconds: duration,
             mode: store.selectedMode,
             modeName: modes.name(for: store.selectedMode),
-            sourceBundleIdentifier: sourceBundleIdentifier,
-            sourceApplicationName: sourceApplicationName,
+            sourceBundleIdentifier: session.sourceBundleIdentifier,
+            sourceApplicationName: session.sourceApplicationName,
             outcome: outcome
         )
-        historyWasRecorded = true
+        session.historyWasRecorded = true
     }
 
     private func hideOverlayAfterResult(delay: Duration? = nil) async {
@@ -922,7 +709,7 @@ final class DictationCoordinator {
         if store.phase == .idle || store.isRecoverable { overlay.hide() }
         if store.phase == .idle {
             store.restoreIdleMode(enabledResolution(profiles.resolution(
-                bundleIdentifier: sourceBundleIdentifier,
+                bundleIdentifier: session.sourceBundleIdentifier,
                 defaultMode: store.defaultMode
             )))
         }
@@ -949,25 +736,11 @@ final class DictationCoordinator {
         Array(Set([AppInfo.displayName, "Nata", "Dictation"]))
     }
 
-    private var spokenFormattingContext: SpokenFormattingContext {
-        store.selectedMode == .raw ? .prose : .technical
-    }
-
-    private var correctionScope: PersonalCorrectionScope {
-        store.selectedMode == .agent ? .agent : .everywhere
-    }
-
     private var activeCorrections: [PersonalCorrection] {
-        applicableCorrections(sessionCorrections, for: store.selectedMode)
-    }
-
-    private func applicableCorrections(
-        _ corrections: [PersonalCorrection],
-        for mode: DictationMode
-    ) -> [PersonalCorrection] {
-        corrections.filter {
-            $0.scope == .everywhere || (mode == .agent && $0.scope == .agent)
-        }
+        DictationTranscriptPipeline.applicableCorrections(
+            session.corrections,
+            for: store.selectedMode
+        )
     }
 
     private var activeModeDefinition: ModeDefinition {
@@ -980,7 +753,7 @@ final class DictationCoordinator {
         return ModeResolution(mode: fallback, source: .defaultMode)
     }
 
-    private func fail(_ error: Error) {
+    func fail(_ error: Error) {
         armExpiryTask?.cancel()
         armExpiryTask = nil
         microphone.stopImmediately()

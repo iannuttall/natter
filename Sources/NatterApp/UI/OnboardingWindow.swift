@@ -320,7 +320,13 @@ private struct OnboardingView: View {
                         .foregroundStyle(.secondary)
                 }
                 Spacer()
-                modelAction(pack)
+                ModelPackAction(
+                    modelManager: modelManager,
+                    pack: pack,
+                    allowsRemoval: false,
+                    downloadTitle: pack == .speech ? "Agree & Download" : "Download",
+                    usesProminentButton: true
+                )
             }
             Link(licence, destination: licenceURL)
                 .font(.caption)
@@ -335,32 +341,7 @@ private struct OnboardingView: View {
                     .foregroundStyle(.tertiary)
             }
         }
-        .padding(16)
-        .background(Theme.Colour.secondaryPanel)
-        .clipShape(RoundedRectangle(cornerRadius: Theme.Radius.card))
-    }
-
-    @ViewBuilder
-    private func modelAction(_ pack: ModelPack) -> some View {
-        if modelManager.installing == pack {
-            VStack(alignment: .trailing, spacing: 6) {
-                ProgressView(value: modelManager.progress)
-                    .frame(width: 130)
-                Text(modelManager.status)
-                    .font(.caption2)
-                    .foregroundStyle(.secondary)
-                Button("Cancel") { modelManager.cancelInstallation() }
-                    .controlSize(.small)
-            }
-        } else if modelManager.isInstalled(pack) {
-            Label("Installed", systemImage: "checkmark.circle.fill")
-                .foregroundStyle(.green)
-        } else {
-            Button(pack == .speech ? "Agree & Download" : "Download") {
-                modelManager.install(pack)
-            }
-                .buttonStyle(.borderedProminent)
-        }
+        .panelCard(padding: 16)
     }
 
     private var nextRequiredPermission: AppPermission? {
