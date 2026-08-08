@@ -711,14 +711,52 @@ import Testing
     ])
 }
 
-@Test func addingAnExactIdentityCorrectionDoesNothing() {
+@Test func addingAnExactIdentityCorrectionStoresAProtectedTerm() {
     let markdown = PersonalCorrections.defaultMarkdown
     let updated = PersonalCorrections.appending(
         PersonalCorrection(heard: "Portman", replacement: "Portman"),
         to: markdown
     )
 
-    #expect(updated == markdown)
+    #expect(PersonalCorrections.parse(updated) == [
+        PersonalCorrection(heard: "Portman", replacement: "Portman")
+    ])
+}
+
+@Test func personalCorrectionsJSONRoundTripsAliasesScopesAndTerms() throws {
+    let corrections = [
+        PersonalCorrection(heard: "envious whisper", replacement: "EnviousWispr"),
+        PersonalCorrection(heard: "SwiftPM", replacement: "SwiftPM", scope: .agent)
+    ]
+    let data = try PersonalCorrectionsTransfer.exportData(corrections)
+    #expect(try PersonalCorrectionsTransfer.importData(data) == corrections)
+}
+
+@Test func personalCorrectionsImportPlainTermsAndAliases() throws {
+    let text = """
+    Natter
+    envious whisper -> EnviousWispr
+    [Agent] swift package manager => SwiftPM
+    """
+    #expect(try PersonalCorrectionsTransfer.importData(Data(text.utf8)) == [
+        PersonalCorrection(heard: "Natter", replacement: "Natter"),
+        PersonalCorrection(heard: "envious whisper", replacement: "EnviousWispr"),
+        PersonalCorrection(
+            heard: "swift package manager",
+            replacement: "SwiftPM",
+            scope: .agent
+        )
+    ])
+}
+
+@Test func personalCorrectionsImportIgnoresMarkdownInstructions() throws {
+    let markdown = PersonalCorrections.appending(
+        PersonalCorrection(heard: "gitter", replacement: "GitHub"),
+        to: PersonalCorrections.defaultMarkdown
+    )
+    #expect(try PersonalCorrectionsTransfer.importData(Data(markdown.utf8)) == [
+        PersonalCorrection(heard: "gitter", replacement: "GitHub")
+    ])
 }
 
 @Test func personalCorrectionsRespectAgentScope() {

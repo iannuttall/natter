@@ -9,7 +9,8 @@ struct DictionaryView: View {
     @State private var heard = ""
     @State private var replacement = ""
     @State private var scope: PersonalCorrectionScope = .everywhere
-    @State private var importError: String?
+    @State private var transferError: String?
+    @State private var transferStatus: String?
 
     init(rules: RulesManager, onOpenRules: (() -> Void)? = nil) {
         self.rules = rules
@@ -26,7 +27,11 @@ struct DictionaryView: View {
                         .foregroundStyle(.secondary)
                 }
                 Spacer()
-                Button("Import…") { importCorrections() }
+                HStack {
+                    Button("Import…") { importCorrections() }
+                    Button("Export…") { exportCorrections() }
+                        .disabled(rules.corrections.isEmpty)
+                }
             }
 
             HStack(spacing: 10) {
@@ -46,10 +51,14 @@ struct DictionaryView: View {
                     .disabled(trimmedHeard.isEmpty || trimmedReplacement.isEmpty)
             }
 
-            if let message = importError ?? rules.errorMessage {
+            if let message = transferError ?? rules.errorMessage {
                 Text(message)
                     .font(.caption)
                     .foregroundStyle(.red)
+            } else if let transferStatus {
+                Text(transferStatus)
+                    .font(.caption)
+                    .foregroundStyle(.secondary)
             }
 
             ScrollView {
@@ -100,7 +109,7 @@ struct DictionaryView: View {
             .clipShape(RoundedRectangle(cornerRadius: Theme.Radius.card))
 
             HStack {
-                Text("Stored as portable Markdown in Application Support.")
+                Text("Stored as portable Markdown. JSON export preserves aliases and scopes.")
                     .font(.caption)
                     .foregroundStyle(.secondary)
                 Spacer()
@@ -138,21 +147,38 @@ struct DictionaryView: View {
 
     private func importCorrections() {
         let panel = NSOpenPanel()
-        panel.allowedContentTypes = [.plainText, .text]
+        panel.allowedContentTypes = [.json, .plainText, .text]
         panel.allowsMultipleSelection = false
         guard panel.runModal() == .OK, let url = panel.url else { return }
         do {
-            let markdown = try String(contentsOf: url, encoding: .utf8)
-            let imported = PersonalCorrections.parse(markdown)
-            guard !imported.isEmpty else {
-                importError = "No correction lines were found in that file."
-                return
-            }
-            for correction in imported { rules.add(correction) }
-            importError = nil
+            let imported = try PersonalCorrectionsTransfer.importData(Data(contentsOf: url))
+            rules.add(imported)
+            transferError = nil
+            transferStatus = entryCountMessage("Imported", count: imported.count)
         } catch {
-            importError = error.localizedDescription
+            transferError = error.localizedDescription
+            transferStatus = nil
         }
+    }
+
+    private func exportCorrections() {
+        let panel = NSSavePanel()
+        panel.allowedContentTypes = [.json]
+        panel.nameFieldStringValue = "natter-dictionary.json"
+        guard panel.runModal() == .OK, let url = panel.url else { return }
+        do {
+            let data = try PersonalCorrectionsTransfer.exportData(rules.corrections)
+            try data.write(to: url, options: .atomic)
+            transferError = nil
+            transferStatus = entryCountMessage("Exported", count: rules.corrections.count)
+        } catch {
+            transferError = error.localizedDescription
+            transferStatus = nil
+        }
+    }
+
+    private func entryCountMessage(_ action: String, count: Int) -> String {
+        "\(action) \(count) \(count == 1 ? "entry" : "entries")"
     }
 }
 

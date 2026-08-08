@@ -47,7 +47,13 @@ final class RulesManager {
     }
 
     func add(_ correction: PersonalCorrection) {
-        personalMarkdown = PersonalCorrections.appending(correction, to: personalMarkdown)
+        add([correction])
+    }
+
+    func add(_ corrections: [PersonalCorrection]) {
+        for correction in corrections {
+            personalMarkdown = PersonalCorrections.appending(correction, to: personalMarkdown)
+        }
         save()
     }
 
