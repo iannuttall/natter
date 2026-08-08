@@ -99,6 +99,11 @@ You can also teach a correction by voice:
 
 The correction command is consumed instead of being typed into the destination.
 
+Start any dictation with `lowercase` when it continues text you already typed. Natter consumes the
+command and lowercases the next word, so “lowercase The rest of this sentence” inserts “the rest of
+this sentence”. This works in terminals without reading their screen contents and can be turned off
+under Delivery in Modes & Apps settings.
+
 ## Verify a downloaded build
 
 Public builds are signed with Developer ID and notarized by Apple.

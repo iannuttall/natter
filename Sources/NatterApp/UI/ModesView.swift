@@ -207,6 +207,11 @@ struct ModesView: View {
         VStack(alignment: .leading, spacing: Theme.Space.regular) {
             Text("Delivery")
                 .font(.headline)
+            Toggle("Allow a spoken “lowercase” command", isOn: $store.spokenLowercaseEnabled)
+            Text("Say “lowercase” first to continue typed text. Natter removes the command and lowercases the next word in every app.")
+                .font(.caption)
+                .foregroundStyle(.secondary)
+            Divider()
             Toggle("Keep terminal dictation visible", isOn: $store.terminalPacingEnabled)
             Text("Pace long input so coding agents do not collapse it into a paste block.")
                 .font(.caption)

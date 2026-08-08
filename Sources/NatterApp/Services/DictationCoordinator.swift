@@ -28,6 +28,7 @@ final class DictationCoordinator {
     private var liveTranscriptConflict = false
     private var sessionCorrections: [PersonalCorrection] = []
     private var commandCandidate = false
+    private var forcesLowercaseInitial = false
     private var pendingVoiceSubmit = false
     private var lastHandledPartial = ""
     private var previousTranscript: String?
@@ -337,6 +338,7 @@ final class DictationCoordinator {
         liveTranscriptConflict = false
         sessionCorrections = rules.corrections
         commandCandidate = false
+        forcesLowercaseInitial = false
         pendingVoiceSubmit = false
         lastHandledPartial = ""
         recordingStartedAt = nil
@@ -443,12 +445,16 @@ final class DictationCoordinator {
                     return
                 }
 
+                let lowercaseResult = spokenLowercaseResult(for: rawTranscript)
+                forcesLowercaseInitial = lowercaseResult.consumedCommand
+                let dictatedTranscript = lowercaseResult.transcript
+
                 let modeTranscript: String
                 if store.selectedMode == .raw {
-                    modeTranscript = rawTranscript
+                    modeTranscript = dictatedTranscript
                 } else {
                     let normalizedTranscript = SpokenTechnicalTextNormalizer.normalize(
-                        rawTranscript,
+                        dictatedTranscript,
                         context: .technical
                     )
                     modeTranscript = PersonalCorrections.apply(
@@ -558,6 +564,13 @@ final class DictationCoordinator {
         }
     }
 
+    private func spokenLowercaseResult(for transcript: String) -> SpokenLowercaseResult {
+        guard store.spokenLowercaseEnabled else {
+            return SpokenLowercaseResult(transcript: transcript, consumedCommand: false)
+        }
+        return SpokenLowercaseCommand.consume(from: transcript)
+    }
+
     private func handlePartial(_ rawTranscript: String) async {
         // The ASR emits a new hypothesis roughly every 560 ms while the tap
         // delivers buffers ~47x/sec; skip the normalization pipeline for the
@@ -577,11 +590,15 @@ final class DictationCoordinator {
             return
         }
 
+        let lowercaseResult = spokenLowercaseResult(for: rawTranscript)
+        forcesLowercaseInitial = lowercaseResult.consumedCommand
+        let dictatedTranscript = lowercaseResult.transcript
+
         if store.selectedMode == .raw {
-            store.liveTranscript = rawTranscript
+            store.liveTranscript = dictatedTranscript
         } else {
             let visible = SpokenTechnicalTextNormalizer.normalize(
-                rawTranscript,
+                dictatedTranscript,
                 context: spokenFormattingContext
             )
             store.liveTranscript = PersonalCorrections.apply(
@@ -790,6 +807,9 @@ final class DictationCoordinator {
                     removesFalseStarts: definition.removesFalseStarts
                 )
             )
+            if forcesLowercaseInitial, lockedPrefix.isEmpty {
+                output = SpokenLowercaseCommand.lowercaseInitial(in: output)
+            }
             // A model can return otherwise-valid text without closing its final
             // sentence. Apply the same deterministic final punctuation rule to
             // every editable processing mode, while preserving technical tails.
