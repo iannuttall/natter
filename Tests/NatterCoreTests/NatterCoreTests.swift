@@ -447,6 +447,10 @@ import Testing
 @Test func rawPunctuationFinishesProseButNotTechnicalTokens() {
     #expect(FinalTranscriptFormatter.punctuateRawProse("this is a sentence")
         == "This is a sentence.")
+    #expect(FinalTranscriptFormatter.punctuateRawProse(
+        "this keeps the recognizer casing",
+        capitalizesInitial: false
+    ) == "this keeps the recognizer casing.")
     #expect(FinalTranscriptFormatter.punctuateRawProse("is this complete?")
         == "Is this complete?")
     #expect(FinalTranscriptFormatter.punctuateRawProse(

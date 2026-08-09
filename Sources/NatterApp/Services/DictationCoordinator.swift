@@ -466,7 +466,10 @@ final class DictationCoordinator {
                 pendingVoiceSubmit = voiceSubmit.shouldSubmit
                 let deliveryTranscript = voiceSubmit.transcript
                 let transcript = if store.selectedMode == .raw {
-                    deliveryTranscript
+                    FinalTranscriptFormatter.punctuateRawProse(
+                        deliveryTranscript,
+                        capitalizesInitial: false
+                    )
                 } else {
                     FinalTranscriptFormatter.punctuateRawProse(
                         ContextualTranscriptCorrector.correctTechnical(

@@ -34,7 +34,7 @@ struct ModesView: View {
         VStack(alignment: .leading, spacing: 4) {
             Text("Modes & Apps")
                 .font(.system(size: 26, weight: .semibold))
-            Text("Raw stays untouched. Every other mode starts with the same deterministic cleanup, then chooses Fast, Refine or Rewrite.")
+            Text("Raw stays direct and only adds a missing final full stop. Every other mode starts with the same deterministic cleanup, then chooses Fast, Refine or Rewrite.")
                 .foregroundStyle(.secondary)
         }
     }
@@ -129,7 +129,7 @@ struct ModesView: View {
                 }
 
                 if mode.isRaw {
-                    Text("Raw is fixed: it types Parakeet’s final transcript without corrections, cleanup or a writing model.")
+                    Text("Raw is fixed: it types Parakeet’s final transcript without corrections, cleanup or a writing model, adding only a missing final full stop to prose.")
                         .foregroundStyle(.secondary)
                 } else {
                     TextField("Mode name", text: nameBinding(for: mode))
