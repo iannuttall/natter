@@ -103,9 +103,7 @@ struct ModesView: View {
                 .clipShape(RoundedRectangle(cornerRadius: 8))
             }
         }
-        .padding(Theme.Space.regular)
-        .background(Theme.Colour.secondaryPanel)
-        .clipShape(RoundedRectangle(cornerRadius: Theme.Radius.card))
+        .panelCard()
         .disabled(store.phase.isBusy)
     }
 
@@ -196,9 +194,7 @@ struct ModesView: View {
                         .foregroundStyle(.red)
                 }
             }
-            .padding(Theme.Space.regular)
-            .background(Theme.Colour.secondaryPanel)
-            .clipShape(RoundedRectangle(cornerRadius: Theme.Radius.card))
+            .panelCard()
             .disabled(store.phase.isBusy)
         }
     }
@@ -227,9 +223,7 @@ struct ModesView: View {
                 .font(.caption)
                 .foregroundStyle(.secondary)
         }
-        .padding(Theme.Space.regular)
-        .background(Theme.Colour.secondaryPanel)
-        .clipShape(RoundedRectangle(cornerRadius: Theme.Radius.card))
+        .panelCard()
         .disabled(store.phase.isBusy)
     }
 
@@ -304,9 +298,7 @@ struct ModesView: View {
                 Text(errorMessage).font(.caption).foregroundStyle(.red)
             }
         }
-        .padding(Theme.Space.regular)
-        .background(Theme.Colour.secondaryPanel)
-        .clipShape(RoundedRectangle(cornerRadius: Theme.Radius.card))
+        .panelCard()
         .disabled(store.phase.isBusy)
         .opacity(profiles.isEnabled ? 1 : 0.72)
     }

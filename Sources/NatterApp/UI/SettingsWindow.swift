@@ -155,8 +155,6 @@ private struct NatterAppView: View {
                 store: store,
                 modelManager: modelManager,
                 permissions: permissions,
-                rules: rules,
-                profiles: profiles,
                 history: history,
                 onboarding: onboarding
             ) {
