@@ -24,9 +24,9 @@ shows the live transcript in a small overlay. Tap Right Option once to stop.
 Raw shows Parakeet's direct transcript in the overlay, adds a missing final full stop to prose,
 then types it after you stop. Every
 other mode shares Natter's deterministic cleanup for fillers, repetitions, punctuation and
-technical terms. Each mode then chooses Fast, Refine or Rewrite processing. Press Tab while
-listening to switch mode without moving focus out of the text field. Double-tap Left Option to
-cancel a recording.
+technical terms. Each mode then chooses Fast, Refine or Rewrite processing. Press
+Command-Shift-M while listening to switch mode without moving focus out of the text field.
+Double-tap Left Option to cancel a recording.
 
 The app is designed for the awkward dictation that ordinary macOS speech tools tend to
 mangle: GitHub, SwiftPM, `--flags`, file paths, version numbers, terminal commands, and names
