@@ -95,9 +95,12 @@ aliases and scopes. The live dictionary and writing rules remain plain Markdown 
 You can also teach a correction by voice:
 
 > Hey Natter, you just transcribed it as port man but what I said was Portman,
-> p-o-r-t-m-a-n. Add that to my rules.
+> p-o-r-t-m-a-n, title case. Add that to my dictionary.
 
-The correction command is consumed instead of being typed into the destination.
+The correction command is consumed instead of being typed into the destination. Explicit
+lowercase, uppercase, all-caps, title-case and sentence-case instructions are enforced after the
+local model extracts the correction, so spelling a word letter by letter does not accidentally
+decide its casing.
 
 Start any dictation with `lowercase` when it continues text you already typed. Natter consumes the
 command and lowercases the next word, so “lowercase The rest of this sentence” inserts “the rest of

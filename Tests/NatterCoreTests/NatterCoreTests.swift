@@ -838,7 +838,16 @@ import Testing
     #expect(SpokenCorrectionCommand.looksLikeRuleRequest(
         "Hey Nata, add that correction to my rules"
     ))
+    #expect(SpokenCorrectionCommand.looksLikeRuleRequest(
+        "Hey Natter, add Portman to my dictionary"
+    ))
+    #expect(SpokenCorrectionCommand.looksLikeRuleRequest(
+        "Hey Natter, remember this custom word"
+    ))
     #expect(!SpokenCorrectionCommand.looksLikeRuleRequest("Hey Nata, open settings"))
+    #expect(!SpokenCorrectionCommand.looksLikeRuleRequest(
+        "Hey Natter, write these words into the email"
+    ))
     #expect(SpokenCorrectionCommand.canonicalizingWakeWord(
         in: "Hey Nata, add that correction to my rules",
         canonicalName: "Natter",
@@ -915,6 +924,80 @@ import Testing
     )
 
     #expect(correction == PersonalCorrection(heard: "en", replacement: "ian"))
+}
+
+@Test func spokenCorrectionExtractionEnforcesTitleCaseOnSpelledReplacements() {
+    let correction = SpokenCorrectionCommand.validatedCorrection(
+        from: SpokenCorrectionExtraction(
+            isCorrection: true,
+            heard: "port man",
+            replacement: "P-O-R-T-M-A-N"
+        ),
+        command: "Hey Natter, change it to P-O-R-T-M-A-N, title case, and add a rule",
+        previousTranscript: "Ask port man tomorrow."
+    )
+
+    #expect(correction == PersonalCorrection(heard: "port man", replacement: "Portman"))
+}
+
+@Test func spokenCorrectionExtractionEnforcesExplicitLowerUpperAndSentenceCase() {
+    #expect(SpokenCorrectionCommand.validatedCorrection(
+        from: SpokenCorrectionExtraction(
+            isCorrection: true,
+            heard: "code x",
+            replacement: "C O D E X"
+        ),
+        command: "Change code x to C O D E X in lowercase and remember the rule",
+        previousTranscript: "Open code x."
+    ) == PersonalCorrection(heard: "code x", replacement: "codex"))
+
+    #expect(SpokenCorrectionCommand.validatedCorrection(
+        from: SpokenCorrectionExtraction(
+            isCorrection: true,
+            heard: "code x",
+            replacement: "codex"
+        ),
+        command: "Change code x to codex using all caps and add a rule",
+        previousTranscript: "Open code x."
+    ) == PersonalCorrection(heard: "code x", replacement: "CODEX"))
+
+    #expect(SpokenCorrectionCommand.validatedCorrection(
+        from: SpokenCorrectionExtraction(
+            isCorrection: true,
+            heard: "ghost tea helper",
+            replacement: "GHOSTY HELPER"
+        ),
+        command: "Change ghost tea helper to Ghosty Helper in sentence case",
+        previousTranscript: "Run ghost tea helper."
+    ) == PersonalCorrection(heard: "ghost tea helper", replacement: "Ghosty helper"))
+}
+
+@Test func spokenCorrectionExtractionUsesTheLastExplicitCaseInstruction() {
+    let correction = SpokenCorrectionCommand.validatedCorrection(
+        from: SpokenCorrectionExtraction(
+            isCorrection: true,
+            heard: "port man",
+            replacement: "PORTMAN"
+        ),
+        command: "Do not store it as uppercase; use title case for the rule",
+        previousTranscript: "Ask port man tomorrow."
+    )
+
+    #expect(correction == PersonalCorrection(heard: "port man", replacement: "Portman"))
+}
+
+@Test func spokenCorrectionExtractionPreservesMixedCaseWithoutAnExplicitDirective() {
+    let correction = SpokenCorrectionCommand.validatedCorrection(
+        from: SpokenCorrectionExtraction(
+            isCorrection: true,
+            heard: "swift p m",
+            replacement: "SwiftPM"
+        ),
+        command: "Change swift p m to SwiftPM and remember the rule",
+        previousTranscript: "Build it with swift p m."
+    )
+
+    #expect(correction == PersonalCorrection(heard: "swift p m", replacement: "SwiftPM"))
 }
 
 @Test func spokenTechnicalTokensBecomeLiteralWithoutAnLLM() {
