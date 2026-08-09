@@ -86,8 +86,6 @@ public enum PersonalCorrections {
         _ correction: PersonalCorrection,
         to markdown: String
     ) -> String {
-        guard correction.heard != correction.replacement else { return markdown }
-
         let existing = parse(markdown)
         if existing.contains(where: {
             $0.heard.caseInsensitiveCompare(correction.heard) == .orderedSame
@@ -150,6 +148,175 @@ public enum PersonalCorrections {
     private static func formattedLine(for correction: PersonalCorrection) -> String {
         let scope = correction.scope == .agent ? "[Agent] " : ""
         return "- \(scope)\"\(correction.heard)\" → \"\(correction.replacement)\""
+    }
+}
+
+public enum PersonalCorrectionsTransferError: LocalizedError, Equatable {
+    case fileTooLarge
+    case unreadableText
+    case unsupportedVersion(Int)
+    case noCorrections
+    case invalidEntry
+
+    public var errorDescription: String? {
+        switch self {
+        case .fileTooLarge:
+            "That dictionary is too large to import."
+        case .unreadableText:
+            "That dictionary is not valid UTF-8 text or Natter JSON."
+        case let .unsupportedVersion(version):
+            "Dictionary version \(version) is not supported."
+        case .noCorrections:
+            "No dictionary entries were found in that file."
+        case .invalidEntry:
+            "That dictionary contains an empty or overly long entry."
+        }
+    }
+}
+
+public enum PersonalCorrectionsTransfer {
+    private static let format = "natter-dictionary"
+    private static let version = 1
+    private static let maximumFileBytes = 1_048_576
+    private static let maximumEntries = 10_000
+    private static let maximumEntryCharacters = 512
+
+    public static func exportData(_ corrections: [PersonalCorrection]) throws -> Data {
+        let document = Document(
+            format: format,
+            version: version,
+            entries: corrections.map(Entry.init)
+        )
+        let encoder = JSONEncoder()
+        encoder.outputFormatting = [.prettyPrinted, .sortedKeys, .withoutEscapingSlashes]
+        return try encoder.encode(document)
+    }
+
+    public static func importData(_ data: Data) throws -> [PersonalCorrection] {
+        guard data.count <= maximumFileBytes else {
+            throw PersonalCorrectionsTransferError.fileTooLarge
+        }
+        guard let text = String(data: data, encoding: .utf8) else {
+            throw PersonalCorrectionsTransferError.unreadableText
+        }
+
+        let trimmed = text.trimmingCharacters(in: .whitespacesAndNewlines)
+        if trimmed.hasPrefix("{") {
+            return try importDocument(JSONDecoder().decode(Document.self, from: data))
+        }
+        return try importText(text)
+    }
+
+    private static func importDocument(_ document: Document) throws -> [PersonalCorrection] {
+        guard document.format == format else {
+            throw PersonalCorrectionsTransferError.unreadableText
+        }
+        guard document.version == version else {
+            throw PersonalCorrectionsTransferError.unsupportedVersion(document.version)
+        }
+        return try validated(document.entries.map(\.correction))
+    }
+
+    private static func importText(_ text: String) throws -> [PersonalCorrection] {
+        let markdownCorrections = PersonalCorrections.parse(text)
+        if !markdownCorrections.isEmpty {
+            return try validated(markdownCorrections)
+        }
+
+        let pieces = text.split(whereSeparator: { $0.isNewline || $0 == "," })
+        var corrections: [PersonalCorrection] = []
+        for rawPiece in pieces {
+            let piece = rawPiece.trimmingCharacters(in: .whitespaces)
+            guard !piece.isEmpty,
+                  !piece.hasPrefix("#"),
+                  !piece.hasPrefix("<!--"),
+                  piece != "-->" else {
+                continue
+            }
+            let scope: PersonalCorrectionScope
+            let unscoped: String
+            if piece.hasPrefix("[Agent] ") {
+                scope = .agent
+                unscoped = String(piece.dropFirst("[Agent] ".count))
+            } else {
+                scope = .everywhere
+                unscoped = piece
+            }
+            if let pair = correctionPair(in: unscoped) {
+                corrections.append(PersonalCorrection(
+                    heard: pair.heard,
+                    replacement: pair.replacement,
+                    scope: scope
+                ))
+            } else {
+                corrections.append(PersonalCorrection(
+                    heard: unscoped,
+                    replacement: unscoped,
+                    scope: scope
+                ))
+            }
+        }
+        return try validated(corrections)
+    }
+
+    private static func correctionPair(in text: String) -> (heard: String, replacement: String)? {
+        for separator in [" → ", " => ", " -> "] {
+            guard let range = text.range(of: separator) else { continue }
+            let quoteAndSpace = CharacterSet(charactersIn: " \"")
+            let heard = String(text[..<range.lowerBound])
+                .trimmingCharacters(in: quoteAndSpace)
+            let replacement = String(text[range.upperBound...])
+                .trimmingCharacters(in: quoteAndSpace)
+            guard !heard.isEmpty, !replacement.isEmpty else { return nil }
+            return (heard, replacement)
+        }
+        return nil
+    }
+
+    private static func validated(
+        _ corrections: [PersonalCorrection]
+    ) throws -> [PersonalCorrection] {
+        guard !corrections.isEmpty else {
+            throw PersonalCorrectionsTransferError.noCorrections
+        }
+        guard corrections.count <= maximumEntries,
+              corrections.allSatisfy({ correction in
+                  !correction.heard.isEmpty
+                      && !correction.replacement.isEmpty
+                      && correction.heard.count <= maximumEntryCharacters
+                      && correction.replacement.count <= maximumEntryCharacters
+                      && !correction.heard.contains(where: \.isNewline)
+                      && !correction.replacement.contains(where: \.isNewline)
+              }) else {
+            throw PersonalCorrectionsTransferError.invalidEntry
+        }
+
+        var seen: Set<String> = []
+        return Array(corrections.reversed().filter {
+            seen.insert($0.id).inserted
+        }.reversed())
+    }
+
+    private struct Document: Codable {
+        let format: String
+        let version: Int
+        let entries: [Entry]
+    }
+
+    private struct Entry: Codable {
+        let heard: String
+        let replacement: String
+        let scope: PersonalCorrectionScope
+
+        init(_ correction: PersonalCorrection) {
+            heard = correction.heard
+            replacement = correction.replacement
+            scope = correction.scope
+        }
+
+        var correction: PersonalCorrection {
+            PersonalCorrection(heard: heard, replacement: replacement, scope: scope)
+        }
     }
 }
 

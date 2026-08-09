@@ -84,8 +84,9 @@ The app can open at login. You can change that from Settings at any time.
 
 ## Teach it your words
 
-The dictionary stores preferred spellings locally. Writing rules are plain Markdown files
-under:
+The dictionary stores preferred spellings locally. Import accepts Natter JSON, portable Markdown,
+or a plain-text list with one term or `heard -> replacement` alias per line. JSON export preserves
+aliases and scopes. The live dictionary and writing rules remain plain Markdown files under:
 
 ```text
 ~/Library/Application Support/is.ian.natter/Rules/
