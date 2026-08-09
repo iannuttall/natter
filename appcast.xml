@@ -7,6 +7,29 @@
 
     <!-- Newest release first. scripts/release-app.sh prints a complete item. -->
     <item>
+      <title>0.2.5</title>
+      <sparkle:version>13</sparkle:version>
+      <sparkle:shortVersionString>0.2.5</sparkle:shortVersionString>
+      <sparkle:minimumSystemVersion>15.0</sparkle:minimumSystemVersion>
+      <description><![CDATA[
+        <h2>Sharper dictation, fewer interruptions</h2>
+        <ul>
+          <li>Raw adds a missing final full stop to ordinary prose while preserving questions, URLs, paths and other technical endings.</li>
+          <li>Dictionary rules and custom words can now be imported and exported.</li>
+          <li>An optional spoken "lowercase" command continues a sentence without forcing an initial capital.</li>
+          <li>Agent correction commands now honour explicit lowercase, uppercase, title case and sentence case instructions, including words spelled letter by letter.</li>
+          <li>Command-Shift-M cycles modes while Tab remains available for terminal completion and other apps.</li>
+          <li>Core services and tests have been split into smaller, focused files with automatic size checks.</li>
+        </ul>
+      ]]></description>
+      <enclosure
+        url="https://github.com/iannuttall/natter/releases/download/v0.2.5/Natter-0.2.5.dmg"
+        length="35559901"
+        type="application/octet-stream"
+        sparkle:edSignature="s+PbMKLKmBNCiQn45m67c7WcaSdCyoFYPbvntBmiv/SBXBhvlUU/tPPrXdk+CxsAqQtjIBGog7XiWzxv6vTmDg==" />
+    </item>
+
+    <item>
       <title>0.2.4</title>
       <sparkle:version>12</sparkle:version>
       <sparkle:shortVersionString>0.2.4</sparkle:shortVersionString>
