@@ -548,6 +548,34 @@ import Testing
     ))
 }
 
+@Test func spokenLowercaseCommandConsumesThePrefixAndLowercasesTheNextWord() {
+    #expect(SpokenLowercaseCommand.consume(
+        from: "Lowercase The rest of this sentence"
+    ) == SpokenLowercaseResult(
+        transcript: "the rest of this sentence",
+        consumedCommand: true
+    ))
+    #expect(SpokenLowercaseCommand.consume(
+        from: "lower case, “This starts in a quote”"
+    ).transcript == "“this starts in a quote”")
+    #expect(SpokenLowercaseCommand.lowercaseInitial(
+        in: "# Heading returned by a writing model"
+    ) == "# heading returned by a writing model")
+}
+
+@Test func spokenLowercaseCommandWaitsForContentAndIgnoresOrdinaryWords() {
+    #expect(SpokenLowercaseCommand.consume(from: "lowercase") == SpokenLowercaseResult(
+        transcript: "",
+        consumedCommand: true
+    ))
+    #expect(SpokenLowercaseCommand.consume(
+        from: "lowercaseLetters should stay literal"
+    ) == SpokenLowercaseResult(
+        transcript: "lowercaseLetters should stay literal",
+        consumedCommand: false
+    ))
+}
+
 @Test func textInsertionChunksPreserveComposedCharacters() {
     #expect(TextInsertionPlan.chunks(
         for: "123456789012345🙂next",

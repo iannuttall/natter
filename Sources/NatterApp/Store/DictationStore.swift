@@ -34,6 +34,12 @@ final class DictationStore {
         }
     }
 
+    var spokenLowercaseEnabled: Bool {
+        didSet {
+            defaults.set(spokenLowercaseEnabled, forKey: Keys.spokenLowercaseEnabled)
+        }
+    }
+
     var terminalPacingEnabled: Bool {
         didSet {
             defaults.set(terminalPacingEnabled, forKey: Keys.terminalPacingEnabled)
@@ -68,6 +74,8 @@ final class DictationStore {
         selectedHotKey = defaults.string(forKey: Keys.selectedHotKey)
             .flatMap(ModifierHotKey.init(rawValue:))
             ?? .rightOption
+        spokenLowercaseEnabled = defaults.object(forKey: Keys.spokenLowercaseEnabled) as? Bool
+            ?? true
         terminalPacingEnabled = defaults.object(forKey: Keys.terminalPacingEnabled) as? Bool
             ?? true
         agentTypesLive = defaults.object(forKey: Keys.agentTypesLive) as? Bool
@@ -170,6 +178,7 @@ final class DictationStore {
         static let defaultMode = "defaultMode"
         static let legacySelectedMode = "selectedMode"
         static let selectedHotKey = "selectedHotKey"
+        static let spokenLowercaseEnabled = "spokenLowercaseEnabled"
         static let terminalPacingEnabled = "terminalPacingEnabled"
         static let agentTypesLive = "agentTypesLive"
         static let voiceSubmitEnabled = "voiceSubmitEnabled"
