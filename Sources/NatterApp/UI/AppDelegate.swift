@@ -15,6 +15,7 @@ final class AppDelegate: NSObject, NSApplicationDelegate {
     private var profiles: ApplicationProfileManager?
     private var history: HistoryManager?
     private var onboarding: OnboardingManager?
+    private var recordingSleepPreventer: RecordingSleepPreventer?
     private var activationObserver: NSObjectProtocol?
 
     func applicationDidFinishLaunching(_ notification: Notification) {
@@ -29,6 +30,7 @@ final class AppDelegate: NSObject, NSApplicationDelegate {
         }
         let store = DictationStore.shared
         self.store = store
+        recordingSleepPreventer = RecordingSleepPreventer(store: store)
         let speechTranscriber = SpeechTranscriber()
         let modelManager = ModelManager(speechTranscriber: speechTranscriber)
         let permissions = PermissionController()
@@ -200,6 +202,7 @@ final class AppDelegate: NSObject, NSApplicationDelegate {
 
     func applicationWillTerminate(_ notification: Notification) {
         hotKeyMonitor?.stop()
+        recordingSleepPreventer?.stop()
         if let activationObserver {
             NotificationCenter.default.removeObserver(activationObserver)
         }

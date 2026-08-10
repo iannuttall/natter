@@ -60,6 +60,12 @@ final class DictationStore {
         }
     }
 
+    var preventSleepWhileRecording: Bool {
+        didSet {
+            defaults.set(preventSleepWhileRecording, forKey: Keys.preventSleepWhileRecording)
+        }
+    }
+
     private var pendingModeOverride: DictationMode?
 
     private init(defaults: UserDefaults = .standard) {
@@ -85,6 +91,9 @@ final class DictationStore {
         overlayStyle = defaults.string(forKey: Keys.overlayStyle)
             .flatMap(OverlayStyle.init(rawValue:))
             ?? .full
+        preventSleepWhileRecording = defaults.object(
+            forKey: Keys.preventSleepWhileRecording
+        ) as? Bool ?? true
 
         try? AppPaths.live(bundleIdentifier: AppInfo.bundleIdentifier)
             .createRequiredDirectories()
@@ -183,6 +192,7 @@ final class DictationStore {
         static let agentTypesLive = "agentTypesLive"
         static let voiceSubmitEnabled = "voiceSubmitEnabled"
         static let overlayStyle = "overlayStyle"
+        static let preventSleepWhileRecording = "preventSleepWhileRecording"
     }
 }
 
