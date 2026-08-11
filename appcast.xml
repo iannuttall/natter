@@ -7,6 +7,25 @@
 
     <!-- Newest release first. scripts/release-app.sh prints a complete item. -->
     <item>
+      <title>0.2.6</title>
+      <sparkle:version>14</sparkle:version>
+      <sparkle:shortVersionString>0.2.6</sparkle:shortVersionString>
+      <sparkle:minimumSystemVersion>15.0</sparkle:minimumSystemVersion>
+      <description><![CDATA[
+        <h2>Keep long dictations awake</h2>
+        <ul>
+          <li>Natter can now keep your Mac awake from recording start until the transcript is safely delivered. The setting is on by default and still allows the display to sleep.</li>
+          <li>Cut, copy, paste, undo and other standard editing shortcuts now work in the Dictionary, Writing Rules, mode editor and every other editable field.</li>
+        </ul>
+      ]]></description>
+      <enclosure
+        url="https://github.com/iannuttall/natter/releases/download/v0.2.6/Natter-0.2.6.dmg"
+        length="35501439"
+        type="application/octet-stream"
+        sparkle:edSignature="JdbWiqLzmW34l4dKo4gq8nzHtH/AYxHXELIQwzaXU+9XHkEXGyJeBpX6pIifU5BOPhRsDu80TeEhzGqzFIT8BA==" />
+    </item>
+
+    <item>
       <title>0.2.5</title>
       <sparkle:version>13</sparkle:version>
       <sparkle:shortVersionString>0.2.5</sparkle:shortVersionString>
