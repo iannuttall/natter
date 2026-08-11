@@ -129,6 +129,15 @@ struct SettingsView: View {
                     .textSelection(.enabled)
             }
 
+            Divider()
+            Toggle(
+                "Prevent sleep while recording",
+                isOn: $store.preventSleepWhileRecording
+            )
+            Text("Keep your Mac awake from recording start until the transcript is safely delivered.")
+                .font(.caption)
+                .foregroundStyle(.secondary)
+
             if updater.isConfigured {
                 Divider()
                 HStack {
