@@ -7,6 +7,25 @@
 
     <!-- Newest release first. scripts/release-app.sh prints a complete item. -->
     <item>
+      <title>0.2.7</title>
+      <sparkle:version>15</sparkle:version>
+      <sparkle:shortVersionString>0.2.7</sparkle:shortVersionString>
+      <sparkle:minimumSystemVersion>15.0</sparkle:minimumSystemVersion>
+      <description><![CDATA[
+        <h2>Move the recording overlay</h2>
+        <ul>
+          <li>Drag the full or compact recording overlay wherever it works best. Natter remembers the position for your next dictation.</li>
+          <li>New setups place the overlay at the bottom-right. Saved positions stay fully visible when your display layout changes.</li>
+        </ul>
+      ]]></description>
+      <enclosure
+        url="https://github.com/iannuttall/natter/releases/download/v0.2.7/Natter-0.2.7.dmg"
+        length="35460194"
+        type="application/octet-stream"
+        sparkle:edSignature="hKvmmFX2LJG/pvNg7rMqF/ypQTKjYQi+H5mjrtjtHTUrMqOJIxHQQNKQX+DZoisTywQo0n0uSGGZNiwcDffdBw==" />
+    </item>
+
+    <item>
       <title>0.2.6</title>
       <sparkle:version>14</sparkle:version>
       <sparkle:shortVersionString>0.2.6</sparkle:shortVersionString>
