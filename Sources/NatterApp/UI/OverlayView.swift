@@ -56,6 +56,8 @@ struct OverlayView: View {
             RoundedRectangle(cornerRadius: 18, style: .continuous)
                 .stroke(.separator.opacity(0.45), lineWidth: 1)
         }
+        .gesture(WindowDragGesture())
+        .allowsWindowActivationEvents()
     }
 
     private var compactOverlay: some View {
@@ -83,6 +85,8 @@ struct OverlayView: View {
         .background(.regularMaterial)
         .clipShape(Capsule())
         .overlay { Capsule().stroke(.separator.opacity(0.45), lineWidth: 1) }
+        .gesture(WindowDragGesture())
+        .allowsWindowActivationEvents()
     }
 
     private var header: some View {
