@@ -53,6 +53,35 @@ production build with a plain `swift build` invocation.
 - Public builds use Developer ID, hardened runtime, notarization and stapling.
 - Sparkle updates use the pinned appcast URL and EdDSA public key in `build-app.sh`. Never rotate either after the first release without a migration plan.
 - `release-app.sh` requires `VERSION` and `BUILD_NUMBER`; set `NOTARY_PROFILE` for a public archive.
+- A release PR must contain the newest signed item at the top of `appcast.xml`. Before opening the PR, build that exact version with `release-app.sh` and stage its notarized DMG and checksum in a private draft GitHub release targeting `main`.
+- Never merge a new appcast item without a matching draft release. The `Publish Sparkle release` workflow validates the staged filenames, DMG size and SHA-256 after the appcast lands on `main`, then publishes the draft and creates its tag at the merged commit.
+- Do not publish the draft manually before merge. After the workflow passes, confirm the GitHub release is public and use Natter's Check for Updates command against the live feed.
 - The required NVIDIA speech model is downloaded only after the user accepts its linked terms. Keep the required attribution in the app and notices.
 - Do not bundle model weights into the app.
 - GitHub issues are open. Pull request creation is limited to repository collaborators.
+
+## Release PR sequence
+
+```sh
+make check
+
+VERSION=0.2.7 \
+BUILD_NUMBER=15 \
+SIGN_IDENTITY="Developer ID Application: Iancredible Ltd (JXNCT3BEVQ)" \
+NOTARY_PROFILE=portmanager \
+./scripts/release-app.sh
+
+# Add the printed item to the top of appcast.xml, then stage the artifacts.
+gh release create v0.2.7 \
+  dist/Natter-0.2.7.dmg \
+  dist/Natter-0.2.7.dmg.sha256 \
+  --draft \
+  --target main \
+  --title "Natter 0.2.7" \
+  --notes-file RELEASE_NOTES.md
+```
+
+Use the next semantic version and a build number greater than the newest appcast item. Commit
+the source change separately from `chore(release): prepare VERSION`, push the release branch,
+and open a ready PR. Merging the appcast change is the deployment action; the publish workflow
+makes the update available to Sparkle without another manual release step.

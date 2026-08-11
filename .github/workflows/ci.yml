@@ -11,22 +11,28 @@ concurrency:
   cancel-in-progress: true
 
 jobs:
-  test:
+  tests:
     runs-on: macos-26
+    timeout-minutes: 15
     steps:
       - uses: actions/checkout@v7
 
       - name: Show toolchain
         run: swift --version
 
-      - name: Cache Swift packages
+      - name: Identify toolchain
+        id: toolchain
+        run: |
+          toolchain_key="$(swift --version | shasum -a 256 | cut -c1-12)"
+          echo "key=$toolchain_key" >> "$GITHUB_OUTPUT"
+
+      - name: Cache Swift build products
         uses: actions/cache@v6
         with:
-          path: |
-            .build
-            .xcode-build/SourcePackages
-          key: spm-${{ runner.os }}-${{ hashFiles('Package.resolved') }}
-          restore-keys: spm-${{ runner.os }}-
+          path: .build
+          key: swiftpm-v2-${{ runner.os }}-${{ runner.arch }}-${{ steps.toolchain.outputs.key }}-${{ hashFiles('Package.resolved') }}
+          restore-keys: |
+            swiftpm-v2-${{ runner.os }}-${{ runner.arch }}-${{ steps.toolchain.outputs.key }}-
 
       - name: Test Swift packages
         run: swift test
@@ -34,7 +40,36 @@ jobs:
       - name: Test product corpus
         run: node --test ProductCorpus/tests/scenarios.test.mjs
 
-      - name: Build signed app bundle
+  app-bundle:
+    runs-on: macos-26
+    timeout-minutes: 20
+    steps:
+      - uses: actions/checkout@v7
+
+      - name: Show toolchain
+        run: |
+          swift --version
+          xcodebuild -version
+
+      - name: Identify toolchain
+        id: toolchain
+        run: |
+          toolchain_key="$({ swift --version; xcodebuild -version; } | shasum -a 256 | cut -c1-12)"
+          echo "key=$toolchain_key" >> "$GITHUB_OUTPUT"
+
+      - name: Cache Xcode dependencies and build products
+        uses: actions/cache@v6
+        with:
+          path: |
+            .xcode-build/Build
+            .xcode-build/ModuleCache.noindex
+            .xcode-build/SDKStatCaches.noindex
+            .xcode-build/SourcePackages
+          key: xcode-v1-${{ runner.os }}-${{ runner.arch }}-${{ steps.toolchain.outputs.key }}-${{ hashFiles('Package.resolved') }}
+          restore-keys: |
+            xcode-v1-${{ runner.os }}-${{ runner.arch }}-${{ steps.toolchain.outputs.key }}-
+
+      - name: Build app bundle
         env:
           SIGN_IDENTITY: "-"
         run: ./scripts/build-app.sh

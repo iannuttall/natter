@@ -12,6 +12,8 @@ final class OverlayPanelController {
     private let panel: NSPanel
     private let store: DictationStore
     private let frameAutosaveName = "DictationOverlayFrame"
+    private let defaultScreenInset: CGFloat = 24
+    private var hasPreparedInitialFrame = false
 
     init(store: DictationStore, modes: ModeManager) {
         self.store = store
@@ -36,8 +38,8 @@ final class OverlayPanelController {
         panel.level = .floating
         panel.hidesOnDeactivate = false
         panel.ignoresMouseEvents = false
+        panel.isMovable = true
         panel.isMovableByWindowBackground = false
-        panel.setFrameAutosaveName(frameAutosaveName)
         panel.collectionBehavior = [.canJoinAllSpaces, .fullScreenAuxiliary, .transient]
     }
 
@@ -46,11 +48,20 @@ final class OverlayPanelController {
             hide()
             return
         }
-        resizeForCurrentStyle()
-        if !panel.setFrameUsingName(frameAutosaveName) {
-            positionOnCurrentScreen()
-        } else {
+
+        if hasPreparedInitialFrame {
+            resizeForCurrentStyle()
             keepOnScreen()
+        } else {
+            let restoredFrame = panel.setFrameUsingName(frameAutosaveName)
+            resizeForCurrentStyle()
+            if !restoredFrame {
+                positionOnCurrentScreen()
+            } else {
+                keepOnScreen()
+            }
+            panel.setFrameAutosaveName(frameAutosaveName)
+            hasPreparedInitialFrame = true
         }
         panel.orderFrontRegardless()
     }
@@ -69,10 +80,27 @@ final class OverlayPanelController {
     }
 
     private func keepOnScreen() {
-        guard !NSScreen.screens.contains(where: {
-            $0.visibleFrame.intersects(panel.frame)
-        }) else { return }
-        positionOnCurrentScreen()
+        guard let screen = NSScreen.screens.max(by: {
+            intersectionArea(of: panel.frame, with: $0.visibleFrame)
+                < intersectionArea(of: panel.frame, with: $1.visibleFrame)
+        }), intersectionArea(of: panel.frame, with: screen.visibleFrame) > 0 else {
+            positionOnCurrentScreen()
+            return
+        }
+
+        let visibleFrame = screen.visibleFrame
+        var frame = panel.frame
+        frame.origin.x = min(max(frame.minX, visibleFrame.minX), visibleFrame.maxX - frame.width)
+        frame.origin.y = min(max(frame.minY, visibleFrame.minY), visibleFrame.maxY - frame.height)
+        if frame.origin != panel.frame.origin {
+            panel.setFrameOrigin(frame.origin)
+        }
+    }
+
+    private func intersectionArea(of frame: NSRect, with visibleFrame: NSRect) -> CGFloat {
+        let intersection = frame.intersection(visibleFrame)
+        guard !intersection.isNull else { return 0 }
+        return intersection.width * intersection.height
     }
 
     func hide() {
@@ -87,8 +115,8 @@ final class OverlayPanelController {
         guard let visibleFrame = screen?.visibleFrame else { return }
 
         let origin = NSPoint(
-            x: visibleFrame.midX - panel.frame.width / 2,
-            y: visibleFrame.minY + 72
+            x: visibleFrame.maxX - panel.frame.width - defaultScreenInset,
+            y: visibleFrame.minY + defaultScreenInset
         )
         panel.setFrameOrigin(origin)
     }

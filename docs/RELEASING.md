@@ -50,21 +50,27 @@ dist/Natter-VERSION.dmg
 dist/Natter-VERSION.dmg.sha256
 ```
 
-## Publish the update
+## Stage the update before merging
 
 The script prints a complete Sparkle `<item>` with the DMG length and EdDSA signature.
 Add it to the top of `appcast.xml`, include a plain release description, and commit that
-change before publishing the GitHub release.
+change on the release branch.
 
-Create the tagged release with both files:
+Create a private draft release against `main` with both files:
 
 ```sh
 gh release create v0.1.0 \
   dist/Natter-0.1.0.dmg \
   dist/Natter-0.1.0.dmg.sha256 \
+  --draft \
+  --target main \
   --title "Natter 0.1.0" \
   --notes-file RELEASE_NOTES.md
 ```
+
+Open the pull request only after the draft contains both artifacts. When the appcast change
+lands on `main`, `publish-release.yml` checks the DMG name and size against the newest feed
+item, verifies the SHA-256 file, and publishes the matching draft at the merged commit.
 
 Older installed copies fetch the raw appcast from the `main` branch, so the feed URL and
 public key must not move after the first public release.
