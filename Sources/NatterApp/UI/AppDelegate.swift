@@ -19,6 +19,7 @@ final class AppDelegate: NSObject, NSApplicationDelegate {
     private var activationObserver: NSObjectProtocol?
 
     func applicationDidFinishLaunching(_ notification: Notification) {
+        ApplicationMenu.install()
         NSApp.setActivationPolicy(.accessory)
         _ = UpdateController.shared
         do {
