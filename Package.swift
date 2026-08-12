@@ -18,7 +18,7 @@ let package = Package(
         .package(url: "https://github.com/sparkle-project/Sparkle", from: "2.6.0"),
         .package(
             url: "https://github.com/FluidInference/FluidAudio.git",
-            revision: "88d6d8166880dee1ac7c32c80f8e10cd782f8ca8"
+            revision: "667181a368da13b3a9178e310414e9dcbe8f23ce"
         ),
         .package(
             url: "https://github.com/ml-explore/mlx-swift-lm.git",
