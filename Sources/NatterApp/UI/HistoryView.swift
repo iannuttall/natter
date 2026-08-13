@@ -8,15 +8,16 @@ struct HistoryView: View {
     @State private var confirmingClear = false
 
     var body: some View {
+        let dashboard = HistoryDashboard(history: history, range: range)
         ScrollView {
             VStack(alignment: .leading, spacing: 24) {
                 header
-                metrics
+                metrics(dashboard.statistics)
                 HStack(alignment: .top, spacing: 24) {
-                    topSources
-                    activity
+                    topSources(dashboard.statistics.topSources)
+                    activity(dashboard.activityDays)
                 }
-                recent
+                recent(dashboard.visibleRecords)
             }
             .padding(24)
         }
@@ -48,15 +49,21 @@ struct HistoryView: View {
         }
     }
 
-    private var metrics: some View {
+    private func metrics(_ statistics: DictationStatistics) -> some View {
         HStack(spacing: 1) {
-            metric("Total words", value: stats.totalWords.formatted())
+            metric("Total words", value: statistics.totalWords.formatted())
             Divider()
-            metric("Time saved", value: durationLabel(stats.estimatedTimeSavedSeconds))
+            metric(
+                "Time saved",
+                value: durationLabel(statistics.estimatedTimeSavedSeconds)
+            )
             Divider()
-            metric("Average WPM", value: String(Int(stats.averageWordsPerMinute.rounded())))
+            metric(
+                "Average WPM",
+                value: String(Int(statistics.averageWordsPerMinute.rounded()))
+            )
             Divider()
-            metric("Active days", value: stats.activeDayCount.formatted())
+            metric("Active days", value: statistics.activeDayCount.formatted())
         }
         .padding(.vertical, 18)
         .background(Theme.Colour.secondaryPanel)
@@ -75,15 +82,15 @@ struct HistoryView: View {
         .frame(maxWidth: .infinity)
     }
 
-    private var topSources: some View {
+    private func topSources(_ sources: [DictationSourceStatistic]) -> some View {
         VStack(alignment: .leading, spacing: 12) {
             Text("Top apps")
                 .font(.title3.weight(.semibold))
             VStack(spacing: 0) {
-                if stats.topSources.isEmpty {
+                if sources.isEmpty {
                     emptyState("Your destination apps will appear here.")
                 } else {
-                    ForEach(Array(stats.topSources.prefix(5).enumerated()), id: \.element.id) {
+                    ForEach(Array(sources.prefix(5).enumerated()), id: \.element.id) {
                         index, source in
                         HStack(spacing: 10) {
                             applicationIcon(bundleIdentifier: source.bundleIdentifier)
@@ -95,7 +102,7 @@ struct HistoryView: View {
                                 .foregroundStyle(.secondary)
                         }
                         .padding(.vertical, 10)
-                        if index < min(4, stats.topSources.count - 1) { Divider() }
+                        if index < min(4, sources.count - 1) { Divider() }
                     }
                 }
             }
@@ -106,19 +113,20 @@ struct HistoryView: View {
         .frame(maxWidth: .infinity, alignment: .topLeading)
     }
 
-    private var activity: some View {
-        VStack(alignment: .leading, spacing: 12) {
+    private func activity(_ days: [DictationActivityDay]) -> some View {
+        let maximum = max(1, days.map(\.count).max() ?? 1)
+        return VStack(alignment: .leading, spacing: 12) {
             Text("Last 35 days")
                 .font(.title3.weight(.semibold))
             LazyVGrid(columns: Array(repeating: GridItem(.fixed(18), spacing: 7), count: 7), spacing: 7) {
-                ForEach(activityDays, id: \.date) { day in
+                ForEach(days) { day in
                     RoundedRectangle(cornerRadius: 4)
-                        .fill(Theme.Colour.accent.opacity(dayOpacity(day.count)))
+                        .fill(Theme.Colour.accent.opacity(dayOpacity(day.count, maximum: maximum)))
                         .frame(width: 18, height: 18)
                         .help("\(day.date.formatted(date: .abbreviated, time: .omitted)): \(day.count) dictations")
                 }
             }
-            Text("\(recentActiveDays) active days")
+            Text("\(days.count { $0.count > 0 }) active days")
                 .font(.caption)
                 .foregroundStyle(.secondary)
         }
@@ -127,7 +135,7 @@ struct HistoryView: View {
         .clipShape(RoundedRectangle(cornerRadius: Theme.Radius.card))
     }
 
-    private var recent: some View {
+    private func recent(_ records: [DictationHistoryRecord]) -> some View {
         VStack(alignment: .leading, spacing: 12) {
             HStack {
                 Text("Recent dictations")
@@ -138,14 +146,14 @@ struct HistoryView: View {
                 }
             }
 
-            if visibleRecords.isEmpty {
+            if records.isEmpty {
                 emptyState("Completed dictations will appear here.")
                     .frame(maxWidth: .infinity)
                     .background(Theme.Colour.secondaryPanel)
                     .clipShape(RoundedRectangle(cornerRadius: Theme.Radius.card))
             } else {
                 LazyVStack(spacing: 10) {
-                    ForEach(visibleRecords.prefix(50)) { record in
+                    ForEach(records) { record in
                         recordRow(record)
                     }
                 }
@@ -202,37 +210,8 @@ struct HistoryView: View {
         .clipShape(RoundedRectangle(cornerRadius: Theme.Radius.card))
     }
 
-    private var stats: DictationStatistics {
-        history.statistics(for: range)
-    }
-
-    private var visibleRecords: ArraySlice<DictationHistoryRecord> {
-        let cutoff = range.cutoff()
-        let records = cutoff.map { cutoff in
-            history.recentRecords.filter { $0.createdAt >= cutoff }
-        } ?? history.recentRecords
-        return records[...]
-    }
-
-    private var activityDays: [(date: Date, count: Int)] {
-        let calendar = Calendar.current
-        let today = calendar.startOfDay(for: Date())
-        return (0..<35).reversed().compactMap { offset in
-            guard let date = calendar.date(byAdding: .day, value: -offset, to: today) else {
-                return nil
-            }
-            let count = history.records.count { calendar.isDate($0.createdAt, inSameDayAs: date) }
-            return (date, count)
-        }
-    }
-
-    private var recentActiveDays: Int {
-        activityDays.count { $0.count > 0 }
-    }
-
-    private func dayOpacity(_ count: Int) -> Double {
+    private func dayOpacity(_ count: Int, maximum: Int) -> Double {
         guard count > 0 else { return 0.08 }
-        let maximum = max(1, activityDays.map(\.count).max() ?? 1)
         return 0.3 + 0.7 * Double(count) / Double(maximum)
     }
 
@@ -263,5 +242,26 @@ struct HistoryView: View {
         if rounded >= 3600 { return "\(rounded / 3600)h \((rounded % 3600) / 60)m" }
         if rounded >= 60 { return "\(rounded / 60)m" }
         return "\(rounded)s"
+    }
+}
+
+private struct HistoryDashboard {
+    let statistics: DictationStatistics
+    let visibleRecords: [DictationHistoryRecord]
+    let activityDays: [DictationActivityDay]
+
+    @MainActor
+    init(history: HistoryManager, range: StatisticsRange, now: Date = Date()) {
+        statistics = history.statistics(for: range)
+        let cutoff = range.cutoff(from: now)
+        visibleRecords = Array(
+            history.recentRecords.lazy
+                .filter { record in cutoff.map { record.createdAt >= $0 } ?? true }
+                .prefix(50)
+        )
+        activityDays = DictationActivity.recentDays(
+            records: history.records,
+            through: now
+        )
     }
 }

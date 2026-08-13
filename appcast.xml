@@ -7,6 +7,24 @@
 
     <!-- Newest release first. scripts/release-app.sh prints a complete item. -->
     <item>
+      <title>0.2.11</title>
+      <sparkle:version>19</sparkle:version>
+      <sparkle:shortVersionString>0.2.11</sparkle:shortVersionString>
+      <sparkle:minimumSystemVersion>15.0</sparkle:minimumSystemVersion>
+      <description><![CDATA[
+        <h2>Open Natter without delay</h2>
+        <ul>
+          <li>The main Natter window now opens quickly, even when local history contains many dictations.</li>
+        </ul>
+      ]]></description>
+      <enclosure
+        url="https://github.com/iannuttall/natter/releases/download/v0.2.11/Natter-0.2.11.dmg"
+        length="35474882"
+        type="application/octet-stream"
+        sparkle:edSignature="FDyo5w+WnDQU2MCX5rBpKqigL3qrGbKHMle51bwJWL0T3dfLLYdFeiJFWzgh5qj0oyvBlzyHrVC93QAR74K/Cg==" />
+    </item>
+
+    <item>
       <title>0.2.10</title>
       <sparkle:version>18</sparkle:version>
       <sparkle:shortVersionString>0.2.10</sparkle:shortVersionString>

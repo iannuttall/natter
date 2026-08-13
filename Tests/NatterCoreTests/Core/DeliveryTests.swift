@@ -401,3 +401,59 @@ import Testing
 @Test func historyWordCountUsesWhitespaceBoundaries() {
     #expect(DictationHistoryRecord.countWords(in: "Ship v2 to ian@example.com.") == 4)
 }
+
+@Test func historyActivityGroupsRecentRecordsInOneDailySeries() {
+    let calendar = Calendar(identifier: .gregorian)
+    let end = Date(timeIntervalSince1970: 7 * 86_400 + 12 * 3_600)
+    let records = [
+        DictationHistoryRecord(
+            createdAt: end.addingTimeInterval(-3_600),
+            durationSeconds: 1,
+            mode: .raw,
+            wordCount: 1,
+            sourceBundleIdentifier: nil,
+            sourceApplicationName: nil,
+            transcript: nil,
+            outcome: .delivered
+        ),
+        DictationHistoryRecord(
+            createdAt: end.addingTimeInterval(-7_200),
+            durationSeconds: 1,
+            mode: .raw,
+            wordCount: 1,
+            sourceBundleIdentifier: nil,
+            sourceApplicationName: nil,
+            transcript: nil,
+            outcome: .delivered
+        ),
+        DictationHistoryRecord(
+            createdAt: end.addingTimeInterval(-2 * 86_400),
+            durationSeconds: 1,
+            mode: .raw,
+            wordCount: 1,
+            sourceBundleIdentifier: nil,
+            sourceApplicationName: nil,
+            transcript: nil,
+            outcome: .delivered
+        ),
+        DictationHistoryRecord(
+            createdAt: end.addingTimeInterval(-10 * 86_400),
+            durationSeconds: 1,
+            mode: .raw,
+            wordCount: 1,
+            sourceBundleIdentifier: nil,
+            sourceApplicationName: nil,
+            transcript: nil,
+            outcome: .delivered
+        ),
+    ]
+
+    let days = DictationActivity.recentDays(
+        records: records,
+        dayCount: 4,
+        through: end,
+        calendar: calendar
+    )
+
+    #expect(days.map(\.count) == [0, 1, 0, 2])
+}
