@@ -65,6 +65,28 @@ import Testing
     #expect(ready.essentialSetupIsValid)
 }
 
+@Test func oneNewPracticeWordCompletesTheTest() {
+    #expect(OnboardingPracticeCompletion.hasNewWord(
+        in: "Hello.",
+        after: 0
+    ))
+    #expect(OnboardingPracticeCompletion.hasNewWord(
+        in: "Existing words plus one.",
+        after: 3
+    ))
+}
+
+@Test func unchangedPracticeTextDoesNotCompleteTheTest() {
+    #expect(!OnboardingPracticeCompletion.hasNewWord(
+        in: "Existing words",
+        after: 2
+    ))
+    #expect(!OnboardingPracticeCompletion.hasNewWord(
+        in: "",
+        after: 0
+    ))
+}
+
 @Test func modesSeparateLiveAndGenerativeDelivery() {
     #expect(!DictationMode.raw.typesIncrementally)
     #expect(!DictationMode.agent.typesIncrementally)

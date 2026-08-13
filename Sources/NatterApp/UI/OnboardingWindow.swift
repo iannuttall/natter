@@ -222,9 +222,10 @@ private struct OnboardingView: View {
                             .split(whereSeparator: \.isWhitespace).count
                         practiceWasStarted = true
                     case .idle where practiceWasStarted:
-                        let currentWordCount = practiceText
-                            .split(whereSeparator: \.isWhitespace).count
-                        if currentWordCount >= practiceBaselineWordCount + 3 {
+                        if OnboardingPracticeCompletion.hasNewWord(
+                            in: practiceText,
+                            after: practiceBaselineWordCount
+                        ) {
                             onboarding.completePractice()
                         }
                         practiceWasStarted = false
@@ -243,6 +244,16 @@ private struct OnboardingView: View {
                 .font(.caption)
                 .foregroundStyle(.secondary)
             Spacer()
+            HStack {
+                Text("If dictation already works elsewhere, you can continue without this test.")
+                    .font(.caption)
+                    .foregroundStyle(.secondary)
+                Spacer()
+                Button("Continue to Writing Tools") {
+                    practiceWasStarted = false
+                    onboarding.completePractice()
+                }
+            }
         }
     }
 
