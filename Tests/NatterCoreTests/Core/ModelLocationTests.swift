@@ -8,25 +8,107 @@ import Testing
         .appendingPathComponent(UUID().uuidString, isDirectory: true)
     defer { try? FileManager.default.removeItem(at: directory) }
 
-    for relativePath in [
+    let modelBundles = [
         "parakeet_unified_encoder_int8.mlmodelc",
         "parakeet_unified_encoder_streaming_70_7_1_int8.mlmodelc",
         "parakeet_unified_decoder.mlmodelc",
         "parakeet_unified_joint_decision_single_step.mlmodelc",
-        "vocab.json",
-    ] {
-        let file = directory.appendingPathComponent(relativePath)
+    ]
+    for relativePath in modelBundles {
+        let file = directory
+            .appendingPathComponent(relativePath, isDirectory: true)
+            .appendingPathComponent("coremldata.bin")
         try FileManager.default.createDirectory(
             at: file.deletingLastPathComponent(),
             withIntermediateDirectories: true
         )
         #expect(FileManager.default.createFile(atPath: file.path, contents: Data()))
     }
+    let vocab = directory.appendingPathComponent("vocab.json")
+    #expect(FileManager.default.createFile(atPath: vocab.path, contents: Data()))
 
     #expect(SpeechModelLocation.isComplete(at: directory))
-    try FileManager.default.removeItem(
-        at: directory.appendingPathComponent("vocab.json")
+    try FileManager.default.removeItem(at: vocab)
+    #expect(!SpeechModelLocation.isComplete(at: directory))
+}
+
+@Test func speechModelRejectsAnIncompleteCompiledBundle() throws {
+    let directory = FileManager.default.temporaryDirectory
+        .appendingPathComponent(UUID().uuidString, isDirectory: true)
+    defer { try? FileManager.default.removeItem(at: directory) }
+
+    let modelBundles = [
+        "parakeet_unified_encoder_int8.mlmodelc",
+        "parakeet_unified_encoder_streaming_70_7_1_int8.mlmodelc",
+        "parakeet_unified_decoder.mlmodelc",
+        "parakeet_unified_joint_decision_single_step.mlmodelc",
+    ]
+    for relativePath in modelBundles {
+        let bundle = directory.appendingPathComponent(relativePath, isDirectory: true)
+        try FileManager.default.createDirectory(at: bundle, withIntermediateDirectories: true)
+        #expect(FileManager.default.createFile(
+            atPath: bundle.appendingPathComponent("coremldata.bin").path,
+            contents: Data()
+        ))
+    }
+    #expect(FileManager.default.createFile(
+        atPath: directory.appendingPathComponent("vocab.json").path,
+        contents: Data()
+    ))
+
+    let streamingBundle = directory.appendingPathComponent(
+        "parakeet_unified_encoder_streaming_70_7_1_int8.mlmodelc",
+        isDirectory: true
     )
+    try FileManager.default.removeItem(
+        at: streamingBundle.appendingPathComponent("coremldata.bin")
+    )
+    let partial = streamingBundle
+        .appendingPathComponent("weights", isDirectory: true)
+        .appendingPathComponent("weight.bin.partial")
+    try FileManager.default.createDirectory(
+        at: partial.deletingLastPathComponent(),
+        withIntermediateDirectories: true
+    )
+    #expect(FileManager.default.createFile(atPath: partial.path, contents: Data()))
+
+    #expect(!SpeechModelLocation.isComplete(at: directory))
+}
+
+@Test func speechModelRejectsAStalePartialFile() throws {
+    let directory = FileManager.default.temporaryDirectory
+        .appendingPathComponent(UUID().uuidString, isDirectory: true)
+    defer { try? FileManager.default.removeItem(at: directory) }
+
+    let modelBundles = [
+        "parakeet_unified_encoder_int8.mlmodelc",
+        "parakeet_unified_encoder_streaming_70_7_1_int8.mlmodelc",
+        "parakeet_unified_decoder.mlmodelc",
+        "parakeet_unified_joint_decision_single_step.mlmodelc",
+    ]
+    for relativePath in modelBundles {
+        let bundle = directory.appendingPathComponent(relativePath, isDirectory: true)
+        try FileManager.default.createDirectory(at: bundle, withIntermediateDirectories: true)
+        #expect(FileManager.default.createFile(
+            atPath: bundle.appendingPathComponent("coremldata.bin").path,
+            contents: Data()
+        ))
+    }
+    #expect(FileManager.default.createFile(
+        atPath: directory.appendingPathComponent("vocab.json").path,
+        contents: Data()
+    ))
+
+    let partial = directory
+        .appendingPathComponent(modelBundles[0], isDirectory: true)
+        .appendingPathComponent("weights", isDirectory: true)
+        .appendingPathComponent("weight.bin.partial")
+    try FileManager.default.createDirectory(
+        at: partial.deletingLastPathComponent(),
+        withIntermediateDirectories: true
+    )
+    #expect(FileManager.default.createFile(atPath: partial.path, contents: Data()))
+
     #expect(!SpeechModelLocation.isComplete(at: directory))
 }
 
