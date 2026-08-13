@@ -12,10 +12,15 @@ private struct OnboardingView: View {
     @State private var practiceText = ""
     @State private var practiceBaselineWordCount = 0
     @State private var practiceWasStarted = false
+    @State private var reviewedStep: OnboardingStep?
     @FocusState private var practiceIsFocused: Bool
 
     private var snapshot: OnboardingSnapshot {
         onboarding.snapshot(modelManager: modelManager, permissions: permissions)
+    }
+
+    private var displayedStep: OnboardingStep {
+        reviewedStep ?? snapshot.currentStep
     }
 
     var body: some View {
@@ -39,6 +44,10 @@ private struct OnboardingView: View {
             }
         }
         .onChange(of: snapshot.currentStep) { _, step in
+            if let reviewedStep,
+               stepIndex(reviewedStep) >= stepIndex(step) {
+                self.reviewedStep = nil
+            }
             if step == .practice {
                 store.select(.raw)
                 Task { @MainActor in practiceIsFocused = true }
@@ -66,6 +75,9 @@ private struct OnboardingView: View {
             Text("No account or cloud inference")
                 .font(.caption2)
                 .foregroundStyle(.tertiary)
+            Text("Select an earlier step to review or repair it.")
+                .font(.caption2)
+                .foregroundStyle(.tertiary)
         }
         .padding(24)
         .frame(width: 190, alignment: .leading)
@@ -78,18 +90,26 @@ private struct OnboardingView: View {
         title: String,
         symbol: String
     ) -> some View {
-        let current = snapshot.currentStep
-        let complete = stepIndex(step) < stepIndex(current)
-        HStack(spacing: 10) {
-            Image(systemName: complete ? "checkmark.circle.fill" : symbol)
-                .foregroundStyle(current == step || complete
-                    ? Theme.Colour.accent
-                    : Color.secondary)
-                .frame(width: 20)
-            Text(title)
-                .fontWeight(current == step ? .semibold : .regular)
-                .foregroundStyle(current == step ? .primary : .secondary)
+        let currentStep = snapshot.currentStep
+        let complete = stepIndex(step) < stepIndex(currentStep)
+        let selected = step == displayedStep
+        Button {
+            reviewedStep = step == currentStep ? nil : step
+        } label: {
+            HStack(spacing: 10) {
+                Image(systemName: complete ? "checkmark.circle.fill" : symbol)
+                    .foregroundStyle(selected || complete
+                        ? Theme.Colour.accent
+                        : Color.secondary)
+                    .frame(width: 20)
+                Text(title)
+                    .fontWeight(selected ? .semibold : .regular)
+                    .foregroundStyle(selected ? .primary : .secondary)
+            }
+            .contentShape(Rectangle())
         }
+        .buttonStyle(.plain)
+        .disabled(stepIndex(step) > stepIndex(currentStep))
         .padding(.vertical, 5)
     }
 
@@ -100,7 +120,7 @@ private struct OnboardingView: View {
     @ViewBuilder
     private var content: some View {
         VStack(alignment: .leading, spacing: 22) {
-            switch snapshot.currentStep {
+            switch displayedStep {
             case .welcome:
                 welcome
             case .speechModel:
@@ -132,7 +152,10 @@ private struct OnboardingView: View {
             Spacer()
             HStack {
                 Spacer()
-                Button("Continue") { onboarding.acceptWelcome() }
+                Button("Continue") {
+                    onboarding.acceptWelcome()
+                    reviewedStep = nil
+                }
                     .buttonStyle(.borderedProminent)
                     .controlSize(.large)
             }
@@ -241,10 +264,16 @@ private struct OnboardingView: View {
             )
             Spacer()
             HStack {
-                Button("Not now") { onboarding.deferWritingModel() }
+                Button("Not now") {
+                    onboarding.deferWritingModel()
+                    reviewedStep = nil
+                }
                 Spacer()
                 if modelManager.agentWritingInstalled || modelManager.writingInstalled {
-                    Button("Continue") { onboarding.deferWritingModel() }
+                    Button("Continue") {
+                        onboarding.deferWritingModel()
+                        reviewedStep = nil
+                    }
                         .buttonStyle(.borderedProminent)
                 }
             }
@@ -323,7 +352,7 @@ private struct OnboardingView: View {
                 ModelPackAction(
                     modelManager: modelManager,
                     pack: pack,
-                    allowsRemoval: false,
+                    allowsRemoval: true,
                     downloadTitle: pack == .speech ? "Agree & Download" : "Download",
                     usesProminentButton: true
                 )
@@ -339,6 +368,13 @@ private struct OnboardingView: View {
                 Text("Choosing Agree & Download confirms that you accept these model terms.")
                     .font(.caption2)
                     .foregroundStyle(.tertiary)
+            }
+            if modelManager.errorPack == pack,
+               let errorMessage = modelManager.errorMessage {
+                Label(errorMessage, systemImage: "exclamationmark.triangle.fill")
+                    .font(.caption)
+                    .foregroundStyle(.red)
+                    .fixedSize(horizontal: false, vertical: true)
             }
         }
         .panelCard(padding: 16)

@@ -10,7 +10,15 @@ struct ModelPackAction: View {
 
     @ViewBuilder
     var body: some View {
-        if modelManager.installing == pack {
+        if modelManager.removing == pack {
+            HStack(spacing: 6) {
+                ProgressView()
+                    .controlSize(.small)
+                Text("Removing…")
+                    .font(.caption)
+                    .foregroundStyle(.secondary)
+            }
+        } else if modelManager.installing == pack {
             VStack(alignment: .trailing, spacing: usesProminentButton ? 6 : 4) {
                 ProgressView(value: modelManager.progress)
                     .frame(width: usesProminentButton ? 130 : 110)
@@ -48,7 +56,7 @@ struct ModelPackAction: View {
         Button(downloadTitle) {
             modelManager.install(pack)
         }
-        .disabled(modelManager.installing != nil)
+        .disabled(modelManager.installing != nil || modelManager.removing != nil)
     }
 
     private var installedLabel: some View {

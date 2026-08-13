@@ -7,6 +7,26 @@
 
     <!-- Newest release first. scripts/release-app.sh prints a complete item. -->
     <item>
+      <title>0.2.8</title>
+      <sparkle:version>16</sparkle:version>
+      <sparkle:shortVersionString>0.2.8</sparkle:shortVersionString>
+      <sparkle:minimumSystemVersion>15.0</sparkle:minimumSystemVersion>
+      <description><![CDATA[
+        <h2>Reliable speech model setup</h2>
+        <ul>
+          <li>Interrupted speech model downloads now resume or restart safely instead of leaving setup stuck at “Try the shortcut.”</li>
+          <li>Natter checks that every Core ML model is complete before setup continues.</li>
+          <li>You can return to earlier setup steps, remove an installed model, and see a clear error when a model action fails.</li>
+        </ul>
+      ]]></description>
+      <enclosure
+        url="https://github.com/iannuttall/natter/releases/download/v0.2.8/Natter-0.2.8.dmg"
+        length="35476338"
+        type="application/octet-stream"
+        sparkle:edSignature="otHOAE8qs+nGxMUebVqJUkFQ8ehVCfTgtZwZaLUCExzt5nloU2pm9/3V+wBOpZtgGZFBHBfuEfum3YYY1mrHDQ==" />
+    </item>
+
+    <item>
       <title>0.2.7</title>
       <sparkle:version>15</sparkle:version>
       <sparkle:shortVersionString>0.2.7</sparkle:shortVersionString>

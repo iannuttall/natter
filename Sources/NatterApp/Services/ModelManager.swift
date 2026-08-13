@@ -11,14 +11,17 @@ final class ModelManager {
     private let writingInstaller = WritingModelInstaller()
     private var installationTask: Task<Void, Never>?
     private var speechWarmupTask: Task<Void, Never>?
+    private var removalTask: Task<Void, Never>?
 
     private(set) var speechInstalled = false
     private(set) var agentWritingInstalled = false
     private(set) var writingInstalled = false
     private(set) var installing: ModelPack?
+    private(set) var removing: ModelPack?
     private(set) var progress: Double = 0
     private(set) var status = ""
     private(set) var errorMessage: String?
+    private(set) var errorPack: ModelPack?
 
     init(
         paths: AppPaths = .live(bundleIdentifier: AppInfo.bundleIdentifier),
@@ -38,11 +41,12 @@ final class ModelManager {
     }
 
     func install(_ pack: ModelPack) {
-        guard installing == nil else { return }
+        guard installing == nil, removing == nil else { return }
         installing = pack
         progress = 0
         status = "Preparing download…"
         errorMessage = nil
+        errorPack = nil
 
         installationTask = Task {
             do {
@@ -62,11 +66,13 @@ final class ModelManager {
                 installationTask = nil
             } catch is CancellationError {
                 errorMessage = nil
+                errorPack = nil
                 status = "Download paused"
                 installing = nil
                 installationTask = nil
             } catch {
                 errorMessage = error.localizedDescription
+                errorPack = pack
                 status = "Download failed"
                 installing = nil
                 installationTask = nil
@@ -103,25 +109,33 @@ final class ModelManager {
     }
 
     func remove(_ pack: ModelPack) {
-        guard installing == nil else { return }
+        guard installing == nil, removing == nil else { return }
         errorMessage = nil
+        errorPack = nil
+        removing = pack
+        status = "Removing…"
 
-        do {
-            switch pack {
-            case .speech:
-                speechWarmupTask?.cancel()
-                speechWarmupTask = nil
-                try removeIfPresent(SpeechModelLocation.installedDirectory(in: paths))
-                Task { await speechTranscriber.unload() }
-            case .writing:
-                try removeIfPresent(WritingModelLocation.downloadRoot(in: paths))
-            case .agentWriting:
-                try removeIfPresent(AgentWritingModelLocation.downloadRoot(in: paths))
+        removalTask = Task {
+            do {
+                switch pack {
+                case .speech:
+                    speechWarmupTask?.cancel()
+                    speechWarmupTask = nil
+                    await speechTranscriber.unload()
+                    try removeIfPresent(SpeechModelLocation.installedDirectory(in: paths))
+                case .writing:
+                    try removeIfPresent(WritingModelLocation.downloadRoot(in: paths))
+                case .agentWriting:
+                    try removeIfPresent(AgentWritingModelLocation.downloadRoot(in: paths))
+                }
+                refresh()
+                status = "Removed"
+            } catch {
+                errorMessage = error.localizedDescription
+                errorPack = pack
             }
-            refresh()
-            status = "Removed"
-        } catch {
-            errorMessage = error.localizedDescription
+            removing = nil
+            removalTask = nil
         }
     }
 
