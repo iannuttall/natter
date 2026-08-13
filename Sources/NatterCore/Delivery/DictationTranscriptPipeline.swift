@@ -16,11 +16,12 @@ public enum DictationTranscriptPipeline {
         mode: DictationMode,
         corrections: [PersonalCorrection]
     ) -> String {
-        guard mode != .raw else { return rawTranscript }
+        let recognizedTranscript = BuiltInRecognitionCorrections.apply(to: rawTranscript)
+        guard mode != .raw else { return recognizedTranscript }
         return PersonalCorrections.apply(
             corrections,
             to: SpokenTechnicalTextNormalizer.normalize(
-                rawTranscript,
+                recognizedTranscript,
                 context: .technical
             ),
             scope: correctionScope(for: mode)
@@ -80,5 +81,20 @@ public enum DictationTranscriptPipeline {
 
     private static func correctionScope(for mode: DictationMode) -> PersonalCorrectionScope {
         mode == .agent ? .agent : .everywhere
+    }
+}
+
+enum BuiltInRecognitionCorrections {
+    private static let natterVariant = try? NSRegularExpression(
+        pattern: #"(?i)(?<![\p{L}\p{N}_])nata(?![\p{L}\p{N}_])"#
+    )
+
+    static func apply(to transcript: String) -> String {
+        guard let natterVariant else { return transcript }
+        return natterVariant.stringByReplacingMatches(
+            in: transcript,
+            range: NSRange(transcript.startIndex..., in: transcript),
+            withTemplate: "Natter"
+        )
     }
 }
