@@ -54,7 +54,7 @@ public struct DictationMode: RawRepresentable, Codable, Hashable, Identifiable, 
 
     public var detail: String {
         switch self {
-        case .raw: "Untouched Parakeet dictation. Fastest, with no cleanup."
+        case .raw: "Direct Parakeet dictation with the Natter name fixed. Fastest, with no cleanup."
         case .agent: "Fast deterministic formatting for code, commands and technical terms."
         case .clean: "Deterministic cleanup, plus optional local sentence polishing."
         case .email: "Turn the finished transcript into a direct, natural email."

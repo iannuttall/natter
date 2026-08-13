@@ -54,6 +54,27 @@ import Testing
             ))
 }
 
+@Test func dictationTranscriptPipelineRecognizesNatterInEveryMode() {
+    for mode in [DictationMode.raw, .agent, .clean, .email, .article] {
+        #expect(
+            DictationTranscriptPipeline.preview(
+                rawTranscript: "Use NATA for this, not NATAware",
+                mode: mode,
+                corrections: []
+            ) == "Use Natter for this, not NATAware"
+        )
+
+        let result = DictationTranscriptPipeline.prepareFinal(
+            rawTranscript: "Use NATA",
+            mode: mode,
+            corrections: [],
+            destinationApplicationName: nil,
+            voiceSubmitEnabled: false
+        )
+        #expect(result.transcript == "Use Natter.")
+    }
+}
+
 @Test func appendOnlyTranscriptEmitsEveryNewDelta() {
     var emitter = StableTranscriptEmitter()
 

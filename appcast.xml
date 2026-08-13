@@ -7,6 +7,24 @@
 
     <!-- Newest release first. scripts/release-app.sh prints a complete item. -->
     <item>
+      <title>0.2.10</title>
+      <sparkle:version>18</sparkle:version>
+      <sparkle:shortVersionString>0.2.10</sparkle:shortVersionString>
+      <sparkle:minimumSystemVersion>15.0</sparkle:minimumSystemVersion>
+      <description><![CDATA[
+        <h2>Recognize Natter in every mode</h2>
+        <ul>
+          <li>Natter now recognizes its own name correctly in every dictation mode, including Raw.</li>
+        </ul>
+      ]]></description>
+      <enclosure
+        url="https://github.com/iannuttall/natter/releases/download/v0.2.10/Natter-0.2.10.dmg"
+        length="35471887"
+        type="application/octet-stream"
+        sparkle:edSignature="umCJVTNtNJxZ+DdNwixRshwMsaJX9ElSsq7kZvWGuLglX037YlFg3d5g5LyuC+SEbDrZRo3TYas37+suVyMNAg==" />
+    </item>
+
+    <item>
       <title>0.2.9</title>
       <sparkle:version>17</sparkle:version>
       <sparkle:shortVersionString>0.2.9</sparkle:shortVersionString>

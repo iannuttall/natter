@@ -21,8 +21,8 @@ types into the app you were already using.
 Double-tap Right Option and start talking. Natter listens through a local speech model and
 shows the live transcript in a small overlay. Tap Right Option once to stop.
 
-Raw shows Parakeet's direct transcript in the overlay, adds a missing final full stop to prose,
-then types it after you stop. Every
+Raw shows Parakeet's direct transcript in the overlay, corrects `NATA` to `Natter`, adds a
+missing final full stop to prose, then types it after you stop. Every
 other mode shares Natter's deterministic cleanup for fillers, repetitions, punctuation and
 technical terms. Each mode then chooses Fast, Refine or Rewrite processing. Press
 Command-Shift-M while listening to switch mode without moving focus out of the text field.
@@ -52,7 +52,7 @@ Fast never uses a writing model. Refine falls back to deterministic cleanup when
 ## Dictation modes
 
 - **Raw** is fixed. It types the final Parakeet transcript after stop with no cleanup or technical
-  formatting, adding only a missing final full stop to prose.
+  formatting. It corrects `NATA` to `Natter` and adds a missing final full stop to prose.
 - **Agent** starts as a Fast mode for low-latency technical dictation.
 - **Clean** starts as a Refine mode for guarded punctuation and flow improvements.
 - **Email** and **Article** start as Rewrite modes with instructions suited to each format.
