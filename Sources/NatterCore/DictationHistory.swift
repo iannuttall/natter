@@ -58,6 +58,49 @@ public struct DictationSourceStatistic: Equatable, Identifiable, Sendable {
     public var id: String { bundleIdentifier ?? applicationName }
 }
 
+public struct DictationActivityDay: Equatable, Identifiable, Sendable {
+    public let date: Date
+    public let count: Int
+
+    public var id: Date { date }
+
+    public init(date: Date, count: Int) {
+        self.date = date
+        self.count = max(0, count)
+    }
+}
+
+public enum DictationActivity {
+    public static func recentDays(
+        records: [DictationHistoryRecord],
+        dayCount: Int = 35,
+        through date: Date = Date(),
+        calendar: Calendar = .current
+    ) -> [DictationActivityDay] {
+        guard dayCount > 0 else { return [] }
+        let lastDay = calendar.startOfDay(for: date)
+        guard let firstDay = calendar.date(
+            byAdding: .day,
+            value: -(dayCount - 1),
+            to: lastDay
+        ) else { return [] }
+
+        var counts: [Date: Int] = [:]
+        for record in records {
+            let recordDay = calendar.startOfDay(for: record.createdAt)
+            guard recordDay >= firstDay, recordDay <= lastDay else { continue }
+            counts[recordDay, default: 0] += 1
+        }
+
+        return (0..<dayCount).compactMap { offset in
+            guard let day = calendar.date(byAdding: .day, value: offset, to: firstDay) else {
+                return nil
+            }
+            return DictationActivityDay(date: day, count: counts[day, default: 0])
+        }
+    }
+}
+
 public struct DictationStatistics: Equatable, Sendable {
     public let totalWords: Int
     public let totalDurationSeconds: TimeInterval
