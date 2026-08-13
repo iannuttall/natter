@@ -7,6 +7,25 @@
 
     <!-- Newest release first. scripts/release-app.sh prints a complete item. -->
     <item>
+      <title>0.2.9</title>
+      <sparkle:version>17</sparkle:version>
+      <sparkle:shortVersionString>0.2.9</sparkle:shortVersionString>
+      <sparkle:minimumSystemVersion>15.0</sparkle:minimumSystemVersion>
+      <description><![CDATA[
+        <h2>Continue through setup</h2>
+        <ul>
+          <li>One successfully dictated word now completes the shortcut test.</li>
+          <li>If dictation already works elsewhere, you can continue directly to the optional writing tools.</li>
+        </ul>
+      ]]></description>
+      <enclosure
+        url="https://github.com/iannuttall/natter/releases/download/v0.2.9/Natter-0.2.9.dmg"
+        length="35472870"
+        type="application/octet-stream"
+        sparkle:edSignature="fFvz6M9zrinp1+V4jYBD0kKPkZaQEZdI41xE3rRBeRRBd63p/DopDsBEwgWLDM1+WURmYYh3ee8Rvw/l9Sd4AQ==" />
+    </item>
+
+    <item>
       <title>0.2.8</title>
       <sparkle:version>16</sparkle:version>
       <sparkle:shortVersionString>0.2.8</sparkle:shortVersionString>
